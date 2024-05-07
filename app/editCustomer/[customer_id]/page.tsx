@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
+import PopupModal from '@/app/components/popUpModal';
 
 export default function Page() {
   const router = useRouter();
@@ -25,13 +26,16 @@ export default function Page() {
     service_id: '',
     package_id: '',
     location_id: '',
+    olt_id: '',
   });
   const [services, setServices] = useState([]);
   const [packages, setPackages] = useState([]);
   const [locations, setLocations] = useState([]);
   const [devices, setDevices] = useState([]);
+  const [OLTs, setOLTs] = useState([]);
   const [error, setError] = useState(null);
   const { customer_id } = useParams();
+  
 
   useEffect(() => {
     const fetchCustomer = async () => {
@@ -92,12 +96,23 @@ export default function Page() {
         setError(error.message);
       }
     };
+    const fetchOLT = async () => {
+      try {
+        const { data, error } = await supabase.from('OLT').select('*');
+        if (error) throw new Error(error.message);
+        setOLTs(data);
+      } catch (error) {
+        console.error('Error fetching OLTs:', error.message);
+        setError(error.message);
+      }
+    };
 
     fetchCustomer();
     fetchDevice();
     fetchLocation();
     fetchPackage();
     fetchService();
+    fetchOLT();
   }, [customer_id]);
 
   const handleEditCustomer = async (e) => {
@@ -124,6 +139,7 @@ export default function Page() {
           service_id: parseInt(customer.service_id),
           package_id: parseInt(customer.package_id),
           location_id: parseInt(customer.location_id),
+          olt_id: parseInt(customer.olt_id),
         })
         .eq('customer_id', customer_id);
       if (error) throw new Error(error.message);
@@ -253,6 +269,21 @@ export default function Page() {
               {devices.map((dvc) => (
                 <option key={dvc.device_id} value={dvc.device_id}>
                   {dvc.device_name}
+                </option>
+              ))}
+              </select>
+              <label htmlFor="deviceName" className="block mb-2 mt-4">OLT Name:</label>
+            <select
+              id="deviceName"
+              value={customer.olt_id}
+              onChange={(e) => setCustomer({ ...customer, olt_id: e.target.value })}
+              required
+              className="font-raleway-black w-full p-2 border"
+            >
+              <option value="">Select OLT...</option>
+              {OLTs.map((olt) => (
+                <option key={olt.olt_id} value={olt.olt_id}>
+                  {olt.olt_name}
                 </option>
               ))}
             </select>

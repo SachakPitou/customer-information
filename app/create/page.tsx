@@ -11,6 +11,7 @@ export default function Page() {
   const [services, setServices] = useState([]);
   const [packages, setPackages] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [OLTs, setOLTs] = useState([]);
   const [CID, setCID] = useState('');
   const [Address, setAddress] = useState('');
   const [longtitudes, setLongtitudes] = useState('');
@@ -27,6 +28,7 @@ export default function Page() {
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [selectedOLTId, setSelectedOLTId] = useState('');
   const [insertedCustomerId, setInsertedCustomerId] = useState('');
   const [activationDate, setActivationDate] = useState('');
   const [error, setError] = useState(null);
@@ -72,10 +74,21 @@ export default function Page() {
         setError(error.message);
       }
     };
+    const fetchOLT = async () => {
+      try {
+        const { data, error } = await supabase.from('OLT').select('*');
+        if (error) throw new Error(error.message);
+        setOLTs(data);
+      } catch (error) {
+        console.error('Error fetching OLTs:', error.message);
+        setError(error.message);
+      }
+    };
     fetchDevice();
     fetchLocation();
     fetchPackage();
     fetchService();
+    fetchOLT();
   }, []);
 
   const handleAddCustomer = async (e) => {
@@ -102,6 +115,7 @@ export default function Page() {
         service_id: parseInt(selectedServiceId),
         package_id: parseInt(selectedPackageId),
         location_id: parseInt(selectedLocationId),
+        olt_id: parseInt(selectedOLTId),
       }]);
       if (insertError) throw new Error(insertError.message);
 
@@ -124,6 +138,7 @@ export default function Page() {
       setSelectedServiceId('');
       setSelectedPackageId('');
       setSelectedLocationId('');
+      setSelectedOLTId('');
     } catch (error) {
       setError(error.message);
     }
@@ -237,6 +252,21 @@ export default function Page() {
               {devices.map((dvc) => (
                 <option key={dvc.device_id} value={dvc.device_id}>
                   {dvc.device_name}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="OLTName" className="block mb-2 mt-4">Select OLT:</label>
+            <select
+              id="OLTName"
+              value={selectedOLTId}
+              onChange={(e) => setSelectedOLTId(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border"
+            >
+              <option value="">Select OLT...</option>
+              {OLTs.map((olt) => (
+                <option key={olt.olt_id} value={olt.olt_id}>
+                  {olt.olt_name}
                 </option>
               ))}
             </select>
@@ -363,3 +393,7 @@ export default function Page() {
     </div>
   );
 }
+function setOLTs(data: any[]) {
+  throw new Error('Function not implemented.');
+}
+

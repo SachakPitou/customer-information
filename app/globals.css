@@ -52,7 +52,7 @@
 }
 .dashboard-text {
   font-family: '__GeistSans_ac79ff';
-  font-size: 13px;
+  font-size: 10px;
 }
 .text-wrap {
   max-width: 20px; /* Adjust the max-width as needed */
@@ -75,5 +75,9 @@
 }
 .view-customer {
   font-size: 16px;
+  font-family: '__GeistSans_ac79ff';
+}
+.title-dashboard {
+  font-size: 10.5px;
   font-family: '__GeistSans_ac79ff';
 }

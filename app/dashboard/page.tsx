@@ -10,8 +10,32 @@ export default function Page() {
     const [customerToDelete, setCustomerToDelete] = useState(null);
     const [searchValue, setSearchValue] = useState('');
     const router = useRouter();
+    const toggleUserStatus = async (customer) => {
+        try {
+            const updatedStatus = !customer.isActive;
+
+            // Update the status in the database
+            await supabase
+                .from('Customer')
+                .update({ isActive: updatedStatus })
+                .eq('customer_id', customer.customer_id);
+
+            // Update the local state to reflect the change
+            setCustomers((prevCustomers) =>
+                prevCustomers.map((c) =>
+                    c.customer_id === customer.customer_id ? { ...c, isActive: updatedStatus } : c
+                )
+            );
+
+            console.log(`Customer with ID ${customer.customer_id} is now ${updatedStatus ? 'active' : 'inactive'}`);
+        } catch (error) {
+            console.error('Error toggling user status:', error.message);
+        }
+    };
     const handleDeleteCustomer = async () => {
         try {
+            if (!customerToDelete) return;
+
             // Delete the customer from the database
             await supabase.from("Customer")
                 .delete()
@@ -29,15 +53,18 @@ export default function Page() {
             console.error('Error deleting customer:', error.message);
         }
     };
+    
+
     useEffect(() => {
         async function fetchCustomers() {
             try {
-                const { data: customersData, error } = await supabase.from('Customer').select('*');
+                const { data: customersData, error } = await supabase
+                    .from('Customer')
+                    .select('*')
+        
                 if (error) {
                     throw error;
                 }
-
-                // Extract all package_ids from customers
                 const packageIds = customersData.map((customer) => customer.package_id);
 
                 // Fetch package names based on package_ids
@@ -89,7 +116,84 @@ export default function Page() {
                     device_name: deviceMap[customer.device_id] || 'Unknown Device',
                 }));
 
-                setCustomers(customersWithDevices); // Set the state with customers that include device names
+                setCustomers(customersWithDevices);
+                
+                const serviceIds = customersData.map((customer) => customer.service_id);
+
+                // Fetch service names based on service_ids
+                const { data: servicesData, error: serviceError } = await supabase
+                    .from('Service')
+                    .select('service_id, service_name')
+                    .in('service_id', serviceIds);
+
+                if (serviceError) {
+                    throw serviceError;
+                }
+
+                // Map service_ids to service_names
+                const serviceMap = {};
+                servicesData.forEach((service) => {
+                    serviceMap[service.service_id] = service.service_name;
+                });
+
+                // Update the state with customers including service names
+                const customersWithServices = customersWithDevices.map((customer) => ({
+                    ...customer,
+                    service_name: serviceMap[customer.service_id] || 'Unknown Service',
+                }));
+
+                setCustomers(customersWithServices);
+
+                const locationIds = customersData.map((customer) => customer.location_id);
+
+                // Fetch service names based on service_ids
+                const { data: locationsData, error: locationError } = await supabase
+                    .from('Location')
+                    .select('location_id, location_name')
+                    .in('location_id', locationIds);
+
+                if (locationError) {
+                    throw locationError;
+                }
+
+                // Map service_ids to service_names
+                const locationMap = {};
+                locationsData.forEach((location) => {
+                    locationMap[location.location_id] = location.location_name;
+                });
+
+                // Update the state with customers including service names
+                const customersWithLocations = customersWithServices.map((customer) => ({
+                    ...customer,
+                    location_name: locationMap[customer.location_id] || 'Unknown Service',
+                }));
+
+                setCustomers(customersWithLocations);
+
+                const oltIds = customersData.map((customer) => customer.olt_id);
+
+                // Fetch device names based on device_ids
+                const { data: oltsData, error: oltError } = await supabase
+                    .from<OLT>('OLT')
+                    .select('olt_id, olt_name')
+                    .in('olt_id', oltIds);
+
+                if (oltError) {
+                    throw oltError;
+                }
+
+                // Map device_ids to device_names
+                const oltMap: Record<number, string> = {};
+                oltsData.forEach((olt) => {
+                    oltMap[olt.olt_id] = olt.olt_name;
+                });
+
+                // Update the state with customers including device names
+                const customersWithOLTs = customersWithLocations.map((customer) => ({
+                    ...customer,
+                    olt_name: oltMap[customer.olt_id] || 'Unknown Device',
+                }));
+                setCustomers(customersWithOLTs); 
 
             } catch (error) {
                 console.error('Error fetching data:', error.message);
@@ -98,7 +202,6 @@ export default function Page() {
 
         fetchCustomers();
     }, [customerToDelete, showModal]);
-
     
     // Filter the displayed data based on the search value
     const filteredCustomers = customers.filter((customer) => {
@@ -112,7 +215,8 @@ export default function Page() {
             (customer.service_port && customer.service_port.toString().toLowerCase().includes(searchValue.toLowerCase())) ||
             (customer.onu_id && typeof customer.onu_id === 'string' && customer.onu_id.toLowerCase().includes(searchValue.toLowerCase())) ||
             customer.ip_address.toLowerCase().includes(searchValue.toLowerCase()) ||
-            customer.device_name.toLowerCase().includes(searchValue.toLowerCase())
+            customer.device_name.toLowerCase().includes(searchValue.toLowerCase()) ||
+            customer.olt_name.toLowerCase().includes(searchValue.toLowerCase())
         );
     });
 
@@ -131,6 +235,7 @@ export default function Page() {
             handleSearch(); // Call the search function when Enter key is pressed
         }
     };
+    
     if (customers.length === 0) {
         return <div>Loading...</div>;
     }
@@ -167,13 +272,16 @@ export default function Page() {
                 </button> */}
             </div>
             <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <thead className="title-dashboard text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
                         {/* <th scope="col" className="p-4">
                           
                         </th> */}
                         <th scope="col" className="px-6 py-3">
                             Name
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            Status
                         </th>
                         <th scope="col" className="px-6 py-3">
                             Phone Number
@@ -200,9 +308,10 @@ export default function Page() {
                             IP Address
                         </th>
                         <th scope="col" className="px-6 py-3">
-                            <div className="truncate">
-                                Customer Router 
-                            </div>
+                            Customer Router 
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            OLT
                         </th>
                         <th scope="col" className="px-6 py-3">
                             
@@ -227,6 +336,16 @@ export default function Page() {
                                 </div>
                             </td> */}
                             <td className="px-6 py-4">{customer.customer_name}</td>
+                            <td className="px-6 py-4">
+                                <button
+                                    onClick={() => toggleUserStatus(customer)}
+                                    className={`text-sm font-medium rounded-lg px-3 py-1 ${
+                                        customer.isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                                    }`}
+                                >
+                                    {customer.isActive ? 'Active' : 'Inactive'}
+                                </button>
+                            </td>
                             <td className="px-6 py-4">{customer.phone_number}</td>
                             <td className="px-6 py-4">{customer.cid}</td>
                             <td className="px-6 py-4">{customer.package_name}</td>
@@ -236,6 +355,7 @@ export default function Page() {
                             <td className="px-6 py-4">{customer.onu_id}</td>
                             <td className="px-6 py-4">{customer.ip_address}</td>
                             <td className="px-6 py-4">{customer.device_name}</td>
+                            <td className="px-6 py-4">{customer.olt_name}</td>
                             <td className="px-6 py-4">
                                 <Link href={`/viewCustomer/${customer.customer_id}`} className="font-medium text-blue-600 dark:text-blue-500 hover:underline">
                                     View Customer

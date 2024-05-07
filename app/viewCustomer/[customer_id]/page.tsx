@@ -3,7 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
-
+interface OLT {
+    olt_id: number;
+    olt_name: string;
+}
 export default function viewCustomer() {
     const [customers, setCustomers] = useState([]);
     const router = useRouter();
@@ -130,6 +133,32 @@ export default function viewCustomer() {
                 }));
 
                 setCustomers(customersWithLocations);
+
+                const oltIds = customersData.map((customer) => customer.olt_id);
+
+                // Fetch device names based on device_ids
+                const { data: oltsData, error: oltError } = await supabase
+                    .from<OLT>('OLT')
+                    .select('olt_id, olt_name')
+                    .in('olt_id', oltIds);
+
+                if (oltError) {
+                    throw oltError;
+                }
+
+                // Map device_ids to device_names
+                const oltMap: Record<number, string> = {};
+                oltsData.forEach((olt) => {
+                    oltMap[olt.olt_id] = olt.olt_name;
+                });
+
+                // Update the state with customers including device names
+                const customersWithOLTs = customersWithLocations.map((customer) => ({
+                    ...customer,
+                    olt_name: oltMap[customer.olt_id] || 'Unknown Device',
+                }));
+                setCustomers(customersWithOLTs); 
+
             } catch (error) {
                 console.error('Error fetching data:', error.message);
             }
@@ -212,7 +241,7 @@ export default function viewCustomer() {
                                     </div>
                                     <br />
                                 </div>
-</td>
+                            </td>
                             <td className="px-6 py-4">
                                 <div>
                                     <div className="flex mb-2 dark:bg-gray-700 mr-2 mb-5 px-3 py-3">
@@ -264,6 +293,11 @@ export default function viewCustomer() {
                                         <span>: {customer.device_name}</span>
                                     </div>
                                     <br />
+                                    <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">OLT</span>
+                                        <span>: {customer.olt_name}</span>
+                                    </div>
+                                    <br />
                                 </div>
                             </td>
                         </tr>
@@ -272,9 +306,4 @@ export default function viewCustomer() {
             </table>
         </div>
     );
-    function generateSpaces(value) {
-        const maxSpaces = 40; // Adjust this value as needed for alignment
-        const spacesNeeded = maxSpaces - value.length;
-        return " ".repeat(spacesNeeded);
-    }
 }
