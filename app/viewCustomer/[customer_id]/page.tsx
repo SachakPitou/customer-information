@@ -240,6 +240,10 @@ export default function viewCustomer() {
                                         <span>: {customer.activation_date}</span>
                                     </div>
                                     <br />
+                                    <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">Status</span>
+                                        <span>: {customer.isActive ? 'Active' : 'Inactive'}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td className="px-6 py-4">

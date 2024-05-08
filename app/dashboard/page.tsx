@@ -4,29 +4,34 @@ import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+const ACTIVE = 'active';
+const INACTIVE = 'inactive';
 export default function Page() {
     const [customers, setCustomers] = useState([]);
     const [showModal, setShowModal] = useState(false); 
     const [customerToDelete, setCustomerToDelete] = useState(null);
     const [searchValue, setSearchValue] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [searchField, setSearchField] = useState('all');
     const router = useRouter();
     const toggleUserStatus = async (customer) => {
         try {
             const updatedStatus = !customer.isActive;
-
+    
             // Update the status in the database
             await supabase
                 .from('Customer')
                 .update({ isActive: updatedStatus })
                 .eq('customer_id', customer.customer_id);
-
+    
             // Update the local state to reflect the change
             setCustomers((prevCustomers) =>
                 prevCustomers.map((c) =>
                     c.customer_id === customer.customer_id ? { ...c, isActive: updatedStatus } : c
                 )
             );
-
+    
             console.log(`Customer with ID ${customer.customer_id} is now ${updatedStatus ? 'active' : 'inactive'}`);
         } catch (error) {
             console.error('Error toggling user status:', error.message);
@@ -205,19 +210,56 @@ export default function Page() {
     
     // Filter the displayed data based on the search value
     const filteredCustomers = customers.filter((customer) => {
-        return (
-            customer.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-            customer.phone_number.toLowerCase().includes(searchValue.toLowerCase()) ||
-            customer.cid.toLowerCase().includes(searchValue.toLowerCase()) ||
-            customer.package_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-            (customer.slot && customer.slot.toString().toLowerCase().includes(searchValue.toLowerCase())) ||
-            (customer.port && customer.port.toString().toLowerCase().includes(searchValue.toLowerCase())) ||
-            (customer.service_port && customer.service_port.toString().toLowerCase().includes(searchValue.toLowerCase())) ||
-            (customer.onu_id && typeof customer.onu_id === 'string' && customer.onu_id.toLowerCase().includes(searchValue.toLowerCase())) ||
-            customer.ip_address.toLowerCase().includes(searchValue.toLowerCase()) ||
-            customer.device_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-            customer.olt_name.toLowerCase().includes(searchValue.toLowerCase())
-        );
+        const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
+      
+        if (searchValue === '') {
+            return true; // No search term, return all customers
+        }
+      
+        let isMatchingSearch = false;
+      
+        if (searchField === 'all') {
+            isMatchingSearch = (
+                customer.customer_name.toLowerCase().includes(searchTerm) ||
+                customer.phone_number.toLowerCase().includes(searchTerm) ||
+                // ... (Add more search criteria here as needed)
+                customer.cid.toLowerCase().includes(searchTerm) ||
+                customer.package_name.toLowerCase().includes(searchTerm) ||
+                (customer.slot && customer.slot.toString().toLowerCase().includes(searchTerm)) ||
+                (customer.port && customer.port.toString().toLowerCase().includes(searchTerm)) ||
+                (customer.service_port && customer.service_port.toString().toLowerCase().includes(searchTerm)) ||
+                (customer.onu_id && typeof customer.onu_id === 'string' && customer.onu_id.toLowerCase().includes(searchTerm)) ||
+                customer.ip_address.toLowerCase().includes(searchTerm) ||
+                customer.device_name.toLowerCase().includes(searchTerm) ||
+                customer.olt_name.toLowerCase().includes(searchTerm)
+            );
+        } else if (searchField === 'name') {
+            isMatchingSearch = customer.customer_name.toLowerCase().includes(searchTerm);
+        } else if (searchField === 'service_port') {
+            const servicePortString = customer.service_port?.toString() || '';
+            isMatchingSearch = parseInt(servicePortString) === parseInt(searchTerm);
+        }
+    
+        console.log('Customer isActive status:', customer.isActive);
+        console.log('isMatchingSearch:', isMatchingSearch);
+        
+    
+        const matchesStatusFilter = () => {
+            if (statusFilter === "") {
+                return true; // No status filter, match all customers
+            }
+    
+            if (statusFilter === "active") {
+                return customer.isActive;
+            } else if (statusFilter === "inactive") {
+                return !customer.isActive;
+            }
+    
+            // Add additional status filter conditions here if needed
+        };
+    
+        // Return true only if both search and status filter conditions are met
+        return isMatchingSearch && matchesStatusFilter();
     });
 
     const handleSearch = () => {
@@ -225,7 +267,9 @@ export default function Page() {
         console.log("Search value:", searchValue);
         // Perform search logic if needed
     };
-
+    const handleStatusFilterChange = (event) => {
+        setStatusFilter(event.target.value);
+    };
     const handleSearchInputChange = (event) => {
         setSearchValue(event.target.value); // Update the search input value
     };
@@ -236,33 +280,152 @@ export default function Page() {
         }
     };
     
+    const toggleDropdown = () => {
+        setDropdownOpen(!dropdownOpen);
+    };
+    const handleSearchFieldChange = (event) => {
+        setSearchField(event.target.value);
+      };
     if (customers.length === 0) {
         return <div>Loading...</div>;
     }
     
     return (
         <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
-            <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 pb-4 bg-white dark:bg-gray-900">
+            <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-900">
                 <button onClick={() => router.back()} type="button" className="w-full flex items-center justify-center w-1/2 ml-5 mt-5 mb-2 px-5 py-2 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-gray-800 dark:bg-gray-900 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700">
                     <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
                     </svg>
                 </button>
+                <div className='relative flex items-center mr-5'>
                 
-                <label htmlFor="table-search" className="sr-only">Search</label>
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 rtl:inset-r-0 rtl:right-0 flex items-center ps-3 pointer-events-none">
-                        <svg className="mr-8 mt-5 w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"></path></svg>
+                </div>
+                <div className="relative flex items-center mr-5">
+                <div className='mr-5'>
+                        <button
+                            id="dropdownRadioButton"
+                            data-dropdown-toggle="dropdownRadio"
+                            className="inline-flex items-center text-gray-500 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-lg text-sm px-3 py-1.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700"
+                            type="button"
+                            onClick={toggleDropdown}
+                        >
+                            Status
+                            <svg
+                                className="w-2.5 h-2.5 ms-2.5"
+                                aria-hidden="true"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 10 6"
+                            >
+                                <path
+                                    stroke="currentColor"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="m1 1 4 4 4-4"
+                                />
+                            </svg>
+                        </button>
+                            {dropdownOpen && (
+                                <div
+                                    id="dropdownRadio"
+                                    className="z-10 absolute top-full left-0 mt-1 w-48 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600"
+                                    data-popper-reference-hidden=""
+                                    data-popper-escaped=""
+                                    data-popper-placement="top"
+                                >
+                                    <ul
+                                        className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
+                                        aria-labelledby="dropdownRadioButton"
+                                    >
+                                        <li>
+                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                                                <input
+                                                    type="radio"
+                                                    value=""
+                                                    name="status-filter"
+                                                    checked={statusFilter === ""}
+                                                    onChange={handleStatusFilterChange}
+                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                                />
+                                                <label
+                                                    htmlFor="filter-radio-example-1"
+                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                                                >
+                                                    All
+                                                </label>
+                                            </div>
+                                        </li>
+                                        <li>
+                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                                                <input
+                                                    type="radio"
+                                                    value="active"
+                                                    name="status-filter"
+                                                    checked={statusFilter === "active"}
+                                                    onChange={handleStatusFilterChange}
+                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                                />
+                                                <label
+                                                    htmlFor="filter-radio-example-2"
+                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                                                >
+                                                    Active
+                                                </label>
+                                            </div>
+                                        </li>
+                                        <li>
+                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                                                <input
+                                                    type="radio"
+                                                    value="inactive"
+                                                    name="status-filter"
+                                                    checked={statusFilter === "inactive"}
+                                                    onChange={handleStatusFilterChange}
+                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                                />
+                                                <label
+                                                    htmlFor="filter-radio-example-3"
+                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                                                >
+                                                    Inactive
+                                                </label>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            )}
                     </div>
-                    <input 
+                    <select 
+                        value={searchField} 
+                        onChange={handleSearchFieldChange} 
+                        className="mr-2 p-2 text-sm text-gray-900 border border-gray-300 rounded-lg w-80 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-50" // Updated styling
+                    >
+                        <option value="all">All Fields</option>
+                        <option value="name">Name</option>
+                        <option value="service_port">Service Port</option>
+                        {/* Add more search field options here */}
+                    </select>
+
+                    {/* Search Input - Existing Code (with slight modification) */}
+                    <label htmlFor="table-search" className="sr-only">Search</label> 
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"></path>
+                        </svg>
+                        </div>
+                        <input 
                         type="text" 
                         id="table-search" 
-                        className="mr-8 mt-5 block p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg w-80 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
+                        className="block p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg w-80 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
                         placeholder="Search for items" 
                         value={searchValue}
                         onChange={handleSearchInputChange}
                         onKeyPress={handleSearchInputKeyPress}
-                    />
+                        />
+                    </div>
                 </div>
                 {/* <button 
                     onClick={handleSearch}
