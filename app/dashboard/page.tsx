@@ -4,8 +4,8 @@ import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-const ACTIVE = 'active';
-const INACTIVE = 'inactive';
+// const ACTIVE = 'active';
+// const INACTIVE = 'inactive';
 export default function Page() {
     const [customers, setCustomers] = useState([]);
     const [showModal, setShowModal] = useState(false); 
@@ -15,7 +15,7 @@ export default function Page() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [searchField, setSearchField] = useState('all');
     const router = useRouter();
-    const toggleUserStatus = async (customer) => {
+    const toggleUserStatus = async (customer: never) => {
         try {
             const updatedStatus = !customer.isActive;
     
@@ -208,60 +208,53 @@ export default function Page() {
         fetchCustomers();
     }, [customerToDelete, showModal]);
     
-    // Filter the displayed data based on the search value
-    const filteredCustomers = customers.filter((customer) => {
-        const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
-      
-        if (searchValue === '') {
-            return true; // No search term, return all customers
-        }
-      
-        let isMatchingSearch = false;
-      
-        if (searchField === 'all') {
-            isMatchingSearch = (
-                customer.customer_name.toLowerCase().includes(searchTerm) ||
-                customer.phone_number.toLowerCase().includes(searchTerm) ||
-                // ... (Add more search criteria here as needed)
-                customer.cid.toLowerCase().includes(searchTerm) ||
-                customer.package_name.toLowerCase().includes(searchTerm) ||
-                (customer.slot && customer.slot.toString().toLowerCase().includes(searchTerm)) ||
-                (customer.port && customer.port.toString().toLowerCase().includes(searchTerm)) ||
-                (customer.service_port && customer.service_port.toString().toLowerCase().includes(searchTerm)) ||
-                (customer.onu_id && typeof customer.onu_id === 'string' && customer.onu_id.toLowerCase().includes(searchTerm)) ||
-                customer.ip_address.toLowerCase().includes(searchTerm) ||
-                customer.device_name.toLowerCase().includes(searchTerm) ||
-                customer.olt_name.toLowerCase().includes(searchTerm)
-            );
-        } else if (searchField === 'name') {
-            isMatchingSearch = customer.customer_name.toLowerCase().includes(searchTerm);
-        } else if (searchField === 'service_port') {
-            const servicePortString = customer.service_port?.toString() || '';
-            isMatchingSearch = parseInt(servicePortString) === parseInt(searchTerm);
-        }
-    
-        console.log('Customer isActive status:', customer.isActive);
-        console.log('isMatchingSearch:', isMatchingSearch);
-        
-    
-        const matchesStatusFilter = () => {
-            if (statusFilter === "") {
-                return true; // No status filter, match all customers
-            }
-    
-            if (statusFilter === "active") {
-                return customer.isActive;
-            } else if (statusFilter === "inactive") {
-                return !customer.isActive;
-            }
-    
-            // Add additional status filter conditions here if needed
-        };
-    
-        // Return true only if both search and status filter conditions are met
-        return isMatchingSearch && matchesStatusFilter();
-    });
 
+        console.log("Filtering customers...");
+    
+        const filteredCustomers = customers.filter((customer) => {
+            const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
+            
+            // Status filter
+            const statusMatch = statusFilter === "" || (statusFilter === "active" && customer.isActive) || (statusFilter === "inactive" && !customer.isActive);
+            
+            if (searchValue === '' && statusMatch) {
+                return true; // No search term and status filter match, return all customers
+            }
+            
+            let isMatchingSearch = false; // Initialize the flag
+            
+            // Search filter
+            if (searchField === 'all') {
+                isMatchingSearch = (
+                    customer.customer_name.toLowerCase().includes(searchTerm) ||
+                    customer.phone_number.toLowerCase().includes(searchTerm) ||
+                    customer.cid.toLowerCase().includes(searchTerm) ||
+                    customer.package_name.toLowerCase().includes(searchTerm) ||
+                    (customer.slot && customer.slot.toString().toLowerCase().includes(searchTerm)) ||
+                    (customer.port && customer.port.toString().toLowerCase().includes(searchTerm)) ||
+                    (customer.service_port && customer.service_port.toString().toLowerCase().includes(searchTerm)) ||
+                    (typeof customer.onu_id === 'string' && customer.onu_id.toLowerCase().includes(searchTerm)) ||
+                    customer.ip_address.toLowerCase().includes(searchTerm) ||
+                    customer.device_name.toLowerCase().includes(searchTerm) ||
+                    customer.olt_name.toLowerCase().includes(searchTerm)
+                );
+            } else if (searchField === 'name') {
+                isMatchingSearch = customer.customer_name.toLowerCase().includes(searchTerm);
+            } else if (searchField === 'service_port') {
+                const servicePortString = customer.service_port?.toString() || '';
+                isMatchingSearch = parseInt(servicePortString) === parseInt(searchTerm);
+            } else if (searchField === 'port') {
+                const portString = customer.port?.toString() || '';
+                isMatchingSearch = parseInt(portString) === parseInt(searchTerm);
+            } else if (searchField === 'slot') {
+                const slotString = customer.slot?.toString() || '';
+                isMatchingSearch = parseInt(slotString) === parseInt(searchTerm);
+            }
+            
+            return isMatchingSearch && statusMatch; // Return true if both search and status match
+        });
+        console.log("Filtered customers:", filteredCustomers);
+    
     const handleSearch = () => {
         // Log the search value
         console.log("Search value:", searchValue);
@@ -269,12 +262,13 @@ export default function Page() {
     };
     const handleStatusFilterChange = (event) => {
         setStatusFilter(event.target.value);
-    };
+        // Consider adding logic to trigger re-rendering or data fetching here
+      };
     const handleSearchInputChange = (event) => {
         setSearchValue(event.target.value); // Update the search input value
     };
 
-    const handleSearchInputKeyPress = (event) => {
+    const handleSearchInputKeyPress = (event: { key: string; }) => {
         if (event.key === 'Enter') {
             handleSearch(); // Call the search function when Enter key is pressed
         }
@@ -283,7 +277,7 @@ export default function Page() {
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };
-    const handleSearchFieldChange = (event) => {
+    const handleSearchFieldChange = (event: { target: { value: React.SetStateAction<string>; }; }) => {
         setSearchField(event.target.value);
       };
     if (customers.length === 0) {
@@ -298,10 +292,7 @@ export default function Page() {
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
                     </svg>
                 </button>
-                <div className='relative flex items-center mr-5'>
-                
-                </div>
-                <div className="relative flex items-center mr-5">
+                <div className='relative flex items-center'>
                 <div className='mr-5'>
                         <button
                             id="dropdownRadioButton"
@@ -397,6 +388,9 @@ export default function Page() {
                                 </div>
                             )}
                     </div>
+                </div>
+                <div className="relative flex items-center mr-5">
+                
                     <select 
                         value={searchField} 
                         onChange={handleSearchFieldChange} 
@@ -405,10 +399,12 @@ export default function Page() {
                         <option value="all">All Fields</option>
                         <option value="name">Name</option>
                         <option value="service_port">Service Port</option>
-                        {/* Add more search field options here */}
+                        <option value="port">Port</option>
+                        <option value="slot">Slot</option>
+                       
                     </select>
 
-                    {/* Search Input - Existing Code (with slight modification) */}
+                 
                     <label htmlFor="table-search" className="sr-only">Search</label> 
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
