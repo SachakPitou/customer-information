@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { AuthButtons } from './AuthButtons';
 import { CrudButton } from './CRUDbutton';
+import SideBar from '@/app/component/SideBar';
 
 export const Hero = () => {
   return (

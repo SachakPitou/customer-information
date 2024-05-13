@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import PopupModal from '@/app/components/popUpModal';
+import PopupModal from '@/app/component/popUpModal';
 
 export default function Page() {
   const router = useRouter();
