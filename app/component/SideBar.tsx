@@ -1,9 +1,12 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState , useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 
 export default function SideBar() {
     const [isOpen, setIsOpen] = useState(false);
     const [isOpen1, setIsOpen1] = useState(false);
+    const [isOpen2, setIsOpen2] = useState(false);
+    const [customerCount, setCustomerCount] = useState(0);
 
     const toggleSidebar = () => {
         setIsOpen(!isOpen);
@@ -11,7 +14,31 @@ export default function SideBar() {
     const toggleDropdown = () => {
         setIsOpen1(!isOpen1);
     };
+    const toggleDropdown2 = () => {
+        setIsOpen2(!isOpen2);
+    };
+    useEffect(() => {
+        async function fetchCustomerCount() {
+            try {
+                // Fetch the count of customers from the database
+                const { data: customers, error } = await supabase
+                    .from('Customer')
+                    .select('customer_id');
+        
+                if (error) {
+                    throw error;
+                }
+        
+                const customerCount = customers ? customers.length : 0;
+                console.log("Customer Count:", customerCount);
+                setCustomerCount(customerCount); // Update the state with the fetched count
+            } catch (error) {
+                console.error('Error fetching customer count:', error.message);
+            }
+        }
 
+        fetchCustomerCount(); // Call the function to fetch customer count
+    }, []);
     return (
         <div>
             <div id="drawer-navigation" className={`flex top-0 left-0 z-40 p-4 overflow-y-auto transition-transform bg-white dark:bg-gray-900`} style={{ width: isOpen ? 'auto' : '64px' , height: '100vh'}} tabIndex="-1" aria-labelledby="drawer-navigation-label">
@@ -46,7 +73,7 @@ export default function SideBar() {
                                         <path d="M14 2a3.963 3.963 0 0 0-1.4.267 6.439 6.439 0 0 1-1.331 6.638A4 4 0 1 0 14 2Zm1 9h-1.264A6.957 6.957 0 0 1 15 15v2a2.97 2.97 0 0 1-.184 1H19a1 1 0 0 0 1-1v-1a5.006 5.006 0 0 0-5-5ZM6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Z"/>
                                     </svg>
                                     <span className="flex-1 ms-3 whitespace-nowrap">Customers</span>
-                                    <span className="inline-flex items-center justify-center px-2 ms-3 text-sm font-medium text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">Pro</span>
+                                    <span className="inline-flex items-center justify-center px-2 ms-3 text-sm font-medium text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">{customerCount}</span>
                                 </a>
                             </li>
                             <li>
@@ -64,7 +91,7 @@ export default function SideBar() {
                                         <a href="/createDevice" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Create</a>
                                     </li>
                                     <li>
-                                        <a href="#" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Details</a>
+                                        <a href="/deviceDetail" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Details</a>
                                     </li>
                                     {/* <li>
                                         <a href="#" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Invoice</a>
@@ -72,15 +99,26 @@ export default function SideBar() {
                                 </ul>
                             </li>
                             <li>
-                                <a href="#" className="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
-                                    {/* <svg className="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
-                                        <path d="M14 2a3.963 3.963 0 0 0-1.4.267 6.439 6.439 0 0 1-1.331 6.638A4 4 0 1 0 14 2Zm1 9h-1.264A6.957 6.957 0 0 1 15 15v2a2.97 2.97 0 0 1-.184 1H19a1 1 0 0 0 1-1v-1a5.006 5.006 0 0 0-5-5ZM6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Z"/>
-                                    </svg> */}
+                                <button onClick={toggleDropdown2} className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-expanded={isOpen} aria-controls="dropdown-example">
                                     <svg className="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 20">
                                         <path d="M17 5.923A1 1 0 0 0 16 5h-3V4a4 4 0 1 0-8 0v1H2a1 1 0 0 0-1 .923L.086 17.846A2 2 0 0 0 2.08 20h13.84a2 2 0 0 0 1.994-2.153L17 5.923ZM7 9a1 1 0 0 1-2 0V7h2v2Zm0-5a2 2 0 1 1 4 0v1H7V4Zm6 5a1 1 0 1 1-2 0V7h2v2Z"/>
                                     </svg>
-                                    <span className="flex-1 ms-3 whitespace-nowrap">Packages</span>
-                                </a>
+                                    <span className="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Packages</span>
+                                    <svg className={`w-3 h-3 transition-transform ${isOpen2 ? 'rotate-180' : ''}`} aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 4 4 4-4"/>
+                                    </svg>
+                                </button>
+                                <ul id="dropdown-example" className={`py-2 space-y-2 ${isOpen2 ? 'block' : 'hidden'}`}>
+                                    <li>
+                                        <a href="/createPackage" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Create</a>
+                                    </li>
+                                    <li>
+                                        <a href="/packDetail" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Details</a>
+                                    </li>
+                                    {/* <li>
+                                        <a href="#" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Invoice</a>
+                                    </li> */}
+                                </ul>
                             </li>
                             {/* <li>
                                 <a href="#" className="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
