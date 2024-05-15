@@ -145,16 +145,17 @@ export default function Page() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-800">
-      <div className="font-raleway-white w-full max-w-4xl p-5">
-        <button onClick={() => router.back()} type="button" className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-gray-700 dark:bg-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700">
+    <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
+      <div className="font-raleway-black w-full max-w-4xl p-5">
+        <button onClick={() => router.back()} type="button" className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-red-700 dark:bg-red-500 hover:bg-red-100 dark:text-red-200 dark:border-red-700">
           <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
           </svg>
         </button>
         <span>Create New Customer: </span>
         <form onSubmit={handleAddCustomer} className="flex flex-wrap justify-between mt-10">
-          <div className="w-full lg:w-1/2 p-2">
+          <div className="w-full lg:w-1/3 p-2">
+            {/* First column */}
             <label htmlFor="customerName" className="block mb-2">Customer Name:</label>
             <input
               type="text"
@@ -163,90 +164,56 @@ export default function Page() {
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               required
-              className="font-raleway-black w-full p-2 border"
+              className="font-raleway-black w-full p-2 border mb-4"
             />
-            <label htmlFor="phoneNumber" className="block mb-2 mt-4">Phone Number:</label>
+            <label htmlFor="CID" className="block mb-2">CID:</label>
             <input
               type="text"
-              id="phoneNumber"
-              placeholder="Enter Phone Number"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
+              id="CID"
+              placeholder="Enter CID"
+              value={CID}
+              onChange={(e) => setCID(e.target.value)}
               required
-              className="font-raleway-black w-full p-2 border"
+              className="font-raleway-black w-full p-2 border mb-4"
             />
-            <label htmlFor="packageName" className="block mb-2 mt-4">Package Name:</label>
-            <select
-              id="packageName"
-              value={selectedPackageId}
-              onChange={(e) => setSelectedPackageId(e.target.value)}
-              required
-              className="font-raleway-black w-full p-2 border"
-            >
-              <option value="">Select Package...</option>
-              {packages.map((pkg) => (
-                <option key={pkg.package_id} value={pkg.package_id}>
-                  {pkg.package_name}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="Address" className="block mb-2 mt-4">Address:</label>
+            <label htmlFor="activationDate" className="block mb-2">Activation Date:</label>
             <input
-              type="text"
-              id="Address"
-              placeholder="Enter Address"
-              value={Address}
-              onChange={(e) => setAddress(e.target.value)}
+              type="date"
+              id="activationDate"
+              value={activationDate}
+              onChange={(e) => setActivationDate(e.target.value)}
               required
-              className="font-raleway-black w-full p-2 border"
+              className="font-raleway-black w-full p-2 border mb-4"
             />
-            <label htmlFor="langtitudes" className="block mb-2 mt-4">Langtitude:</label>
-            <input
-              type="float"
-              id="langtitudes"
-              placeholder="Enter Langtitude"
-              value={langtitudes}
-              onChange={(e) => setLangtitudes(e.target.value)}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            <label htmlFor="slots" className="block mb-2 mt-4">Slot:</label>
+            <label htmlFor="ports" className="block mb-2">Port:</label>
             <input
               type="int"
-              id="slots"
-              placeholder="Enter Slot"
-              value={slots}
-              onChange={(e) => setSlot(e.target.value)}
+              id="ports"
+              placeholder="Enter Port"
+              value={ports}
+              onChange={(e) => setPorts(e.target.value)}
               required
-              className="font-raleway-black w-full p-2 border"
+              className="font-raleway-black w-full p-2 border mb-4"
             />
-            <label htmlFor="servicePort" className="block mb-2 mt-4">Service Port:</label>
+            
+            <label htmlFor="onuID" className="block mb-2">ONU ID:</label>
             <input
               type="int"
-              id="servicePort"
-              placeholder="Enter Service Port"
-              value={servicePort}
-              onChange={(e) => setServicePort(e.target.value)}
+              id="onuID"
+              placeholder="Enter ONU ID"
+              value={onuID}
+              onChange={(e) => setOnuID(e.target.value)}
               required
-              className="font-raleway-black w-full p-2 border"
+              className="font-raleway-black w-full p-2 border mb-4"
             />
-            <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
-            <input
-              type="text"
-              id="ipAddress"
-              placeholder="Enter IP Address"
-              value={ipAddress}
-              onChange={(e) => setIPAddress(e.target.value)}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            <label htmlFor="deviceName" className="block mb-2 mt-4">Device Name:</label>
+            
+            <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
             <select
               id="deviceName"
               value={selectedDeviceId}
               onChange={(e) => setSelectedDeviceId(e.target.value)}
               required
-              className="font-raleway-black w-full p-2 border"
+              className="font-raleway-black w-full p-2 border mb-4"
             >
               <option value="">Select Device...</option>
               {devices.map((dvc) => (
@@ -271,29 +238,92 @@ export default function Page() {
               ))}
             </select>
           </div>
-          <div className="w-full lg:w-1/2 p-2">
-            <label htmlFor="CID" className="block mb-2">CID:</label>
+            {/* Add more input fields as needed */}
+          <div className="w-full lg:w-1/3 p-2">
+            {/* Second column */}
+            <label htmlFor="phoneNumber" className="block mb-2">Phone Number:</label>
             <input
               type="text"
-              id="CID"
-              placeholder="Enter CID"
-              value={CID}
-              onChange={(e) => setCID(e.target.value)}
+              id="phoneNumber"
+              placeholder="Enter Phone Number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
               required
-              className="font-raleway-black w-full p-2 border"
+              className="font-raleway-black w-full p-2 border mb-4"
             />
-            <label htmlFor="serviceName" className="block mb-2 mt-4">Service Name:</label>
+            <label htmlFor="serviceName" className="block mb-2">Service Name:</label>
             <select
               id="serviceName"
               value={selectedServiceId}
               onChange={(e) => setSelectedServiceId(e.target.value)}
               required
-              className="font-raleway-black w-full p-2 border"
+              className="font-raleway-black w-full p-2 border mb-4"
             >
               <option value="">Select Service...</option>
               {services.map((service) => (
                 <option key={service.service_id} value={service.service_id}>
                   {service.service_name}
+                </option>
+              ))}
+            </select>
+    
+            <label htmlFor="Address" className="block mb-2">Address:</label>
+            <input
+              type="text"
+              id="Address"
+              placeholder="Enter Address"
+              value={Address}
+              onChange={(e) => setAddress(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border mb-4"
+            />
+            <label htmlFor="slots" className="block mb-2">Slot:</label>
+            <input
+              type="number"
+              id="slots"
+              placeholder="Enter Slot"
+              value={slots}
+              onChange={(e) => setSlot(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border mb-4"
+            />
+            <label htmlFor="onuMacAddress" className="block mb-2">ONU Mac Address:</label>
+            <input
+              type="float"
+              id="onuMacAddress"
+              placeholder="Enter ONU Mac Address"
+              value={onuMacAddress}
+              onChange={(e) => setonuMacAddress(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border"
+            />
+            <label htmlFor="servicePort" className="block mb-2 mt-4">Service Port:</label>
+            <input
+              type="int"
+              id="servicePort"
+              placeholder="Enter Service Port"
+              value={servicePort}
+              onChange={(e) => setServicePort(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border"
+            />
+
+            {/* Add more input fields as needed */}
+          </div>
+          <div className="w-full lg:w-1/3 p-2">
+            {/* Third column */}
+            <label htmlFor="packageName" className="block mb-2">Package Name:</label>
+            <select
+              id="packageName"
+              value={selectedPackageId}
+              onChange={(e) => setSelectedPackageId(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border"
+            >
+              <option value="">Select Package...</option>
+              {packages.map((pkg) => (
+                <option key={pkg.package_id} value={pkg.package_id}>
+                  {pkg.package_name}
                 </option>
               ))}
             </select>
@@ -312,6 +342,7 @@ export default function Page() {
                 </option>
               ))}
             </select>
+
             <label htmlFor="longtitudes" className="block mb-2 mt-4">Longtitude:</label>
             <input
               type="float"
@@ -322,37 +353,18 @@ export default function Page() {
               required
               className="font-raleway-black w-full p-2 border"
             />
-            <label htmlFor="onuMacAddress" className="block mb-2 mt-4">ONU Mac Address:</label>
+            <label htmlFor="langtitudes" className="block mb-2 mt-4">Langtitude:</label>
             <input
               type="float"
-              id="onuMacAddress"
-              placeholder="Enter ONU Mac Address"
-              value={onuMacAddress}
-              onChange={(e) => setonuMacAddress(e.target.value)}
+              id="langtitudes"
+              placeholder="Enter Langtitude"
+              value={langtitudes}
+              onChange={(e) => setLangtitudes(e.target.value)}
               required
               className="font-raleway-black w-full p-2 border"
             />
-            <label htmlFor="ports" className="block mb-2 mt-4">Port:</label>
-            <input
-              type="int"
-              id="ports"
-              placeholder="Enter Port"
-              value={ports}
-              onChange={(e) => setPorts(e.target.value)}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            <label htmlFor="onuID" className="block mb-2 mt-4">ONU ID:</label>
-            <input
-              type="int"
-              id="onuID"
-              placeholder="Enter ONU ID"
-              value={onuID}
-              onChange={(e) => setOnuID(e.target.value)}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            <label htmlFor="cameraIP" className="block mb-2 mt-4">Camera IP:</label>
+
+	        <label htmlFor="cameraIP" className="block mb-2 mt-4">Camera IP:</label>
             <input
               type="text"
               id="cameraIP"
@@ -362,25 +374,32 @@ export default function Page() {
               required
               className="font-raleway-black w-full p-2 border"
             />
-            <label htmlFor="activationDate" className="block mb-2 mt-4">Activation Date:</label>
+
+	        <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
             <input
-              type="date"
-              id="activationDate"
-              value={activationDate}
-              onChange={(e) => setActivationDate(e.target.value)}
+              type="text"
+              id="ipAddress"
+              placeholder="Enter IP Address"
+              value={ipAddress}
+              onChange={(e) => setIPAddress(e.target.value)}
               required
               className="font-raleway-black w-full p-2 border"
             />
+
+
+            {/* Add more input fields as needed */}
+            
           </div>
           <div className="w-full p-2 text-center">
             <button
               type="submit"
-              className="px-4 py-2 mt-4 text-white bg-blue-500 rounded hover:bg-blue-600"
+              className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600"
             >
               Add Customer
             </button>
-          </div>
+            </div>
         </form>
+        
         {insertedCustomerId && (
           <p className="text-center text-green-700 mt-4">
             Customer added successfully with ID: {insertedCustomerId}
@@ -393,7 +412,5 @@ export default function Page() {
     </div>
   );
 }
-function setOLTs(data: any[]) {
-  throw new Error('Function not implemented.');
-}
+
 

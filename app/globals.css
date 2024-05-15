@@ -10,7 +10,7 @@
     --foreground: 200 50% 3%;
   }
 
-  @media (prefers-color-scheme: dark) {
+  @media (prefers-color-scheme: white) {
     :root {
       --background: 200 50% 3%;
       --btn-background: 200 10% 9%;
@@ -53,6 +53,7 @@
 .dashboard-text {
   font-family: '__GeistSans_ac79ff';
   font-size: 12px;
+  color: black;
 }
 .text-wrap {
   max-width: 20px; /* Adjust the max-width as needed */
@@ -80,4 +81,11 @@
 .title-dashboard {
   font-size: 12px;
   font-family: '__GeistSans_ac79ff';
+}
+.border {
+  color: black;
+}
+.block {
+  color: black;
+  font-weight: bold;
 }

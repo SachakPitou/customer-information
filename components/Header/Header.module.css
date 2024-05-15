@@ -3,6 +3,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgb(27, 27, 29);
+  border-bottom: 1px solid red;
   margin-bottom: 1rem;
 }

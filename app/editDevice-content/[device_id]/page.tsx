@@ -88,9 +88,9 @@ export default function EditDevice() {
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center min-h-screen dark:bg-gray-800">
-      <div className="font-raleway-white w-full max-w-4xl p-5">
-        <button onClick={() => router.back()} type="button" className="flex-shrink-0 w-8 h-8 ml-1 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-gray-700 dark:bg-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700">
+    <div className="w-full flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
+      <div className="font-raleway-black w-full max-w-4xl p-5">
+        <button onClick={() => router.back()} type="button" className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-red-700 dark:bg-red-500 hover:bg-red-100 dark:text-red-200 dark:border-red-700">
           <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
           </svg>
@@ -180,7 +180,7 @@ export default function EditDevice() {
           <div className="w-full p-2 text-center">
             <button
               type="submit"
-              className="px-4 py-2 mt-4 text-white bg-blue-500 rounded hover:bg-blue-600"
+              className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600"
             >
               Update Device
             </button>

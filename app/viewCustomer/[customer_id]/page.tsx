@@ -181,8 +181,8 @@ export default function viewCustomer() {
                 </button>
                 <span>Customer Information List:</span>
             </div>
-            <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+            <table className="w-full text-sm text-left rtl:text-right text-black-500 dark:text-black-400">
+                <thead className="text-xs text-white uppercase bg-gray-50 dark:bg-gray-700 dark:text-white">
                     <tr>
                         <th scope="col" className="px-6 py-3">
                             Customer Information
@@ -194,14 +194,14 @@ export default function viewCustomer() {
                 </thead>
                 <tbody>
                     {customers.map((customer) => (
-                        <tr key={customer.customer_id} className="view-customer bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <tr key={customer.customer_id} className="view-customer bg-white border-b dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-400">
                             <td className="px-6 py-4">
                                 <div>
                                     <div className="flex mb-2 mt-5">
                                         <span className="username">{customer.customer_name}</span>
                                     </div>
                                     <br />
-                                    <div className="flex mb-2 dark:bg-gray-700 mr-2 mb-5 px-3 py-3">
+                                    <div className="flex mb-2 dark:bg-gray-400 mr-2 mb-5 px-3 py-3">
                                         <span className="secondary-title">BASIC INFORMATION:</span>
                                     </div>
                                     <br />
@@ -248,7 +248,7 @@ export default function viewCustomer() {
                             </td>
                             <td className="px-6 py-4">
                                 <div>
-                                    <div className="flex mb-2 dark:bg-gray-700 mr-2 mb-5 px-3 py-3">
+                                    <div className="flex mb-2 dark:bg-gray-400 mr-2 mb-5 px-3 py-3">
                                         <span className="secondary-title">SERVICE INFORMATION:</span>
                                     </div>
                                     <br />
