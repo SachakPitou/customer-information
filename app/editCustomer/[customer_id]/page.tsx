@@ -151,7 +151,7 @@ export default function Page() {
       setError(error.message);
     }
   };
-
+  // const filteredPackagesByService = packages.filter(pkg => pkg.service_id === parseInt(selectedServiceId));
   return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">

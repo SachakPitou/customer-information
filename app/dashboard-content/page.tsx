@@ -16,6 +16,8 @@ export default function Dashboard() {
     const [statusFilter, setStatusFilter] = useState('');
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [searchField, setSearchField] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const packagesPerPage = 15;
     const router = useRouter();
     const toggleUserStatus = async (customer: never) => {
         try {
@@ -297,11 +299,19 @@ export default function Dashboard() {
     const handleSearchFieldChange = (event: { target: { value: React.SetStateAction<string>; }; }) => {
         setSearchField(event.target.value);
       };
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+    };
+
+    // Calculate the packages to be displayed on the current page
+    const totalPages = Math.ceil(filteredCustomers.length / packagesPerPage);
+    const startIndex = (currentPage - 1) * packagesPerPage;
+    const displayedCustomers = filteredCustomers.slice(startIndex, startIndex + packagesPerPage);
     if (customers.length === 0) {
         return <div>Loading...</div>;
     }
     return (
-        <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
+        <div className="relative overflow-x-auto shadow-md">
             <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-900">
                 <div className="relative flex items-center mr-5">
                     <button onClick={() => router.back()} type="button" className="w-full flex items-center justify-center w-1/2 ml-5 mt-5 mb-2 px-5 py-2 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-gray-800 dark:bg-gray-900 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700">
@@ -509,7 +519,7 @@ export default function Dashboard() {
                     </tr>
                 </thead>
                 <tbody>
-                    {filteredCustomers.map((customer) => (
+                    {displayedCustomers.map((customer) => (
                         <tr key={customer.customer_id} className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
                             {/* <td className="w-4 p-4">
                                 <div className="flex items-center">
@@ -578,6 +588,22 @@ export default function Dashboard() {
                     ))}
                 </tbody>
             </table>
+            <div className="flex justify-between items-center p-4 bg-white dark:bg-gray-900">
+                <span className="text-sm text-gray-700 dark:text-gray-400">
+                    Showing {startIndex + 1} to {Math.min(startIndex + packagesPerPage, filteredCustomers.length)} of {filteredCustomers.length} Customers
+                </span>
+                <div className="flex space-x-2">
+                    {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                            key={i + 1}
+                            onClick={() => handlePageChange(i + 1)}
+                            className={`px-3 py-1 border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'} hover:bg-blue-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                </div>
+            </div>
             {showModal && (
                 <div className="fixed top-0 left-0 z-50 w-full h-full flex items-center justify-center bg-black bg-opacity-50">
                 <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">

@@ -12,7 +12,7 @@ import EditPackage from '@/app/editPackage-content/[package_id]/page';
 export default function Page() {
     
     return (
-        <div className="relative overflow-x-auto shadow-md sm:rounded-lg flex">
+        <div className="relative overflow-x-auto shadow-md flex">
             <SideBar/>
             <EditPackage/>
         </div>

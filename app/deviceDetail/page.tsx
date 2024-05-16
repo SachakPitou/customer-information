@@ -12,7 +12,7 @@ import DeviceDetail from '../deviceDetail-content/page';
 export default function Page() {
     
     return (
-        <div className="relative overflow-x-auto shadow-md sm:rounded-lg flex">
+        <div className="relative overflow-x-auto shadow-md flex">
             <SideBar/>
             <DeviceDetail/>
         </div>

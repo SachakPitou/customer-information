@@ -7,7 +7,7 @@ import SideBar from '../component/SideBar';
 import CreatePackage from '../createPackage-content/page';
 export default function Page() {
   return (
-    <div className="relative overflow-x-auto w-full shadow-md sm:rounded-lg flex">
+    <div className="relative overflow-x-auto w-full shadow-md flex">
       <SideBar/>
       <CreatePackage/>
     </div>

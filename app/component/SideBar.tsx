@@ -41,7 +41,7 @@ export default function SideBar() {
     }, []);
     return (
         <div>
-            <div id="drawer-navigation" className={`flex top-0 left-0 z-40 p-4 overflow-y-auto transition-transform bg-white dark:bg-gray-900`} style={{ width: isOpen ? 'auto' : '64px' , height: '100vh'}} tabIndex="-1" aria-labelledby="drawer-navigation-label">
+            <div id="drawer-navigation" className={`flex top-0 left-0 z-40 p-6 overflow-y-auto transition-transform bg-white dark:bg-gray-900`} style={{ width: isOpen ? 'auto' : '64px' , height: '100%'}} tabIndex="-1" aria-labelledby="drawer-navigation-label">
                 <div className={`overflow-hidden transition-width ${isOpen ? 'w-full' : 'w-0'}`}>
                     <button onClick={toggleSidebar} className="fixed top-4 left-4 z-50 p-2 dark:bg-gray-900 text-gray-800 rounded-md">
                         <svg className="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

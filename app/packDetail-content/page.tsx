@@ -14,8 +14,20 @@ export default function PackageDetail() {
     const [showModal, setShowModal] = useState(false); 
     const [packageToDelete, setPackageToDelete] = useState(null);
     const [searchValue, setSearchValue] = useState('');
-    const [dropdownOpen, setDropdownOpen] = useState(false);
     const [searchField, setSearchField] = useState('all');
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [serviceFilter, setServiceFilter] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const packagesPerPage = 15;
+    
+    const toggleDropdown = () => {
+        setDropdownOpen(!dropdownOpen);
+    };
+
+    const handleServiceFilterChange = (event) => {
+        setServiceFilter(event.target.value);
+    };
+
     const router = useRouter();
 
     const handleDeletePackage = async () => {
@@ -88,8 +100,11 @@ export default function PackageDetail() {
         console.log("Filtering packages...");
         const filteredPackages = packages.filter((pkg) => {
             const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
-        
-            if (searchValue === '') {
+            
+            const serviceMatch =
+            serviceFilter === '' || pkg.service_name.toLowerCase() === serviceFilter.toLowerCase(); 
+
+            if (searchValue === '' && serviceMatch ) {
                 return true; // No search term, return all packages
             }
         
@@ -110,7 +125,7 @@ export default function PackageDetail() {
                 isMatchingSearch = parseInt(serviceNameString) === parseInt(searchTerm);
             }
         
-            return isMatchingSearch; // Return true if search matches
+            return isMatchingSearch && serviceMatch; // Return true if search matches
         });
         
         console.log("Filtered packages:", filteredPackages);
@@ -134,13 +149,23 @@ export default function PackageDetail() {
         const handleSearchFieldChange = (event) => {
             setSearchField(event.target.value);
         };
+
+        const handlePageChange = (pageNumber) => {
+            setCurrentPage(pageNumber);
+        };
+    
+        // Calculate the packages to be displayed on the current page
+        const totalPages = Math.ceil(filteredPackages.length / packagesPerPage);
+        const startIndex = (currentPage - 1) * packagesPerPage;
+        const displayedPackages = filteredPackages.slice(startIndex, startIndex + packagesPerPage);
+
         
         if (packages.length === 0) {
             return <div>Loading...</div>;
         }
         
     return (
-        <div className="relative w-full overflow-x-auto shadow-md sm:rounded-lg">
+        <div className="relative w-full overflow-x-auto shadow-md">
             <div className="flex w-full items-center justify-between p-4 bg-white dark:bg-gray-900">
             <div className="relative flex items-center mr-5">
                 <button onClick={() => router.back()} type="button" className="w-full flex items-center justify-center w-1/2 ml-5 mt-5 mb-2 px-5 py-2 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-gray-800 dark:bg-gray-900 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700">
@@ -158,101 +183,101 @@ export default function PackageDetail() {
                 
                 </div> */}
                 <div className="relative flex items-center mr-5">
-                {/* <div className='mr-5'>
-                        <button
-                            id="dropdownRadioButton"
-                            data-dropdown-toggle="dropdownRadio"
-                            className="inline-flex items-center text-gray-500 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-lg text-sm px-3 py-1.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700"
-                            type="button"
-                            onClick={toggleDropdown}
+                <div className='mr-5'>
+                    <button
+                        id="dropdownServiceButton"
+                        data-dropdown-toggle="dropdownService"
+                        className="inline-flex items-center text-gray-500 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-lg text-sm px-3 py-1.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700"
+                        type="button"
+                        onClick={toggleDropdown}
+                    >
+                        Service Type
+                        <svg
+                            className="w-2.5 h-2.5 ms-2.5"
+                            aria-hidden="true"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 10 6"
                         >
-                            Status
-                            <svg
-                                className="w-2.5 h-2.5 ms-2.5"
-                                aria-hidden="true"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 10 6"
+                            <path
+                                stroke="currentColor"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="m1 1 4 4 4-4"
+                            />
+                        </svg>
+                    </button>
+                    {dropdownOpen && (
+                        <div
+                            id="dropdownService"
+                            className="z-10 absolute top-full left-0 mt-1 w-48 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600"
+                            data-popper-reference-hidden=""
+                            data-popper-escaped=""
+                            data-popper-placement="top"
+                        >
+                            <ul
+                                className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
+                                aria-labelledby="dropdownServiceButton"
                             >
-                                <path
-                                    stroke="currentColor"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="m1 1 4 4 4-4"
-                                />
-                            </svg>
-                        </button>
-                            {dropdownOpen && (
-                                <div
-                                    id="dropdownRadio"
-                                    className="z-10 absolute top-full left-0 mt-1 w-48 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600"
-                                    data-popper-reference-hidden=""
-                                    data-popper-escaped=""
-                                    data-popper-placement="top"
-                                >
-                                    <ul
-                                        className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
-                                        aria-labelledby="dropdownRadioButton"
-                                    >
-                                        <li>
-                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                <input
-                                                    type="radio"
-                                                    value=""
-                                                    name="status-filter"
-                                                    checked={statusFilter === ""}
-                                                    onChange={handleStatusFilterChange}
-                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                                />
-                                                <label
-                                                    htmlFor="filter-radio-example-1"
-                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                                >
-                                                    All
-                                                </label>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                <input
-                                                    type="radio"
-                                                    value="active"
-                                                    name="status-filter"
-                                                    checked={statusFilter === "active"}
-                                                    onChange={handleStatusFilterChange}
-                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                                />
-                                                <label
-                                                    htmlFor="filter-radio-example-2"
-                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                                >
-                                                    Active
-                                                </label>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                <input
-                                                    type="radio"
-                                                    value="inactive"
-                                                    name="status-filter"
-                                                    checked={statusFilter === "inactive"}
-                                                    onChange={handleStatusFilterChange}
-                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                                />
-                                                <label
-                                                    htmlFor="filter-radio-example-3"
-                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                                >
-                                                    Inactive
-                                                </label>
-                                            </div>
-                                        </li>
-                                    </ul>
-                                </div>
-                            )}
-                    </div> */}
+                                <li>
+                                    <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        <input
+                                            type="radio"
+                                            value=""
+                                            name="service-filter"
+                                            checked={serviceFilter === ""}
+                                            onChange={handleServiceFilterChange}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                        />
+                                        <label
+                                            htmlFor="filter-service-example-1"
+                                            className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                                        >
+                                            All
+                                        </label>
+                                    </div>
+                                </li>
+                                <li>
+                                    <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        <input
+                                            type="radio"
+                                            value="Shared Internet Access (SIA)"
+                                            name="service-filter"
+                                            checked={serviceFilter === "Shared Internet Access (SIA)"}
+                                            onChange={handleServiceFilterChange}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                        />
+                                        <label
+                                            htmlFor="filter-service-example-2"
+                                            className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                                        >
+                                            Shared Internet Access
+                                        </label>
+                                    </div>
+                                </li>
+                                <li>
+                                    <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        <input
+                                            type="radio"
+                                            value="Dedicated Internet Access (DIA)"
+                                            name="service-filter"
+                                            checked={serviceFilter === "Dedicated Internet Access (DIA)"}
+                                            onChange={handleServiceFilterChange}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                        />
+                                        <label
+                                            htmlFor="filter-service-example-3"
+                                            className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                                        >
+                                            Dedicated Internet Access
+                                        </label>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    )}
+                </div>
                     <select 
                         value={searchField} 
                         onChange={handleSearchFieldChange} 
@@ -308,32 +333,12 @@ export default function PackageDetail() {
                     </tr>
                 </thead>
                 <tbody>
-                    {filteredPackages.map((pkg) => (
+                    {displayedPackages.map((pkg)=> (
                         <tr key={pkg.package_id} className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
-                            {/* <td className="w-4 p-4">
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                    />
-                                </div>
-                            </td> */}
+            
                             <td className="px-6 py-4">{pkg.package_name}</td> {/* Changed from pkg.service_name */}
                             <td className="px-6 py-4">{pkg.service_name}</td>
-                            {/* <td className="px-6 py-4">{device.location_name}</td>
-                            <td className="px-6 py-4">{device.model}</td>
-                            <td className="px-6 py-4">{device.ip_address}</td>
-                            <td className="px-6 py-4">{device.power_source_type}</td> */}
-                            {/* <td className="px-6 py-4">
-                                <Link href={`/viewCustomer/${customer.customer_id}`}>
-                                    <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                            <path fillRule="evenodd" d="M19 10c0 3.682-2.914 6-7 6s-7-2.318-7-6 2.914-6 7-6 7 2.318 7 6zm-7 4a4 4 0 100-8 4 4 0 000 8z" clipRule="evenodd" />
-                                        </svg>
-                                    </div>
-                                </Link>
-                            </td> */}
+                    
                             <td className="px-6 py-4">
                                 <Link href={`/editPackage/${pkg.package_id}`}>
                                     <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
@@ -361,6 +366,49 @@ export default function PackageDetail() {
                     ))}
                 </tbody>
             </table>
+            <div className="flex justify-between items-center p-4 bg-white dark:bg-gray-900">
+                <span className="text-sm text-gray-700 dark:text-gray-400">
+                    Showing {startIndex + 1} to {Math.min(startIndex + packagesPerPage, filteredPackages.length)} of {filteredPackages.length} Packages
+                </span>
+                <div className="flex space-x-2">
+                    {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                            key={i + 1}
+                            onClick={() => handlePageChange(i + 1)}
+                            className={`px-3 py-1 border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'} hover:bg-blue-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            {/* {totalPages > 1 && (
+                <div className="flex justify-center my-4">
+                    <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`px-4 py-2 mx-1 border rounded ${currentPage === 1 ? 'bg-gray-200' : 'bg-white hover:bg-gray-100'}`}
+                    >
+                        Previous
+                    </button>
+                    {[...Array(totalPages)].map((_, index) => (
+                        <button
+                            key={index}
+                            onClick={() => handlePageChange(index + 1)}
+                            className={`px-4 py-2 mx-1 border rounded ${currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-100'}`}
+                        >
+                            {index + 1}
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`px-4 py-2 mx-1 border rounded ${currentPage === totalPages ? 'bg-gray-200' : 'bg-white hover:bg-gray-100'}`}
+                    >
+                        Next
+                    </button>
+                </div>
+            )} */}
             {showModal && (
                 <div className="fixed top-0 left-0 z-50 w-full h-full flex items-center justify-center bg-black bg-opacity-50">
                 <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">

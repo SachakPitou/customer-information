@@ -143,6 +143,7 @@ export default function Page() {
       setError(error.message);
     }
   };
+  const filteredPackagesByService = packages.filter(pkg => pkg.service_id === parseInt(selectedServiceId));
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
@@ -314,18 +315,19 @@ export default function Page() {
             {/* Third column */}
             <label htmlFor="packageName" className="block mb-2">Package Name:</label>
             <select
-              id="packageName"
-              value={selectedPackageId}
-              onChange={(e) => setSelectedPackageId(e.target.value)}
-              required
-              className="font-raleway-black w-full p-2 border"
+                id="packageName"
+                value={selectedPackageId}
+                onChange={(e) => setSelectedPackageId(e.target.value)}
+                required
+                className="font-raleway-black w-full p-2 border"
             >
-              <option value="">Select Package...</option>
-              {packages.map((pkg) => (
-                <option key={pkg.package_id} value={pkg.package_id}>
-                  {pkg.package_name}
-                </option>
-              ))}
+                <option value="">Select Package...</option>
+                {/* Render options based on filtered packages */}
+                {filteredPackagesByService.map((pkg) => (
+                    <option key={pkg.package_id} value={pkg.package_id}>
+                        {pkg.package_name}
+                    </option>
+                ))}
             </select>
             <label htmlFor="locationName" className="block mb-2 mt-4">Location Name:</label>
             <select
