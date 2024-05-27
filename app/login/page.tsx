@@ -51,7 +51,7 @@ export default async function Login({
       <div className="w-full px-8 sm:max-w-md mx-auto mt-4">
         <form
           className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground mb-4"
-          action={signIn}
+          action={signIn} method="post" 
         >
           <label className="text-md" htmlFor="email">
             Email

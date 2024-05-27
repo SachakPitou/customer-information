@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
+import PopUpModal from '../component/popUpmodal';
 export default function CreatePackage() {
   const router = useRouter();
   const [packageName, setPackageName] = useState('');
@@ -10,6 +11,16 @@ export default function CreatePackage() {
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [insertPackageId, setInsertedPackageId] = useState('');
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+  useEffect(() => {
+    if (insertPackageId || error) {
+      setIsModalOpen(true);
+    }
+  }, [insertPackageId, error]);
 
   useEffect(() => {
     const fetchService = async () => {
@@ -108,14 +119,23 @@ export default function CreatePackage() {
             </button>
           </div>
         </form>
-        {insertPackageId && (
-          <p className="text-center text-green-700 mt-4">
-            Package added successfully with ID: {insertPackageId}
-          </p>
-        )}
-        {error && (
-          <p className="text-center text-red-700 mt-4">Error adding package: {error}</p>
-        )}
+        <PopUpModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={insertPackageId ? 'Success' : 'Error'}
+        content={
+          <>
+            {insertPackageId && (
+              <p className="text-center text-green-700 mt-4">
+                Package created successfully with ID: {insertPackageId}
+              </p>
+            )}
+            {error && (
+              <p className="text-center text-red-700 mt-4">Error creating package: {error}</p>
+            )}
+          </>
+        }
+      />
       </div>
     </div>
   );

@@ -4,7 +4,9 @@ import { supabase } from '../supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
+import PopUpModal from '../component/popUpmodal';
 export default function CreateDevice() {
+  const [userRole, setUserRole] = useState(null); 
   const router = useRouter();
   const [deviceName, setDeviceName] = useState('');
   const [model, setModel] = useState('');
@@ -16,8 +18,27 @@ export default function CreateDevice() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [insertDeviceId, setInsertedDeviceId] = useState('');
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+  useEffect(() => {
+    if (insertDeviceId || error) {
+      setIsModalOpen(true);
+    }
+  }, [insertDeviceId, error]);
 
   useEffect(() => {
+    const fetchUserRole = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (data) {
+        setUserRole(data.role);
+      }
+      if (error) {
+        console.error('Error fetching user role:', error.message);
+      }
+    };
     const fetchPowerSource = async () => {
       try {
         const { data, error } = await supabase.from('Power Source').select('*');
@@ -42,6 +63,7 @@ export default function CreateDevice() {
     
     fetchPowerSource();
     fetchLocation();
+    fetchUserRole();
   }, []);
 
   const handleAddDevice = async (e) => {
@@ -84,6 +106,7 @@ export default function CreateDevice() {
     } catch (error) {
         setError(error.message);
     }
+   
 };
 
   return (
@@ -179,14 +202,23 @@ export default function CreateDevice() {
             </button>
           </div>
         </form>
-        {insertDeviceId && (
-          <p className="text-center text-green-700 mt-4">
-            Device added successfully with ID: {insertDeviceId}
-          </p>
-        )}
-        {error && (
-          <p className="text-center text-red-700 mt-4">Error adding device: {error}</p>
-        )}
+        <PopUpModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={insertDeviceId ? 'Success' : 'Error'}
+        content={
+          <>
+            {insertDeviceId && (
+              <p className="text-center text-green-700 mt-4">
+                Device created successfully with ID: {insertDeviceId}
+              </p>
+            )}
+            {error && (
+              <p className="text-center text-red-700 mt-4">Error creating device: {error}</p>
+            )}
+          </>
+        }
+      />
       </div>
     </div>
   );

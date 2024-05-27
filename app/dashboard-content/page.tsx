@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
 import SideBar from '../component/SideBar';
 
 
@@ -17,6 +18,9 @@ export default function Dashboard() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [searchField, setSearchField] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [userType, setUserType] = useState('');
+    const [pendingRequests, setPendingRequests] = useState([]);
+    const [session, setSession] = useState(null); 
     const packagesPerPage = 15;
     const router = useRouter();
     const toggleUserStatus = async (customer: never) => {
@@ -156,34 +160,13 @@ export default function Dashboard() {
                 const locationIds = customersData.map((customer) => customer.location_id);
 
                 // Fetch service names based on service_ids
-                const { data: locationsData, error: locationError } = await supabase
-                    .from('Location')
-                    .select('location_id, location_name')
-                    .in('location_id', locationIds);
-
-                if (locationError) {
-                    throw locationError;
-                }
-
-                // Map service_ids to service_names
-                const locationMap = {};
-                locationsData.forEach((location) => {
-                    locationMap[location.location_id] = location.location_name;
-                });
-
-                // Update the state with customers including service names
-                const customersWithLocations = customersWithServices.map((customer) => ({
-                    ...customer,
-                    location_name: locationMap[customer.location_id] || 'Unknown Service',
-                }));
-
-                setCustomers(customersWithLocations);
+    
 
                 const oltIds = customersData.map((customer) => customer.olt_id);
 
                 // Fetch device names based on device_ids
                 const { data: oltsData, error: oltError } = await supabase
-                    .from<OLT>('OLT')
+                    .from('OLT')
                     .select('olt_id, olt_name')
                     .in('olt_id', oltIds);
 
@@ -192,13 +175,13 @@ export default function Dashboard() {
                 }
 
                 // Map device_ids to device_names
-                const oltMap: Record<number, string> = {};
+                const oltMap = {};
                 oltsData.forEach((olt) => {
                     oltMap[olt.olt_id] = olt.olt_name;
                 });
 
                 // Update the state with customers including device names
-                const customersWithOLTs = customersWithLocations.map((customer) => ({
+                const customersWithOLTs = customersWithServices.map((customer) => ({
                     ...customer,
                     olt_name: oltMap[customer.olt_id] || 'Unknown Device',
                 }));
@@ -208,14 +191,66 @@ export default function Dashboard() {
                 console.error('Error fetching data:', error.message);
             }
         }
+        const fetchUserType = async () => {
+            
+            try {
+                const supabase = createClient();
+                const { data, error } = await supabase.auth.getSession(); // Get session data
 
-        fetchCustomers();
-    }, [customerToDelete, showModal]);
+                if (error) {
+                    console.error('Error fetching session:', error.message);
+                    return;
+                }
     
+                const session = data.session;
+                setSession(session); // Set session state
+    
+                if (session) {
+                    const userId = session.user.id; // Extract user ID from session
+                    const { data: userData, error: userError } = await supabase
+                        .from('userAccount')
+                        .select('user_type') 
+                        .eq("id", userId)
+                        .single();
+    
+                    if (userError) {
+                        throw userError;
+                    }
+    
+                    if (userData) {
+                        setUserType(userData.user_type); // Set user type state
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching user type:', error.message);
+            }
+        };
+        
+        fetchCustomers();
+        fetchUserType();
+    }, [customerToDelete, showModal]);
+    const fetchPendingRequests = async () => {
+        try {
+          // Fetch customer records with status "Pending Technical Review"
+          const { data, error } = await supabase
+            .from('Customer')
+            .select('*')
+            .eq('status', "Completed");
+  
+          if (error) throw error;
+  
+          setPendingRequests(data);
+        } catch (error) {
+          setError(error.message);
+        }
+      };
+    useEffect(() => {
+        fetchPendingRequests();
+    }, [customers]);
 
         console.log("Filtering customers...");
     
-        const filteredCustomers = customers.filter((customer) => {
+        const filteredCustomers = pendingRequests.filter((customer) => {
             const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
             
             // Status filter
@@ -270,7 +305,8 @@ export default function Dashboard() {
                 isMatchingSearch = ipAddressString.startsWith(searchTerm.toLowerCase());
             }
             
-            return isMatchingSearch && statusMatch; // Return true if both search and status match
+            return isMatchingSearch && statusMatch;
+             // Return true if both search and status match
         });
         console.log("Filtered customers:", filteredCustomers);
     
@@ -302,7 +338,6 @@ export default function Dashboard() {
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
     };
-
     // Calculate the packages to be displayed on the current page
     const totalPages = Math.ceil(filteredCustomers.length / packagesPerPage);
     const startIndex = (currentPage - 1) * packagesPerPage;
@@ -561,6 +596,7 @@ export default function Dashboard() {
                                     </div>
                                 </Link>
                             </td>
+                            {userType !== "technical" && (
                             <td className="px-6 py-4">
                                 <Link href={`/editCustomer/${customer.customer_id}`}>
                                     <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
@@ -570,6 +606,7 @@ export default function Dashboard() {
                                     </div>
                                 </Link>
                             </td>
+                             )}
                             <td className="px-6 py-4">
                                 <button
                                     onClick={() => {

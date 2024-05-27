@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
 import Dashboard from '../dashboard-content/page';
+import Layout from '../component/layout';
 
 
 // const ACTIVE = 'active';
@@ -13,8 +14,10 @@ export default function Page() {
     
     return (
         <div className="relative overflow-x-auto shadow-md flex">
+            {/* <Layout> */}
             <SideBar/>
             <Dashboard/>
+            {/* </Layout> */}
         </div>
     );
 }
