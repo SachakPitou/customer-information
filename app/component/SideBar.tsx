@@ -34,7 +34,8 @@ export default function SideBar() {
             try {
                 const { data: customers, error } = await supabase
                     .from('Customer')
-                    .select('customer_id');
+                    .select('customer_id')
+                    .eq('status', 'Completed');
 
                 if (error) {
                     throw error;

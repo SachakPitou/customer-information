@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import React, { useState, useEffect } from 'react';
+import PopUpModal from './popUpmodal';
 
 export default function CustomerServiceForm() {
   const [customerName, setCustomerName] = useState('');
@@ -19,6 +20,17 @@ export default function CustomerServiceForm() {
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [error, setError] = useState(null);
   const router = useRouter();
+  const [insertCustomerId, setInsertedCustomerId] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+  useEffect(() => {
+    if (insertCustomerId || error) {
+      setIsModalOpen(true);
+    }
+  }, [insertCustomerId, error]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +51,7 @@ export default function CustomerServiceForm() {
         status: 'Pending Technical Review' 
       }]);
       if (insertError) throw new Error(insertError.message);
-
+      setInsertedCustomerId(customerId);
       router.push(`/`);
     } catch (error) {
       setError(error.message);
@@ -206,6 +218,23 @@ return (
             </button>
             </div>
       </form>
+      <PopUpModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          title={insertCustomerId ? 'Success' : 'Error'}
+          content={
+            <>
+              {insertCustomerId && (
+                <p className="text-center text-green-700 mt-4">
+                  Customer is added to pending successfully with ID: {insertCustomerId}
+                </p>
+              )}
+              {error && (
+                <p className="text-center text-red-700 mt-4">Error adding customer: {error}</p>
+              )}
+            </>
+          }
+        />
       </div>
     </div>
   );

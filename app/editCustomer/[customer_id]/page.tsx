@@ -3,10 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
 import PopUpModal from '@/app/component/popUpmodal';
 
 export default function Page() {
   const router = useRouter();
+  const [userType, setUserType] = useState('');
+  const [session, setSession] = useState('null');
   const [customer, setCustomer] = useState({
     customer_name: '',
     phone_number: '',
@@ -27,6 +30,7 @@ export default function Page() {
     package_id: '',
     location_id: '',
     olt_id: '',
+    isActive: '',
   });
   const [services, setServices] = useState([]);
   const [packages, setPackages] = useState([]);
@@ -112,6 +116,40 @@ export default function Page() {
         setError(error.message);
       }
     };
+    const fetchUserType = async () => {
+            
+      try {
+          const supabase = createClient();
+          const { data, error } = await supabase.auth.getSession(); // Get session data
+
+          if (error) {
+              console.error('Error fetching session:', error.message);
+              return;
+          }
+
+          const session = data.session;
+          setSession(session); // Set session state
+
+          if (session) {
+              const userId = session.user.id; // Extract user ID from session
+              const { data: userData, error: userError } = await supabase
+                  .from('userAccount')
+                  .select('user_type') 
+                  .eq("id", userId)
+                  .single();
+
+              if (userError) {
+                  throw userError;
+              }
+
+              if (userData) {
+                  setUserType(userData.user_type); // Set user type state
+              }
+          }
+      } catch (error) {
+          console.error('Error fetching user type:', error.message);
+      }
+  };
 
     fetchCustomer();
     fetchDevice();
@@ -119,6 +157,7 @@ export default function Page() {
     fetchPackage();
     fetchService();
     fetchOLT();
+    fetchUserType();
   }, [customer_id]);
   
   const handleEditCustomer = async (e) => {
@@ -140,6 +179,7 @@ export default function Page() {
           onu_id: customer.onu_id,
           camera_ip: customer.camera_ip,
           ip_address: customer.ip_address,
+          isActive: customer.isActive,
           activation_date: customer.activation_date,
           device_id: parseInt(customer.device_id),
           service_id: parseInt(customer.service_id),
@@ -170,249 +210,236 @@ export default function Page() {
         </button>
         <span>Edit Customer Information: </span>
         <form onSubmit={handleEditCustomer} className="flex flex-wrap justify-between mt-10">
-          <div className="w-full lg:w-1/3 p-2">
-            {/* Customer Name */}
-            <label htmlFor="customerName" className="block mb-2">Customer Name:</label>
-            <input
-              type="text"
-              id="customerName"
-              placeholder="Enter customer name"
-              value={customer.customer_name}
-              onChange={(e) => setCustomer({ ...customer, customer_name: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            {/* Phone Number */}
-            <label htmlFor="phoneNumber" className="block mb-2 mt-4">Phone Number:</label>
-            <input
-              type="text"
-              id="phoneNumber"
-              placeholder="Enter Phone Number"
-              value={customer.phone_number}
-              onChange={(e) => setCustomer({ ...customer, phone_number: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            {/* Package Name */}
-            <label htmlFor="packageName" className="block mb-2 mt-4">Package Name:</label>
-            <select
-              id="packageName"
-              value={customer.package_id}
-              onChange={(e) => setCustomer({ ...customer, package_id: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            >
-              <option value="">Select Package...</option>
-              {packages.map((pkg) => (
-                <option key={pkg.package_id} value={pkg.package_id}>
-                  {pkg.package_name}
-                </option>
-              ))}
-            </select>
-            {/* Address */}
-            <label htmlFor="Address" className="block mb-2 mt-4">Address:</label>
-            <input
-              type="text"
-              id="Address"
-              placeholder="Enter Address"
-              value={customer.address}
-              onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            <label htmlFor="onuMacAddress" className="block mb-2 mt-4">ONU Mac Address:</label>
-            <input
-              type="float"
-              id="onuMacAddress"
-              placeholder="Enter ONU Mac Address"
-              value={customer.ONU_mac_address}
-              onChange={(e) => setCustomer({ ...customer, ONU_mac_address: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            <label htmlFor="onuID" className="block mb-2 mt-4">ONU ID:</label>
-            <input
-              type="int"
-              id="onuID"
-              placeholder="Enter ONU ID"
-              value={customer.onu_id}
-              onChange={(e) => setCustomer({ ...customer, onu_id: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            <label htmlFor="activationDate" className="block mb-2 mt-4">Activation Date:</label>
-            <input
-              type="date"
-              id="activationDate"
-              value={customer.activation_date}
-              onChange={(e) => setCustomer({ ...customer, activation_date: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-          </div>
-          <div className="w-full lg:w-1/3 p-2">
-            {/* CID */}
-            <label htmlFor="CID" className="block mb-2">CID:</label>
-            <input
-              type="text"
-              id="CID"
-              placeholder="Enter CID"
-              value={customer.cid}
-              onChange={(e) => setCustomer({ ...customer, cid: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            {/* Service Name */}
-            <label htmlFor="serviceName" className="block mb-2 mt-4">Service Name:</label>
-            <select
-              id="serviceName"
-              value={customer.service_id}
-              onChange={(e) => setCustomer({ ...customer, service_id: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            >
-              <option value="">Select Service...</option>
-              {services.map((service) => (
-                <option key={service.service_id} value={service.service_id}>
-                  {service.service_name}
-                </option>
-              ))}
-            </select>
-            {/* Location Name */}
-            <label htmlFor="locationName" className="block mb-2 mt-4">Location Name:</label>
-            <select
-              id="locationName"
-              value={customer.location_id}
-              onChange={(e) => setCustomer({ ...customer, location_id: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            >
-              <option value="">Select Location...</option>
-              {locations.map((location_location) => (
-                <option key={location_location.location_id} value={location_location.location_id}>
-                  {location_location.location_name}
-                </option>
-              ))}
-            </select>
-            {/* Longtitude */}
-            <label htmlFor="longtitudes" className="block mb-2 mt-4">Longtitude:</label>
-            <input
-              type="float"
-              id="longtitudes"
-              placeholder="Enter Longtitude"
-              value={customer.longtitude}
-              onChange={(e) => setCustomer({ ...customer, longtitude: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-             <label htmlFor="ports" className="block mb-2 mt-4">Port:</label>
-            <input
-              type="int"
-              id="ports"
-              placeholder="Enter Port"
-              value={customer.port}
-              onChange={(e) => setCustomer({ ...customer, port: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-             <label htmlFor="cameraIP" className="block mb-2 mt-4">Camera IP:</label>
-            <input
-              type="text"
-              id="cameraIP"
-              placeholder="Enter Camera IP"
-              value={customer.camera_ip}
-              onChange={(e) => setCustomer({ ...customer, camera_ip: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-          </div>
-          <div className="w-full lg:w-1/3 p-2">
-            {/* Langtitude */}
-            <label htmlFor="langtitudes" className="block mb-2">Langtitude:</label>
-            <input
-              type="float"
-              id="langtitudes"
-              placeholder="Enter Langtitude"
-              value={customer.langtitude}
-              onChange={(e) => setCustomer({ ...customer, langtitude: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            {/* Slot */}
-            <label htmlFor="slots" className="block mb-2 mt-4">Slot:</label>
-            <input
-              type="int"
-              id="slots"
-              placeholder="Enter Slot"
-              value={customer.slot}
-              onChange={(e) => setCustomer({ ...customer, slot: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            {/* Service Port */}
-            <label htmlFor="servicePort" className="block mb-2 mt-4">Service Port:</label>
-            <input
-              type="int"
-              id="servicePort"
-              placeholder="Enter Service Port"
-              value={customer.service_port}
-              onChange={(e) => setCustomer({ ...customer, service_port: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            {/* IP Address */}
-            <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
-            <input
-              type="text"
-              id="ipAddress"
-              placeholder="Enter IP Address"
-              value={customer.ip_address}
-              onChange={(e) => setCustomer({ ...customer, ip_address: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            />
-            {/* Device Name */}
-            <label htmlFor="deviceName" className="block mb-2 mt-4">Device Name:</label>
-            <select
-              id="deviceName"
-              value={customer.device_id}
-              onChange={(e) => setCustomer({ ...customer, device_id: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            >
-              <option value="">Select Device...</option>
-              {devices.map((dvc) => (
-                <option key={dvc.device_id} value={dvc.device_id}>
-                  {dvc.device_name}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="oltName" className="block mb-2 mt-4">OLT Name:</label>
-            <select
-              id="oltName"
-              value={customer.olt_id}
-              onChange={(e) => setCustomer({ ...customer, olt_id: e.target.value })}
-              required
-              className="font-raleway-black w-full p-2 border"
-            >
-              <option value="">Select OLT...</option>
-              {OLTs.map((olt) => (
-                <option key={olt.olt_id} value={olt.olt_id}>
-                  {olt.olt_name}
-                </option>
-              ))}
-            </select>
-          </div>
-            {/* ONU Mac Address */}
-            
-            {/* Port */}
-           
-            {/* ONU ID */}
-            
-            {/* Camera IP */}
-           
-            {/* Activation Date */}
-            
+          {userType !== "technical" && (
+            <><div className="w-full lg:w-1/2 p-2">
+              <label htmlFor="customerName" className="block mb-2">Customer Name:</label>
+              <input
+                type="text"
+                id="customerName"
+                placeholder="Enter customer name"
+                value={customer.customer_name}
+                onChange={(e) => setCustomer({ ...customer, customer_name: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+              <label htmlFor="phoneNumber" className="block mb-2 mt-4">Phone Number:</label>
+              <input
+                type="text"
+                id="phoneNumber"
+                placeholder="Enter Phone Number"
+                value={customer.phone_number}
+                onChange={(e) => setCustomer({ ...customer, phone_number: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+              <label htmlFor="CID" className="block mb-2">CID:</label>
+              <input
+                type="text"
+                id="CID"
+                placeholder="Enter CID"
+                value={customer.cid}
+                onChange={(e) => setCustomer({ ...customer, cid: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+              <label htmlFor="activationDate" className="block mb-2 mt-4">Activation Date:</label>
+              <input
+                type="date"
+                id="activationDate"
+                value={customer.activation_date}
+                onChange={(e) => setCustomer({ ...customer, activation_date: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+            </div><div className="w-full lg:w-1/2 p-2">
+                <label htmlFor="packageName" className="block mb-2">Package Name:</label>
+                <select
+                  id="packageName"
+                  value={customer.package_id}
+                  onChange={(e) => setCustomer({ ...customer, package_id: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">Select Package...</option>
+                  {packages.map((pkg) => (
+                    <option key={pkg.package_id} value={pkg.package_id}>
+                      {pkg.package_name}
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="Address" className="block mb-2 mt-4">Address:</label>
+                <input
+                  type="text"
+                  id="Address"
+                  placeholder="Enter Address"
+                  value={customer.address}
+                  onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border" />
+                <label htmlFor="serviceName" className="block mb-2 mt-2">Service Name:</label>
+                <select
+                  id="serviceName"
+                  value={customer.service_id}
+                  onChange={(e) => setCustomer({ ...customer, service_id: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border mb-2"
+                >
+                  <option value="">Select Service...</option>
+                  {services.map((service) => (
+                    <option key={service.service_id} value={service.service_id}>
+                      {service.service_name}
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="status" className="block mt-4">
+                  Status:
+                </label>
+                <select
+                  id="isActive"
+                  value={customer.isActive ? 'true' : 'false'}
+                  onChange={(e) => setCustomer({ ...customer, isActive: e.target.value === 'true' })}
+                  className="font-raleway-black w-full p-2 border mb-3"
+                >
+                  <option value="">Select Status...</option>
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div></>
+          )}
+          {userType !== "customer_service" && (
+          <><div className="w-full lg:w-1/2 p-2">
+              <label htmlFor="onuMacAddress" className="block mb-2">ONU Mac Address:</label>
+              <input
+                type="float"
+                id="onuMacAddress"
+                placeholder="Enter ONU Mac Address"
+                value={customer.ONU_mac_address}
+                onChange={(e) => setCustomer({ ...customer, ONU_mac_address: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+              <label htmlFor="onuID" className="block mb-2 mt-4">ONU ID:</label>
+              <input
+                type="int"
+                id="onuID"
+                placeholder="Enter ONU ID"
+                value={customer.onu_id}
+                onChange={(e) => setCustomer({ ...customer, onu_id: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+
+              <label htmlFor="locationName" className="block mb-2 mt-4">Location Name:</label>
+              <select
+                id="locationName"
+                value={customer.location_id}
+                onChange={(e) => setCustomer({ ...customer, location_id: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border"
+              >
+                <option value="">Select Location...</option>
+                {locations.map((location_location) => (
+                  <option key={location_location.location_id} value={location_location.location_id}>
+                    {location_location.location_name}
+                  </option>
+                ))}
+              </select>
+              {/* Longtitude */}
+              <label htmlFor="longtitudes" className="block mb-2 mt-4">Longtitude:</label>
+              <input
+                type="float"
+                id="longtitudes"
+                placeholder="Enter Longtitude"
+                value={customer.longtitude}
+                onChange={(e) => setCustomer({ ...customer, longtitude: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+              <label htmlFor="ports" className="block mb-2 mt-4">Port:</label>
+              <input
+                type="int"
+                id="ports"
+                placeholder="Enter Port"
+                value={customer.port}
+                onChange={(e) => setCustomer({ ...customer, port: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+              <label htmlFor="cameraIP" className="block mb-2 mt-4">Camera IP:</label>
+              <input
+                type="text"
+                id="cameraIP"
+                placeholder="Enter Camera IP"
+                value={customer.camera_ip}
+                onChange={(e) => setCustomer({ ...customer, camera_ip: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border" />
+            </div><div className="w-full lg:w-1/2 p-2">
+                {/* Langtitude */}
+                <label htmlFor="langtitudes" className="block mb-2">Langtitude:</label>
+                <input
+                  type="float"
+                  id="langtitudes"
+                  placeholder="Enter Langtitude"
+                  value={customer.langtitude}
+                  onChange={(e) => setCustomer({ ...customer, langtitude: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border" />
+                {/* Slot */}
+                <label htmlFor="slots" className="block mb-2 mt-4">Slot:</label>
+                <input
+                  type="int"
+                  id="slots"
+                  placeholder="Enter Slot"
+                  value={customer.slot}
+                  onChange={(e) => setCustomer({ ...customer, slot: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border" />
+                {/* Service Port */}
+                <label htmlFor="servicePort" className="block mb-2 mt-4">Service Port:</label>
+                <input
+                  type="int"
+                  id="servicePort"
+                  placeholder="Enter Service Port"
+                  value={customer.service_port}
+                  onChange={(e) => setCustomer({ ...customer, service_port: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border" />
+                {/* IP Address */}
+                <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
+                <input
+                  type="text"
+                  id="ipAddress"
+                  placeholder="Enter IP Address"
+                  value={customer.ip_address}
+                  onChange={(e) => setCustomer({ ...customer, ip_address: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border" />
+                {/* Device Name */}
+                <label htmlFor="deviceName" className="block mb-2 mt-4">Device Name:</label>
+                <select
+                  id="deviceName"
+                  value={customer.device_id}
+                  onChange={(e) => setCustomer({ ...customer, device_id: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">Select Device...</option>
+                  {devices.map((dvc) => (
+                    <option key={dvc.device_id} value={dvc.device_id}>
+                      {dvc.device_name}
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="oltName" className="block mb-2 mt-4">OLT Name:</label>
+                <select
+                  id="oltName"
+                  value={customer.olt_id}
+                  onChange={(e) => setCustomer({ ...customer, olt_id: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">Select OLT...</option>
+                  {OLTs.map((olt) => (
+                    <option key={olt.olt_id} value={olt.olt_id}>
+                      {olt.olt_name}
+                    </option>
+                  ))}
+                </select>
+              </div></>
+          )}
           <div className="w-full p-2 text-center">
             <button
               type="submit"

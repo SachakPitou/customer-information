@@ -69,128 +69,54 @@ export default function Dashboard() {
     
 
     useEffect(() => {
-        async function fetchCustomers() {
+        const fetchCustomers = async () => {
             try {
-                const { data: customersData, error } = await supabase
+                const { data: customersData, error: customerError } = await supabase
                     .from('Customer')
-                    .select('*')
-        
-                if (error) {
-                    throw error;
-                }
-                const packageIds = customersData.map((customer) => customer.package_id);
-
-                // Fetch package names based on package_ids
-                const { data: packagesData, error: packageError } = await supabase
-                    .from('Package')
-                    .select('package_id, package_name')
-                    .in('package_id', packageIds);
-
-                if (packageError) {
-                    throw packageError;
-                }
-
-                // Map package_ids to package_names
-                const packageMap = {};
-                packagesData.forEach((pkg) => {
-                    packageMap[pkg.package_id] = pkg.package_name;
-                });
-
-                // Combine customer data with package_names
-                const customersWithPackages = customersData.map((customer) => ({
-                    ...customer,
-                    package_name: packageMap[customer.package_id] || 'Unknown Package',
-                }));
-
-                // Update the state with customers including package names
-                setCustomers(customersWithPackages);
-
-                const deviceIds = customersData.map((customer) => customer.device_id);
-
-                // Fetch device names based on device_ids
-                const { data: devicesData, error: deviceError } = await supabase
-                    .from('Device')
-                    .select('device_id, device_name')
-                    .in('device_id', deviceIds);
-
-                if (deviceError) {
-                    throw deviceError;
-                }
-
-                // Map device_ids to device_names
-                const deviceMap = {};
-                devicesData.forEach((dvc) => {
-                    deviceMap[dvc.device_id] = dvc.device_name;
-                });
-
-                // Update the state with customers including device names
-                const customersWithDevices = customersWithPackages.map((customer) => ({
-                    ...customer,
-                    device_name: deviceMap[customer.device_id] || 'Unknown Device',
-                }));
-
-                setCustomers(customersWithDevices);
-                
-                const serviceIds = customersData.map((customer) => customer.service_id);
-
-                // Fetch service names based on service_ids
-                const { data: servicesData, error: serviceError } = await supabase
-                    .from('Service')
-                    .select('service_id, service_name')
-                    .in('service_id', serviceIds);
-
-                if (serviceError) {
-                    throw serviceError;
-                }
-
-                // Map service_ids to service_names
-                const serviceMap = {};
-                servicesData.forEach((service) => {
-                    serviceMap[service.service_id] = service.service_name;
-                });
-
-                // Update the state with customers including service names
-                const customersWithServices = customersWithDevices.map((customer) => ({
-                    ...customer,
-                    service_name: serviceMap[customer.service_id] || 'Unknown Service',
-                }));
-
-                setCustomers(customersWithServices);
-
-                const locationIds = customersData.map((customer) => customer.location_id);
-
-                // Fetch service names based on service_ids
+                    .select('*');
     
-
-                const oltIds = customersData.map((customer) => customer.olt_id);
-
-                // Fetch device names based on device_ids
-                const { data: oltsData, error: oltError } = await supabase
-                    .from('OLT')
-                    .select('olt_id, olt_name')
-                    .in('olt_id', oltIds);
-
-                if (oltError) {
-                    throw oltError;
-                }
-
-                // Map device_ids to device_names
-                const oltMap = {};
-                oltsData.forEach((olt) => {
-                    oltMap[olt.olt_id] = olt.olt_name;
+                if (customerError) throw customerError;
+    
+                const customerPromises = customersData.map(async (customer) => {
+                    const { data: packageData } = await supabase
+                        .from('Package')
+                        .select('package_name')
+                        .eq('package_id', customer.package_id)
+                        .single();
+    
+                    const { data: deviceData } = await supabase
+                        .from('Device')
+                        .select('device_name')
+                        .eq('device_id', customer.device_id)
+                        .single();
+    
+                    const { data: oltData } = await supabase
+                        .from('OLT')
+                        .select('olt_name')
+                        .eq('olt_id', customer.olt_id)
+                        .single();
+                    
+                    const { data: statusData } = await supabase
+                        .from('Customer')
+                        .select('*')
+                        .eq('status', 'Completed')
+                        .eq('customer_id', customer.customer_id)
+                        .single();
+                    return {
+                        ...customer,
+                        package_name: packageData?.package_name || 'Unknown Package',
+                        device_name: deviceData?.device_name || 'Unknown Device',
+                        olt_name: oltData?.olt_name || 'Unknown OLT',
+                        status: statusData?.status
+                    };
                 });
-
-                // Update the state with customers including device names
-                const customersWithOLTs = customersWithServices.map((customer) => ({
-                    ...customer,
-                    olt_name: oltMap[customer.olt_id] || 'Unknown Device',
-                }));
-                setCustomers(customersWithOLTs); 
-
+    
+                const customersWithDetails = await Promise.all(customerPromises);
+                setCustomers(customersWithDetails);
             } catch (error) {
-                console.error('Error fetching data:', error.message);
+                console.error('Error fetching customers:', error.message);
             }
-        }
+        };
         const fetchUserType = async () => {
             
             try {
@@ -229,35 +155,18 @@ export default function Dashboard() {
         fetchCustomers();
         fetchUserType();
     }, [customerToDelete, showModal]);
-    const fetchPendingRequests = async () => {
-        try {
-          // Fetch customer records with status "Pending Technical Review"
-          const { data, error } = await supabase
-            .from('Customer')
-            .select('*')
-            .eq('status', "Completed");
-  
-          if (error) throw error;
-  
-          setPendingRequests(data);
-        } catch (error) {
-          setError(error.message);
-        }
-      };
-    useEffect(() => {
-        fetchPendingRequests();
-    }, [customers]);
-
+    
         console.log("Filtering customers...");
     
-        const filteredCustomers = pendingRequests.filter((customer) => {
+        const filteredCustomers = customers.filter((customer) => {
             const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
             
-            // Status filter
+            const statusCustomer = customer.status === "Completed";
+
             const statusMatch = statusFilter === "" || (statusFilter === "active" && customer.isActive) || (statusFilter === "inactive" && !customer.isActive);
             
             if (searchValue === '' && statusMatch) {
-                return true; // No search term and status filter match, return all customers
+                return statusCustomer; // No search term and status filter match, return all customers
             }
             
             let isMatchingSearch = false; // Initialize the flag
@@ -304,12 +213,13 @@ export default function Dashboard() {
                 const ipAddressString = customer.ip_address?.toString().toLowerCase() || ''; // Convert to lowercase for case-insensitive comparison
                 isMatchingSearch = ipAddressString.startsWith(searchTerm.toLowerCase());
             }
+            // console.log ("status customer: ", statusCustomer);
+            return isMatchingSearch && statusMatch && statusCustomer;
             
-            return isMatchingSearch && statusMatch;
              // Return true if both search and status match
         });
         console.log("Filtered customers:", filteredCustomers);
-    
+        
     const handleSearch = () => {
         // Log the search value
         console.log("Search value:", searchValue);
@@ -596,7 +506,6 @@ export default function Dashboard() {
                                     </div>
                                 </Link>
                             </td>
-                            {userType !== "technical" && (
                             <td className="px-6 py-4">
                                 <Link href={`/editCustomer/${customer.customer_id}`}>
                                     <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
@@ -606,7 +515,6 @@ export default function Dashboard() {
                                     </div>
                                 </Link>
                             </td>
-                             )}
                             <td className="px-6 py-4">
                                 <button
                                     onClick={() => {
@@ -665,3 +573,4 @@ export default function Dashboard() {
         </div>
     );
 }
+ 

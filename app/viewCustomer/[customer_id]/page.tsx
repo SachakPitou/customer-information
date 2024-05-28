@@ -20,153 +20,51 @@ export default function viewCustomer() {
                     console.log('No customer_id parameter found in the query.');
                     return;
                 }
-        
-                const { data: customersData, error } = await supabase
+    
+                const { data: customersData, error: customerError } = await supabase
                     .from('Customer')
                     .select('*')
-                    .eq('customer_id', customer_id)
-        
-                if (error) {
-                    throw error;
-                }
+                    .eq('customer_id', customer_id);
+    
+                if (customerError) throw customerError;
+    
                 const packageIds = customersData.map((customer) => customer.package_id);
-
-                // Fetch package names based on package_ids
-                const { data: packagesData, error: packageError } = await supabase
-                    .from('Package')
-                    .select('package_id, package_name')
-                    .in('package_id', packageIds);
-
-                if (packageError) {
-                    throw packageError;
-                }
-
-                // Map package_ids to package_names
-                const packageMap = {};
-                packagesData.forEach((pkg) => {
-                    packageMap[pkg.package_id] = pkg.package_name;
-                });
-
-                // Combine customer data with package_names
-                const customersWithPackages = customersData.map((customer) => ({
+                const deviceIds = customersData.map((customer) => customer.device_id);
+                const serviceIds = customersData.map((customer) => customer.service_id);
+                const locationIds = customersData.map((customer) => customer.location_id);
+                const oltIds = customersData.map((customer) => customer.olt_id);
+    
+                const [packagesData, devicesData, servicesData, locationsData, oltsData] = await Promise.all([
+                    supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
+                    supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
+                    supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
+                    supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
+                    supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
+                ]);
+    
+                const packageMap = Object.fromEntries(packagesData.data.map(pkg => [pkg.package_id, pkg.package_name]));
+                const deviceMap = Object.fromEntries(devicesData.data.map(dev => [dev.device_id, dev.device_name]));
+                const serviceMap = Object.fromEntries(servicesData.data.map(srv => [srv.service_id, srv.service_name]));
+                const locationMap = Object.fromEntries(locationsData.data.map(loc => [loc.location_id, loc.location_name]));
+                const oltMap = Object.fromEntries(oltsData.data.map(olt => [olt.olt_id, olt.olt_name]));
+    
+                const customersWithDetails = customersData.map(customer => ({
                     ...customer,
                     package_name: packageMap[customer.package_id] || 'Unknown Package',
-                }));
-
-                // Update the state with customers including package names
-                setCustomers(customersWithPackages);
-
-                const deviceIds = customersData.map((customer) => customer.device_id);
-
-                // Fetch device names based on device_ids
-                const { data: devicesData, error: deviceError } = await supabase
-                    .from('Device')
-                    .select('device_id, device_name')
-                    .in('device_id', deviceIds);
-
-                if (deviceError) {
-                    throw deviceError;
-                }
-
-                // Map device_ids to device_names
-                const deviceMap = {};
-                devicesData.forEach((dvc) => {
-                    deviceMap[dvc.device_id] = dvc.device_name;
-                });
-
-                // Update the state with customers including device names
-                const customersWithDevices = customersWithPackages.map((customer) => ({
-                    ...customer,
                     device_name: deviceMap[customer.device_id] || 'Unknown Device',
-                }));
-
-                setCustomers(customersWithDevices);
-                
-                const serviceIds = customersData.map((customer) => customer.service_id);
-
-                // Fetch service names based on service_ids
-                const { data: servicesData, error: serviceError } = await supabase
-                    .from('Service')
-                    .select('service_id, service_name')
-                    .in('service_id', serviceIds);
-
-                if (serviceError) {
-                    throw serviceError;
-                }
-
-                // Map service_ids to service_names
-                const serviceMap = {};
-                servicesData.forEach((service) => {
-                    serviceMap[service.service_id] = service.service_name;
-                });
-
-                // Update the state with customers including service names
-                const customersWithServices = customersWithDevices.map((customer) => ({
-                    ...customer,
                     service_name: serviceMap[customer.service_id] || 'Unknown Service',
+                    location_name: locationMap[customer.location_id] || 'Unknown Location',
+                    olt_name: oltMap[customer.olt_id] || 'Unknown OLT',
                 }));
-
-                setCustomers(customersWithServices);
-
-                const locationIds = customersData.map((customer) => customer.location_id);
-
-                // Fetch service names based on service_ids
-                const { data: locationsData, error: locationError } = await supabase
-                    .from('Location')
-                    .select('location_id, location_name')
-                    .in('location_id', locationIds);
-
-                if (locationError) {
-                    throw locationError;
-                }
-
-                // Map service_ids to service_names
-                const locationMap = {};
-                locationsData.forEach((location) => {
-                    locationMap[location.location_id] = location.location_name;
-                });
-
-                // Update the state with customers including service names
-                const customersWithLocations = customersWithServices.map((customer) => ({
-                    ...customer,
-                    location_name: locationMap[customer.location_id] || 'Unknown Service',
-                }));
-
-                setCustomers(customersWithLocations);
-
-                const oltIds = customersData.map((customer) => customer.olt_id);
-
-                // Fetch device names based on device_ids
-                const { data: oltsData, error: oltError } = await supabase
-                    .from<OLT>('OLT')
-                    .select('olt_id, olt_name')
-                    .in('olt_id', oltIds);
-
-                if (oltError) {
-                    throw oltError;
-                }
-
-                // Map device_ids to device_names
-                const oltMap: Record<number, string> = {};
-                oltsData.forEach((olt) => {
-                    oltMap[olt.olt_id] = olt.olt_name;
-                });
-
-                // Update the state with customers including device names
-                const customersWithOLTs = customersWithLocations.map((customer) => ({
-                    ...customer,
-                    olt_name: oltMap[customer.olt_id] || 'Unknown Device',
-                }));
-                setCustomers(customersWithOLTs); 
-
+    
+                setCustomers(customersWithDetails);
             } catch (error) {
                 console.error('Error fetching data:', error.message);
             }
         }
-      
+    
         fetchCustomers();
     }, [customer_id]);
-
     if (customers.length === 0) {
         return <div>Loading...</div>;
     }
