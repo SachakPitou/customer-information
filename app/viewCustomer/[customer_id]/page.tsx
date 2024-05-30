@@ -3,37 +3,32 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
-interface OLT {
-    olt_id: number;
-    olt_name: string;
-}
+
 export default function viewCustomer() {
     const [customers, setCustomers] = useState([]);
+    const [editHistories, setEditHistories] = useState({});
+    const [editHistoryVisible, setEditHistoryVisible] = useState({});
     const router = useRouter();
     const { customer_id } = useParams();
 
     useEffect(() => {
         async function fetchCustomers() {
             try {
-                console.log('Fetching customers...');
-                if (!customer_id) {
-                    console.log('No customer_id parameter found in the query.');
-                    return;
-                }
-    
+                if (!customer_id) return;
+
                 const { data: customersData, error: customerError } = await supabase
                     .from('Customer')
                     .select('*')
                     .eq('customer_id', customer_id);
-    
+
                 if (customerError) throw customerError;
-    
+
                 const packageIds = customersData.map((customer) => customer.package_id);
                 const deviceIds = customersData.map((customer) => customer.device_id);
                 const serviceIds = customersData.map((customer) => customer.service_id);
                 const locationIds = customersData.map((customer) => customer.location_id);
                 const oltIds = customersData.map((customer) => customer.olt_id);
-    
+
                 const [packagesData, devicesData, servicesData, locationsData, oltsData] = await Promise.all([
                     supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
                     supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
@@ -41,13 +36,13 @@ export default function viewCustomer() {
                     supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
                     supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
                 ]);
-    
+
                 const packageMap = Object.fromEntries(packagesData.data.map(pkg => [pkg.package_id, pkg.package_name]));
                 const deviceMap = Object.fromEntries(devicesData.data.map(dev => [dev.device_id, dev.device_name]));
                 const serviceMap = Object.fromEntries(servicesData.data.map(srv => [srv.service_id, srv.service_name]));
                 const locationMap = Object.fromEntries(locationsData.data.map(loc => [loc.location_id, loc.location_name]));
                 const oltMap = Object.fromEntries(oltsData.data.map(olt => [olt.olt_id, olt.olt_name]));
-    
+
                 const customersWithDetails = customersData.map(customer => ({
                     ...customer,
                     package_name: packageMap[customer.package_id] || 'Unknown Package',
@@ -56,19 +51,117 @@ export default function viewCustomer() {
                     location_name: locationMap[customer.location_id] || 'Unknown Location',
                     olt_name: oltMap[customer.olt_id] || 'Unknown OLT',
                 }));
-    
+
                 setCustomers(customersWithDetails);
             } catch (error) {
                 console.error('Error fetching data:', error.message);
             }
         }
-    
+
         fetchCustomers();
     }, [customer_id]);
+
+    const handleFetchHistory = async (customerId) => {
+        try {
+            const { data: historyData, error: historyError } = await supabase
+                .from('CustomerHistory')
+                .select('*')
+                .eq('customer_id', customerId);
+    
+            if (historyError) throw historyError;
+    
+            // Collect all the IDs that need to be fetched
+            const locationIds = historyData.flatMap(history => 
+                history.field_changed === 'location_id' ? [history.old_value, history.new_value] : []
+            );
+            const oltIds = historyData.flatMap(history => 
+                history.field_changed === 'olt_id' ? [history.old_value, history.new_value] : []
+            );
+            const deviceIds = historyData.flatMap(history => 
+                history.field_changed === 'device_id' ? [history.old_value, history.new_value] : []
+            );
+            const serviceIds = historyData.flatMap(history => 
+                history.field_changed === 'service_id' ? [history.old_value, history.new_value] : []
+            );
+            const packageIds = historyData.flatMap(history => 
+                history.field_changed === 'package_id' ? [history.old_value, history.new_value] : []
+            );
+    
+            // Fetch details for all relevant entities
+            const [locationsData, oltsData, devicesData, servicesData, packagesData] = await Promise.all([
+                supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
+                supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
+                supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
+                supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
+                supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
+            ]);
+    
+            // Create maps for easy lookup
+            const locationMap = Object.fromEntries(locationsData.data.map(loc => [loc.location_id, loc.location_name]));
+            const oltMap = Object.fromEntries(oltsData.data.map(olt => [olt.olt_id, olt.olt_name]));
+            const deviceMap = Object.fromEntries(devicesData.data.map(dev => [dev.device_id, dev.device_name]));
+            const serviceMap = Object.fromEntries(servicesData.data.map(srv => [srv.service_id, srv.service_name]));
+            const packageMap = Object.fromEntries(packagesData.data.map(pkg => [pkg.package_id, pkg.package_name]));
+    
+            const historyWithDetails = historyData.map(history => {
+                let changeDescription;
+    
+                // Generate change descriptions based on the field changed
+                if (history.field_changed === 'location_id') {
+                    const oldLocationName = locationMap[history.old_value] || 'Unknown Location';
+                    const newLocationName = locationMap[history.new_value] || 'Unknown Location';
+                    changeDescription = `Location changed from "${oldLocationName}" to "${newLocationName}"`;
+                } else if (history.field_changed === 'olt_id') {
+                    const oldOltName = oltMap[history.old_value] || 'Unknown OLT';
+                    const newOltName = oltMap[history.new_value] || 'Unknown OLT';
+                    changeDescription = `OLT changed from "${oldOltName}" to "${newOltName}"`;
+                } else if (history.field_changed === 'device_id') {
+                    const oldDeviceName = deviceMap[history.old_value] || 'Unknown Device';
+                    const newDeviceName = deviceMap[history.new_value] || 'Unknown Device';
+                    changeDescription = `Device changed from "${oldDeviceName}" to "${newDeviceName}"`;
+                } else if (history.field_changed === 'service_id') {
+                    const oldServiceName = serviceMap[history.old_value] || 'Unknown Service';
+                    const newServiceName = serviceMap[history.new_value] || 'Unknown Service';
+                    changeDescription = `Service changed from "${oldServiceName}" to "${newServiceName}"`;
+                } else if (history.field_changed === 'package_id') {
+                    const oldPackageName = packageMap[history.old_value] || 'Unknown Package';
+                    const newPackageName = packageMap[history.new_value] || 'Unknown Package';
+                    changeDescription = `Package changed from "${oldPackageName}" to "${newPackageName}"`;
+                }else if (history.field_changed === 'isActive') {
+                    const oldStatusName = history.old_value === "true" ? "Active" : "Inactive";
+                    const newStatusName = history.new_value === "true" ? "Active" : "Inactive";
+                    changeDescription = `Status changed from "${oldStatusName}" to "${newStatusName}"`;
+                } else {
+                    changeDescription = `${history.field_changed} changed from "${history.old_value}" to "${history.new_value}"`;
+                }
+    
+                return {
+                    ...history,
+                    changeDescription,
+                };
+            });
+    
+            setEditHistories((prevHistories) => ({
+                ...prevHistories,
+                [customerId]: historyWithDetails,
+            }));
+    
+            setEditHistoryVisible((prevVisible) => ({
+                ...prevVisible,
+                [customerId]: !prevVisible[customerId],
+            }));
+        } catch (error) {
+            console.error('Error fetching edit history:', error.message);
+        }
+    };
+    
+    
+    
+
     if (customers.length === 0) {
         return <div>Loading...</div>;
     }
-    
+
     return (
         <div className="relative overflow-x-auto shadow-md">
             <div className="p-5 text-lg font-semibold text-left rtl:text-right text-gray-900 bg-white dark:text-white dark:bg-gray-800 flex items-center">
@@ -88,6 +181,9 @@ export default function viewCustomer() {
                         <th scope="col" className="px-6 py-3">
                             {/* Add column header if needed */}
                         </th>
+                        <th scope="col" className="px-6 py-3">
+                            Edit History
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -99,7 +195,7 @@ export default function viewCustomer() {
                                         <span className="username">{customer.customer_name}</span>
                                     </div>
                                     <br />
-                                    <div className="flex mb-2 dark:bg-gray-400 mr-2 mb-5 px-3 py-3">
+                                    <div className="flex mb-2 dark:bg-gray-400 dark:hover:bg-gray-200 mr-2 mb-5 px-3 py-3">
                                         <span className="secondary-title">BASIC INFORMATION:</span>
                                     </div>
                                     <br />
@@ -146,12 +242,12 @@ export default function viewCustomer() {
                             </td>
                             <td className="px-6 py-4">
                                 <div>
-                                    <div className="flex mb-2 dark:bg-gray-400 mr-2 mb-5 px-3 py-3">
+                                    <div className="flex mb-2 dark:bg-gray-400 dark:hover:bg-gray-200 mr-2 mb-5 px-3 py-3">
                                         <span className="secondary-title">SERVICE INFORMATION:</span>
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Longtitude</span>
+                                        <span className="font-semibold mr-2 w-40">Longitude</span>
                                         <span>: {customer.longtitude}</span>
                                     </div>
                                     <br />
@@ -201,6 +297,28 @@ export default function viewCustomer() {
                                     </div>
                                     <br />
                                 </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <button
+                                    onClick={() => handleFetchHistory(customer.customer_id)}
+                                    className="px-4 py-2 bg-red-700 text-white rounded"
+                                >
+                                    View Edit History
+                                </button>
+                                {editHistoryVisible[customer.customer_id] && (
+                                    <div className="mt-4">
+                                        {editHistories[customer.customer_id]?.map((history) => (
+                                            <div key={history.id} className="p-2 border-b border-white">
+                                                <div>
+                                                   <strong>Edit Date:</strong> {new Date(history.timestamp.replace(',', '')).toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })}
+                                                </div>
+                                                <div>
+                                                    <strong>Changes:</strong> {history.changeDescription}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </td>
                         </tr>
                     ))}

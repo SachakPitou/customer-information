@@ -7,196 +7,236 @@ import { createClient } from '@/utils/supabase/client';
 import PopUpModal from '@/app/component/popUpmodal';
 
 export default function Page() {
-  const router = useRouter();
-  const [userType, setUserType] = useState('');
-  const [session, setSession] = useState('null');
-  const [customer, setCustomer] = useState({
-    customer_name: '',
-    phone_number: '',
-    cid: '',
-    address: '',
-    longtitude: '',
-    langtitude: '',
-    ONU_mac_address: '',
-    slot: '',
-    port: '',
-    service_port: '',
-    onu_id: '',
-    camera_ip: '',
-    ip_address: '',
-    activation_date: '',
-    device_id: '',
-    service_id: '',
-    package_id: '',
-    location_id: '',
-    olt_id: '',
-    isActive: '',
-  });
-  const [services, setServices] = useState([]);
-  const [packages, setPackages] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [devices, setDevices] = useState([]);
-  const [OLTs, setOLTs] = useState([]);
-  const [error, setError] = useState(null);
-  const { customer_id } = useParams();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+    const router = useRouter();
+    const [userType, setUserType] = useState('');
+    const [session, setSession] = useState('null');
+    const [customer, setCustomer] = useState({
+        customer_name: '',
+        phone_number: '',
+        cid: '',
+        address: '',
+        longtitude: '',
+        langtitude: '',
+        ONU_mac_address: '',
+        slot: '',
+        port: '',
+        service_port: '',
+        onu_id: '',
+        camera_ip: '',
+        ip_address: '',
+        activation_date: '',
+        device_id: '',
+        service_id: '',
+        package_id: '',
+        location_id: '',
+        olt_id: '',
+        isActive: '',
+    });
+    const [services, setServices] = useState([]);
+    const [packages, setPackages] = useState([]);
+    const [locations, setLocations] = useState([]);
+    const [devices, setDevices] = useState([]);
+    const [OLTs, setOLTs] = useState([]);
+    const [error, setError] = useState(null);
+    const { customer_id } = useParams();
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    console.log('Modal Closed'); // Add console log to check if modal is being closed
-  };
- 
-
-  useEffect(() => {
-    const fetchCustomer = async () => {
-      try {
-        const { data: customerData, error } = await supabase
-          .from('Customer')
-          .select('*')
-          .eq('customer_id', customer_id)
-          .single();
-        if (error) throw new Error(error.message);
-        setCustomer(customerData);
-      } catch (error) {
-        console.error('Error fetching customer:', error.message);
-        setError(error.message);
-      }
+    const closeModal = () => {
+        setIsModalOpen(false);
+        console.log('Modal Closed'); // Add console log to check if modal is being closed
     };
 
-    const fetchService = async () => {
-      try {
-        const { data, error } = await supabase.from('Service').select('*');
-        if (error) throw new Error(error.message);
-        setServices(data);
-      } catch (error) {
-        console.error('Error fetching services:', error.message);
-        setError(error.message);
-      }
+    useEffect(() => {
+        const fetchCustomer = async () => {
+            try {
+                const { data: customerData, error } = await supabase
+                    .from('Customer')
+                    .select('*')
+                    .eq('customer_id', customer_id)
+                    .single();
+                if (error) throw new Error(error.message);
+                setCustomer(customerData);
+            } catch (error) {
+                console.error('Error fetching customer:', error.message);
+                setError(error.message);
+            }
+        };
+
+        const fetchService = async () => {
+            try {
+                const { data, error } = await supabase.from('Service').select('*');
+                if (error) throw new Error(error.message);
+                setServices(data);
+            } catch (error) {
+                console.error('Error fetching services:', error.message);
+                setError(error.message);
+            }
+        };
+
+        const fetchPackage = async () => {
+            try {
+                const { data, error } = await supabase.from('Package').select('*');
+                if (error) throw new Error(error.message);
+                setPackages(data);
+            } catch (error) {
+                console.error('Error fetching packages:', error.message);
+                setError(error.message);
+            }
+        };
+
+        const fetchLocation = async () => {
+            try {
+                const { data, error } = await supabase.from('Location').select('*');
+                if (error) throw new Error(error.message);
+                setLocations(data);
+            } catch (error) {
+                console.error('Error fetching locations:', error.message);
+                setError(error.message);
+            }
+        };
+
+        const fetchDevice = async () => {
+            try {
+                const { data, error } = await supabase.from('Device').select('*');
+                if (error) throw new Error(error.message);
+                setDevices(data);
+            } catch (error) {
+                console.error('Error fetching devices:', error.message);
+                setError(error.message);
+            }
+        };
+        const fetchOLT = async () => {
+            try {
+                const { data, error } = await supabase.from('OLT').select('*');
+                if (error) throw new Error(error.message);
+                setOLTs(data);
+            } catch (error) {
+                console.error('Error fetching OLTs:', error.message);
+                setError(error.message);
+            }
+        };
+        const fetchUserType = async () => {
+            try {
+                const supabase = createClient();
+                const { data, error } = await supabase.auth.getSession(); // Get session data
+
+                if (error) {
+                    console.error('Error fetching session:', error.message);
+                    return;
+                }
+
+                const session = data.session;
+                setSession(session); // Set session state
+
+                if (session) {
+                    const userId = session.user.id; // Extract user ID from session
+                    const { data: userData, error: userError } = await supabase
+                        .from('userAccount')
+                        .select('user_type')
+                        .eq("id", userId)
+                        .single();
+
+                    if (userError) {
+                        throw userError;
+                    }
+
+                    if (userData) {
+                        setUserType(userData.user_type); // Set user type state
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching user type:', error.message);
+            }
+        };
+
+        fetchCustomer();
+        fetchDevice();
+        fetchLocation();
+        fetchPackage();
+        fetchService();
+        fetchOLT();
+        fetchUserType();
+    }, [customer_id]);
+
+    const handleEditCustomer = async (e) => {
+        e.preventDefault();
+        try {
+            // Fetch the current customer data to capture the old values
+            const { data: currentCustomerData, error: fetchError } = await supabase
+                .from('Customer')
+                .select('*')
+                .eq('customer_id', customer_id)
+                .single();
+
+            if (fetchError) throw new Error(fetchError.message);
+
+            // Create a list of fields to check for changes
+            const fieldsToCheck = [
+                'customer_name', 'phone_number', 'cid', 'address', 'longtitude', 'langtitude',
+                'ONU_mac_address', 'slot', 'port', 'service_port', 'onu_id', 'camera_ip',
+                'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
+                'location_id', 'olt_id', 'isActive'
+            ];
+
+            // Check for changes and prepare history records
+            const historyRecords = fieldsToCheck.map(field => {
+                if (currentCustomerData[field] !== customer[field]) {
+                    return {
+                        customer_id: customer.customer_id,
+                        field_changed: field,
+                        old_value: currentCustomerData[field],
+                        new_value: customer[field],
+                        timestamp: new Date()
+                    };
+                }
+                return null;
+            }).filter(record => record !== null); // Remove null values
+
+            // Insert the change records into CustomerHistory
+            if (historyRecords.length > 0) {
+                const { error: historyError } = await supabase
+                    .from('CustomerHistory')
+                    .insert(historyRecords);
+                if (historyError) throw new Error(historyError.message);
+            }
+
+            // Update the customer data in the Customer table
+            const { error } = await supabase
+                .from('Customer')
+                .update({
+                    customer_name: customer.customer_name,
+                    phone_number: customer.phone_number,
+                    cid: customer.cid,
+                    address: customer.address,
+                    longtitude: customer.longtitude,
+                    langtitude: customer.langtitude,
+                    ONU_mac_address: customer.ONU_mac_address,
+                    slot: customer.slot,
+                    port: customer.port,
+                    service_port: customer.service_port,
+                    onu_id: customer.onu_id,
+                    camera_ip: customer.camera_ip,
+                    ip_address: customer.ip_address,
+                    isActive: customer.isActive,
+                    activation_date: customer.activation_date,
+                    device_id: customer.device_id ? parseInt(customer.device_id) : null,
+                    service_id: customer.service_id ? parseInt(customer.service_id) : null,
+                    package_id: customer.package_id ? parseInt(customer.package_id) : null,
+                    location_id: customer.location_id ? parseInt(customer.location_id) : null,
+                    olt_id: customer.olt_id ? parseInt(customer.olt_id) : null,
+                })
+                .eq('customer_id', customer_id);
+            if (error) throw new Error(error.message);
+
+            setIsModalOpen(true);
+            console.log('Customer updated successfully');
+        } catch (error) {
+            console.error('Error updating customer:', error.message);
+            setError(error.message);
+        }
     };
 
-    const fetchPackage = async () => {
-      try {
-        const { data, error } = await supabase.from('Package').select('*');
-        if (error) throw new Error(error.message);
-        setPackages(data);
-      } catch (error) {
-        console.error('Error fetching packages:', error.message);
-        setError(error.message);
-      }
-    };
 
-    const fetchLocation = async () => {
-      try {
-        const { data, error } = await supabase.from('Location').select('*');
-        if (error) throw new Error(error.message);
-        setLocations(data);
-      } catch (error) {
-        console.error('Error fetching locations:', error.message);
-        setError(error.message);
-      }
-    };
-
-    const fetchDevice = async () => {
-      try {
-        const { data, error } = await supabase.from('Device').select('*');
-        if (error) throw new Error(error.message);
-        setDevices(data);
-      } catch (error) {
-        console.error('Error fetching devices:', error.message);
-        setError(error.message);
-      }
-    };
-    const fetchOLT = async () => {
-      try {
-        const { data, error } = await supabase.from('OLT').select('*');
-        if (error) throw new Error(error.message);
-        setOLTs(data);
-      } catch (error) {
-        console.error('Error fetching OLTs:', error.message);
-        setError(error.message);
-      }
-    };
-    const fetchUserType = async () => {
-            
-      try {
-          const supabase = createClient();
-          const { data, error } = await supabase.auth.getSession(); // Get session data
-
-          if (error) {
-              console.error('Error fetching session:', error.message);
-              return;
-          }
-
-          const session = data.session;
-          setSession(session); // Set session state
-
-          if (session) {
-              const userId = session.user.id; // Extract user ID from session
-              const { data: userData, error: userError } = await supabase
-                  .from('userAccount')
-                  .select('user_type') 
-                  .eq("id", userId)
-                  .single();
-
-              if (userError) {
-                  throw userError;
-              }
-
-              if (userData) {
-                  setUserType(userData.user_type); // Set user type state
-              }
-          }
-      } catch (error) {
-          console.error('Error fetching user type:', error.message);
-      }
-  };
-
-    fetchCustomer();
-    fetchDevice();
-    fetchLocation();
-    fetchPackage();
-    fetchService();
-    fetchOLT();
-    fetchUserType();
-  }, [customer_id]);
-  
-  const handleEditCustomer = async (e) => {
-    e.preventDefault();
-    try {
-      const { error } = await supabase
-        .from('Customer')
-        .update({
-          customer_name: customer.customer_name,
-          phone_number: customer.phone_number,
-          cid: customer.cid,
-          address: customer.address,
-          longtitude: customer.longtitude,
-          langtitude: customer.langtitude,
-          ONU_mac_address: customer.ONU_mac_address,
-          slot: customer.slot,
-          port: customer.port,
-          service_port: customer.service_port,
-          onu_id: customer.onu_id,
-          camera_ip: customer.camera_ip,
-          ip_address: customer.ip_address,
-          isActive: customer.isActive,
-          activation_date: customer.activation_date,
-          device_id: parseInt(customer.device_id),
-          service_id: parseInt(customer.service_id),
-          package_id: parseInt(customer.package_id),
-          location_id: parseInt(customer.location_id),
-          olt_id: parseInt(customer.olt_id),
-        })
-        .eq('customer_id', customer_id);
-      if (error) throw new Error(error.message);
-      setIsModalOpen(true);
-      console.log('Customer updated successfully');
-      // Optionally, you can navigate to a different page or show a success message
-    } catch (error) {
-      console.error('Error updating customer:', error.message);
-      setError(error.message);
-    }
-  };
 
 
   // const filteredPackagesByService = packages.filter(pkg => pkg.service_id === parseInt(selectedServiceId));
