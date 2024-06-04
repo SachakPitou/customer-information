@@ -1,4 +1,4 @@
-"use effect"
+"use effect";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
@@ -50,7 +50,7 @@ export default function PendingRequests() {
                     Phone Number
                 </th>
                 <th scope="col" className="px-6 py-3">
-                    Date of Submission
+                    Date of Activation
                 </th>
                 <th scope="col" className="px-6 py-3">
                     Action

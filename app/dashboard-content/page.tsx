@@ -475,7 +475,7 @@ export default function Dashboard() {
                                 </div>
                             </td> */}
                             <td className="px-6 py-4">{customer.customer_name}</td>
-                            <td className="px-6 py-4">
+                            {/* <td className="px-6 py-4">
                                 <button
                                     onClick={() => toggleUserStatus(customer)}
                                     className={`text-sm font-medium rounded-lg px-3 py-1 ${
@@ -483,6 +483,12 @@ export default function Dashboard() {
                                     }`}
                                 >
                                     {customer.isActive ? 'Active' : 'Inactive'}
+                                </button>
+                            </td> */}
+                            <td className="px-6 py-4">
+                                <button 
+                                className={`px-4 py-2 font-semibold text-sm text-white rounded-full ${customer.isActive ? 'bg-green-500' : 'bg-red-500'}`}>
+                                {customer.isActive ? 'Active' : 'Inactive'}
                                 </button>
                             </td>
                             <td className="px-6 py-4">{customer.phone_number}</td>

@@ -9,6 +9,8 @@ export default function SideBar() {
     const [isOpen2, setIsOpen2] = useState(false);
     const [isOpen3, setIsOpen3] = useState(false);
     const [isOpen4, setIsOpen4] = useState(false);
+    const [isOpen5, setIsOpen5] = useState(false);
+    const [isOpen6, setIsOpen6] = useState(false);
     const [customerCount, setCustomerCount] = useState(0);
     const [userType, setUserType] = useState('');
     const [session, setSession] = useState(null); // Add session state
@@ -28,6 +30,13 @@ export default function SideBar() {
     const toggleDropdown4 = () => {
         setIsOpen4(!isOpen4);
     };
+    const toggleDropdown5 = () => {
+        setIsOpen5(!isOpen5);
+    };
+    const toggleDropdown6 = () => {
+        setIsOpen6(!isOpen6);
+    };
+    
     
     useEffect(() => {
         const fetchCustomerCount = async () => {
@@ -166,6 +175,27 @@ export default function SideBar() {
                                 )}
                                 {userType !== "customer_service" && (
                                 <li>
+                                    <button onClick={toggleDropdown6} className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-expanded={isOpen2} aria-controls="dropdown-example">
+                                        <svg className="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M17.27 8.14A8 8 0 1 0 10 18v-2.93a5.07 5.07 0 1 1 3.74-3.84H17a2.56 2.56 0 0 1 0 5.12h-3.23A8 8 0 0 0 17.27 8.14Z" />
+                                        </svg>
+                                        <span className="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Location</span>
+                                        <svg className={`w-3 h-3 transition-transform ${isOpen6 ? 'rotate-180' : ''}`} aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 4 4 4-4" />
+                                        </svg>
+                                    </button>
+                                    <ul id="dropdown-example" className={`py-2 space-y-2 ${isOpen6 ? 'block' : 'hidden'}`}>
+                                        <li>
+                                            <a href="/createLocation" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Create</a>
+                                        </li>
+                                        <li>
+                                            <a href="/locationDetail" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Details</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                )}
+                                {userType !== "customer_service" && (
+                                <li>
                                     <button onClick={toggleDropdown3} className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-expanded={isOpen2} aria-controls="dropdown-example">
                                         <svg className="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                                             <path d="M17.27 8.14A8 8 0 1 0 10 18v-2.93a5.07 5.07 0 1 1 3.74-3.84H17a2.56 2.56 0 0 1 0 5.12h-3.23A8 8 0 0 0 17.27 8.14Z" />
@@ -177,10 +207,10 @@ export default function SideBar() {
                                     </button>
                                     <ul id="dropdown-example" className={`py-2 space-y-2 ${isOpen3 ? 'block' : 'hidden'}`}>
                                         <li>
-                                            <a href="/createPackage" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Create</a>
+                                            <a href="/createUPS" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Create</a>
                                         </li>
                                         <li>
-                                            <a href="/packDetail" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Details</a>
+                                            <a href="/upsDetail" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Details</a>
                                         </li>
                                     </ul>
                                 </li>
@@ -198,7 +228,28 @@ export default function SideBar() {
                                     </button>
                                     <ul id="dropdown-example" className={`py-2 space-y-2 ${isOpen4 ? 'block' : 'hidden'}`}>
                                         <li>
-                                            <a href="/createPackage" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Create</a>
+                                            <a href="/createPop" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Create</a>
+                                        </li>
+                                        <li>
+                                            <a href="/popDetail" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Details</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                )}
+                                {userType !== "customer_service" && (
+                                <li>
+                                    <button onClick={toggleDropdown5} className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-expanded={isOpen2} aria-controls="dropdown-example">
+                                        <svg className="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M17.27 8.14A8 8 0 1 0 10 18v-2.93a5.07 5.07 0 1 1 3.74-3.84H17a2.56 2.56 0 0 1 0 5.12h-3.23A8 8 0 0 0 17.27 8.14Z" />
+                                        </svg>
+                                        <span className="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Rack</span>
+                                        <svg className={`w-3 h-3 transition-transform ${isOpen5 ? 'rotate-180' : ''}`} aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 4 4 4-4" />
+                                        </svg>
+                                    </button>
+                                    <ul id="dropdown-example" className={`py-2 space-y-2 ${isOpen5 ? 'block' : 'hidden'}`}>
+                                        <li>
+                                            <a href="/createRack" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Create</a>
                                         </li>
                                         <li>
                                             <a href="/packDetail" className="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Details</a>
