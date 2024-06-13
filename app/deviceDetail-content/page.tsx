@@ -49,72 +49,48 @@ export default function DeviceDetail() {
     
 
     useEffect(() => {
-        async function fetchDevices() {
+        const fetchDevices = async () => {
             try {
-                const { data: devicesData, error } = await supabase
+                const { data: devicesData, error: deviceError } = await supabase
                     .from('Device')
-                    .select('*')
-        
-                if (error) {
-                    throw error;
-                }
-                const powersourceIds = devicesData.map((device) => device.power_source_id);
+                    .select('*');
+                
+                if (deviceError) throw deviceError;
+    
+                const devicePromises = devicesData.map(async (device) => {
+                    const { data: powerSourceData } = await supabase
+                        .from('Power Source')
+                        .select('power_source_type')
+                        .eq('power_source_id', device.power_source_id)
+                        .single();
+    
+                    const { data: locationData } = await supabase
+                        .from('Location')
+                        .select('location_name')
+                        .eq('location_id', device.location_id)
+                        .single();
 
-                // Fetch package names based on package_ids
-                const { data: powersourcesData, error: powersourceError } = await supabase
-                    .from('Power Source')
-                    .select('power_source_id, power_source_type')
-                    .in('power_source_id', powersourceIds);
-
-                if (powersourceError) {
-                    throw powersourceError;
-                }
-
-                // Map package_ids to package_names
-                const powersourceMap = {};
-                powersourcesData.forEach((PWS) => {
-                    powersourceMap[PWS.power_source_id] = PWS.power_source_type;
+                    const { data: upsData } = await supabase
+                        .from('UPS')
+                        .select('ups_name')
+                        .eq('ups_id', device.ups_id)
+                        .single();
+    
+                    return {
+                        ...device,
+                        power_source_type: powerSourceData?.power_source_type || 'Unknown Power Source',
+                        location_name: locationData?.location_name || 'Unknown Location',
+                        ups_name: upsData?.ups_name || 'Unknown UPS'
+                    };
                 });
-
-                // Combine customer data with package_names
-                const devicesWithPowerSources = devicesData.map((device) => ({
-                    ...device,
-                    power_source_type: powersourceMap[device.power_source_id] || 'Unknown Package',
-                }));
-
-                // Update the state with customers including package names
-                setDevices(devicesWithPowerSources);
-
-                const locationIds = devicesData.map((device) => device.location_id);
-
-                // Fetch service names based on service_ids
-                const { data: locationsData, error: locationError } = await supabase
-                    .from('Location')
-                    .select('location_id, location_name')
-                    .in('location_id', locationIds);
-
-                if (locationError) {
-                    throw locationError;
-                }
-
-                // Map service_ids to service_names
-                const locationMap = {};
-                locationsData.forEach((location) => {
-                    locationMap[location.location_id] = location.location_name;
-                });
-
-                // Update the state with customers including service names
-                const devicesWithLocations = devicesWithPowerSources.map((device) => ({
-                    ...device,
-                    location_name: locationMap[device.location_id] || 'Unknown Service',
-                }));
-
-                setDevices(devicesWithLocations);
-
+    
+                const devicesWithDetails = await Promise.all(devicePromises);
+                setDevices(devicesWithDetails);
             } catch (error) {
-                console.error('Error fetching data:', error.message);
+                console.error('Error fetching devices:', error.message);
             }
-        }
+        };
+    
         fetchDevices();
     }, [deviceToDelete, showModal]);
     
@@ -143,7 +119,8 @@ export default function DeviceDetail() {
                     device.device_name.toLowerCase().includes(searchTerm) ||
                     device.device_type.toLowerCase().includes(searchTerm) ||
                     device.model.toLowerCase().includes(searchTerm) ||
-                    device.ip_address.toLowerCase().includes(searchTerm)
+                    device.ip_address.toLowerCase().includes(searchTerm) ||
+                    device.ups_name.toLowerCase().includes(searchTerm)
                 );
             } else if (searchField === 'device_name') {
                 isMatchingSearch = device.device_name.toLowerCase().includes(searchTerm);
@@ -157,6 +134,9 @@ export default function DeviceDetail() {
             } else if (searchField === 'ip_address') {
                 const ipAddressString = device.ip_address?.toString() || '';
                 isMatchingSearch = parseInt(ipAddressString) === parseInt(searchTerm);
+            } else if (searchField === 'ups') {
+                const upsString = device.ups_name?.toString() || '';
+                isMatchingSearch = parseInt(upsString) === parseInt(searchTerm);
             }
         
             return locationMatch && powerSourceMatch && isMatchingSearch; // Return true if location and search match
@@ -516,6 +496,7 @@ export default function DeviceDetail() {
                         <option value="model">Model</option>
                         <option value="device_type">Device Type</option>
                         <option value="ip_address">IP Address</option>
+                        <option value="ups">UPS</option>
                     </select>
                     <label htmlFor="table-search" className="sr-only">Search</label> 
                     <div className="relative">
@@ -567,7 +548,13 @@ export default function DeviceDetail() {
                             Power Source
                         </th>
                         <th scope="col" className="px-6 py-3">
+                            UPS  
+                        </th>
+                        <th scope="col" className="px-6 py-3">
                           
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                           
                         </th>
                         <th scope="col" className="px-6 py-3">
                            
@@ -601,8 +588,9 @@ export default function DeviceDetail() {
                             <td className="px-6 py-4">{device.model}</td>
                             <td className="px-6 py-4">{device.ip_address}</td>
                             <td className="px-6 py-4">{device.power_source_type}</td>
-                            {/* <td className="px-6 py-4">
-                                <Link href={`/viewCustomer/${customer.customer_id}`}>
+                            <td className="px-6 py-4">{device.ups_name}</td>
+                            <td className="px-6 py-4">
+                                <Link href={`/viewDevice/${device.device_id}`}>
                                     <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -610,7 +598,7 @@ export default function DeviceDetail() {
                                         </svg>
                                     </div>
                                 </Link>
-                            </td> */}
+                            </td>
                             <td className="px-6 py-4">
                                 <Link href={`/editDevice/${device.device_id}`}>
                                     <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">

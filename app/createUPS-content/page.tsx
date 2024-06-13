@@ -11,8 +11,8 @@ export default function CreateUPS() {
   const [upsBrand, setUPSBrand] = useState('');
   const [capacity, setCapacity] = useState('');
   const [vendor, setVendor] = useState('');
-  const [services, setServices] = useState([]);
-  const [selectedServiceId, setSelectedServiceId] = useState('');
+  // const [upss, setUpss] = useState([]);
+  // const [selectedUPSId, setSelectedUPSId] = useState('');
   const [insertUPSId, setInsertedUPSId] = useState('');
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,7 +66,7 @@ export default function CreateUPS() {
           ups_brand: upsBrand,
           capacity: capacity,
           vendor: vendor,
-          // service_id: parseInt(selectedServiceId),
+          // ups_id: parseInt(selectedUPSId),
         },
       ]);
   

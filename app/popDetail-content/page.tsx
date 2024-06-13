@@ -118,12 +118,10 @@ export default function PopDetail() {
                 );
             } else if (searchField === 'pop_name') {
                 // Adjusted from 'device.device_name' to 'pkg.package_name'
-                const popNameString = pop.pop_name?.toString() || '';
-                isMatchingSearch = parseInt(popNameString) === parseInt(searchTerm);
+                isMatchingSearch =  (pop.pop_name.toLowerCase().includes(searchTerm));
             } else if (searchField === 'location_name') {
                 // Adjusted from 'device.model' to 'pkg.model'
-                const locationNameString = pop.location_name?.toString() || '';
-                isMatchingSearch = parseInt(locationNameString) === parseInt(searchTerm);
+                isMatchingSearch = (pop.location_name.toLowerCase().includes(searchTerm));
             }
         
             return isMatchingSearch && locationMatch; // Return true if search matches
@@ -365,6 +363,9 @@ export default function PopDetail() {
                           
                         </th>
                         <th scope="col" className="px-6 py-3">
+                          
+                          </th>
+                        <th scope="col" className="px-6 py-3">
                            
                         </th>
                     </tr>
@@ -375,9 +376,19 @@ export default function PopDetail() {
             
                             <td className="px-6 py-4">{pop.pop_name}</td> {/* Changed from pkg.service_name */}
                             <td className="px-6 py-4">{pop.location_name}</td>
-                    
                             <td className="px-6 py-4">
-                                <Link href={`/editPackage/${pop.pop_id}`}>
+                                <Link href={`/viewPop/${pop.pop_id}`}>
+                                    <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                            <path fillRule="evenodd" d="M19 10c0 3.682-2.914 6-7 6s-7-2.318-7-6 2.914-6 7-6 7 2.318 7 6zm-7 4a4 4 0 100-8 4 4 0 000 8z" clipRule="evenodd" />
+                                        </svg>
+                                        {/* Optionally, you can add a title attribute for accessibility */}
+                                    </div>
+                                </Link>
+                            </td>
+                            <td className="px-6 py-4">
+                                <Link href={`/editPOP/${pop.pop_id}`}>
                                     <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
                                         <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                         </svg>
@@ -385,6 +396,7 @@ export default function PopDetail() {
                                     </div>
                                 </Link>
                             </td>
+                            
                             <td className="px-6 py-4">
                                 <button
                                     onClick={() => {

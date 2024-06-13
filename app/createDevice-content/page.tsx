@@ -14,8 +14,10 @@ export default function CreateDevice() {
   const [deviceType, setDeviceType] = useState('');
   const [locations, setLocations] = useState([]);
   const [powerSources, setPowerSources] = useState([]);
+  const [UPSs, setUPSs] = useState([]);
   const [selectedPowerSourceId, setSelectedPowerSourceId] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [selectedUPSId, setSelectedUPSId] = useState('');
   const [insertDeviceId, setInsertedDeviceId] = useState('');
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,8 +61,18 @@ export default function CreateDevice() {
         setError(error.message);
       }
     };
+    const fetchUPS = async () => {
+      try {
+        const { data, error } = await supabase.from('UPS').select('*');
+        if (error) throw new Error(error.message);
+        setUPSs(data);
+      } catch (error) {
+        console.error('Error fetching UPSs:', error.message);
+        setError(error.message);
+      }
+    };
     
-    
+    fetchUPS();
     fetchPowerSource();
     fetchLocation();
     fetchUserRole();
@@ -92,6 +104,7 @@ export default function CreateDevice() {
                 device_type: deviceType,
                 power_source_id: parseInt(selectedPowerSourceId),
                 location_id: parseInt(selectedLocationId),
+                ups_id: parseInt(selectedUPSId),
             },
         ]);
         if (insertError) throw new Error(insertError.message);
@@ -103,6 +116,7 @@ export default function CreateDevice() {
         setDeviceType('');
         setSelectedPowerSourceId('');
         setSelectedLocationId('');
+        setSelectedUPSId('');
     } catch (error) {
         setError(error.message);
     }
@@ -150,6 +164,21 @@ export default function CreateDevice() {
               required
               className="font-raleway-black w-full p-2 border"
             />
+            <label htmlFor="upsName" className="block mb-2 mt-4">UPS Name:</label>
+            <select
+              id="upslocationName"
+              value={selectedUPSId}
+              onChange={(e) => setSelectedUPSId(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border"
+            >
+              <option value="">Select UPS...</option>
+              {UPSs.map((ups) => (
+                <option key={ups.ups_id} value={ups.ups_id}>
+                  {ups.ups_name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="w-full lg:w-1/2 p-2">
             <label htmlFor="Model" className="block mb-2">Model:</label>

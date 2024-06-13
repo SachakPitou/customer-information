@@ -11,10 +11,14 @@ export default function CreateRack() {
   const [rackType, setRackType] = useState('');
   const [rackBrand, setRackBrand] = useState('');
   const [dimension, setDimension] = useState('');
-  const [vendor, setVendor] = useState('');
+  const [numberofu, setNumberOfU] = useState('');
   const [numberOfUs, setNumberOfUs] = useState('');
   const [devices, setDevices] = useState([]);
   const [selectedDevicesId, setSelectedDevicesId] = useState(Array.from({ length: numberOfUs || 0 }, () => ''));
+  const [pops, setPops] = useState([]);
+  const [selectedPopId, setSelectedPopId] = useState('');
+  const [locations, setLocations] = useState([]);
+  const [selectedLocationId, setSelectedLocationId] = useState('');
   const [insertedRackId, setInsertedRackId] = useState('');
   const [error, setError] = useState(null);
   const [rackImage, setRackImage] = useState(null);
@@ -37,7 +41,32 @@ export default function CreateRack() {
     };
     fetchDevices();
   }, []);
-
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase.from('Location').select('*');
+        if (error) throw new Error(error.message);
+        setLocations(data);
+      } catch (error) {
+        console.error('Error fetching locations:', error.message);
+        setError(error.message);
+      }
+    };
+    fetchLocations();
+  }, []);
+  useEffect(() => {
+    const fetchPOPs = async () => {
+      try {
+        const { data, error } = await supabase.from('POP').select('*');
+        if (error) throw new Error(error.message);
+        setPops(data);
+      } catch (error) {
+        console.error('Error fetching pops:', error.message);
+        setError(error.message);
+      }
+    };
+    fetchPOPs();
+  }, []);
   const handleAddRack = async (e) => {
     e.preventDefault();
     try {
@@ -81,7 +110,10 @@ export default function CreateRack() {
           rack_type: rackType,
           rack_brand: rackBrand,
           dimension: dimension,
-          image_url: imageUrl, 
+          image_url: imageUrl,
+          numberOfU: numberOfUs,
+          pop_id: parseInt(selectedPopId), 
+          location_id: parseInt(selectedLocationId),
         },
       ]);
       if (insertError) throw new Error(insertError.message);
@@ -105,6 +137,8 @@ export default function CreateRack() {
       setDimension('');
       setRackImage(null); 
       setSelectedDevicesId(Array.from({ length: numberOfUs || 0 }, () => ''));
+      setSelectedPopId('');
+      setSelectedLocationId('');
     } catch (error) {
       setError(error.message);
     }
@@ -119,6 +153,7 @@ export default function CreateRack() {
   const handleImageUpload = (e) => {
     setRackImage(e.target.files[0]);
   };
+  const filteredPOPsByLocation = pops.filter(pop => pop.location_id === parseInt(selectedLocationId));
   return (
     <div className="flex flex-col w-full items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">
@@ -150,6 +185,36 @@ export default function CreateRack() {
               required
               className="font-raleway-black w-full p-2 border mb-2"
             />
+            <label htmlFor="Location" className="block mb-2">Location:</label>
+            <select
+              id="Location"
+              value={selectedLocationId}
+              onChange={(e) => setSelectedLocationId(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border mb-2"
+            >
+              <option value="">Select Location...</option>
+              {locations.map((loc) => (
+                <option key={loc.location_id} value={loc.location_id}>
+                  {loc.location_name}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="POP" className="block mb-2">POP:</label>
+            <select
+              id="POP"
+              value={selectedPopId}
+              onChange={(e) => setSelectedPopId(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border mb-2"
+            >
+              <option value="">Select POP...</option>
+              {filteredPOPsByLocation.map((pop) => (
+                <option key={pop.pop_id} value={pop.pop_id}>
+                  {pop.pop_name}
+                </option>
+              ))}
+            </select>
             {/* <label htmlFor="packageName" className="block mb-2">Vendor:</label>
             <input
               type="text"
@@ -184,7 +249,7 @@ export default function CreateRack() {
             <input
               type="text"
               id="packageName"
-              placeholder="Enter Dimension (height x width x depth"
+              placeholder="Enter Dimension (height x width x depth)"
               value={dimension}
               onChange={(e) => setDimension(e.target.value)}
               required

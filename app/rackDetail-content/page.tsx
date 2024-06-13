@@ -9,10 +9,10 @@ import SideBar from '../component/SideBar';
 // const ACTIVE = 'active';
 // const INACTIVE = 'inactive';
 export default function RackDetail() {
-    const [upss, setUPSs] = useState([]);
+    const [racks, setRacks] = useState([]);
     const [statusFilter, setStatusFilter] = useState('');
     const [showModal, setShowModal] = useState(false); 
-    const [upsToDelete, setUPSToDelete] = useState(null);
+    const [rackToDelete, setRackToDelete] = useState(null);
     const [searchValue, setSearchValue] = useState('');
     const [searchField, setSearchField] = useState('all');
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -32,18 +32,18 @@ export default function RackDetail() {
 
     const handleDeleteUPS = async () => {
         try {
-            if (!upsToDelete) return;
+            if (!rackToDelete) return;
 
             // Delete the package from the database
-            await supabase.from("UPS")
+            await supabase.from("Rack")
                 .delete()
-                .eq("ups_id", upsToDelete);
+                .eq("rack_id", rackToDelete);
         
             // Update the state to remove the deleted package
-            setUPSs(prevUPSs => prevUPSs.filter(ups => ups.ups_id !== upsToDelete));
+            setRacks(prevRacks => prevRacks.filter(rack => rack.rack_id !== rackToDelete));
         
             // Log success message
-            console.log(`UPS with ID ${upsToDelete} deleted successfully`);
+            console.log(`UPS with ID ${rackToDelete} deleted successfully`);
         
             // Close the modal after successful deletion
             setShowModal(false);
@@ -54,23 +54,23 @@ export default function RackDetail() {
     
 
     useEffect(() => {
-        async function fetchUPSs() {
+        async function fetchRacks() {
             try {
-                const { data: upssData, error } = await supabase
-                    .from('UPS')
+                const { data: racksData, error } = await supabase
+                    .from('Rack')
                     .select('*');
         
                 if (error) {
                     throw error;
                 }
-                setUPSs(upssData);
+                setRacks(racksData);
 
             } catch (error) {
                 console.error('Error fetching data:', error.message);
             }
         }
-        fetchUPSs();
-    }, [upsToDelete, showModal]);
+        fetchRacks();
+    }, [rackToDelete, showModal]);
 
         console.log("Filtering packages...");
         const filteredUPSs = upss.filter((ups) => {
