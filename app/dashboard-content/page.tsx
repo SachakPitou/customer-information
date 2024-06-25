@@ -6,12 +6,9 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import SideBar from '../component/SideBar';
 
-
-// const ACTIVE = 'active';
-// const INACTIVE = 'inactive';
 export default function Dashboard() {
     const [customers, setCustomers] = useState([]);
-    const [showModal, setShowModal] = useState(false); 
+    const [showModal, setShowModal] = useState(false);
     const [customerToDelete, setCustomerToDelete] = useState(null);
     const [searchValue, setSearchValue] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
@@ -19,32 +16,138 @@ export default function Dashboard() {
     const [searchField, setSearchField] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [userType, setUserType] = useState('');
-    const [pendingRequests, setPendingRequests] = useState([]);
-    const [session, setSession] = useState(null); 
-    const packagesPerPage = 15;
+    const [session, setSession] = useState(null);
+    const [editHistories, setEditHistories] = useState({});
+    const [expandedRows, setExpandedRows] = useState({});
+
     const router = useRouter();
-    const toggleUserStatus = async (customer: never) => {
+    const packagesPerPage = 15;
+
+    const toggleRow = (customerId) => {
+        setExpandedRows((prevState) => ({
+            ...prevState,
+            [customerId]: !prevState[customerId],
+        }));
+    };
+
+    const toggleUserStatus = async (customer) => {
         try {
             const updatedStatus = !customer.isActive;
-    
+
             // Update the status in the database
             await supabase
                 .from('Customer')
                 .update({ isActive: updatedStatus })
                 .eq('customer_id', customer.customer_id);
-    
+
             // Update the local state to reflect the change
             setCustomers((prevCustomers) =>
                 prevCustomers.map((c) =>
                     c.customer_id === customer.customer_id ? { ...c, isActive: updatedStatus } : c
                 )
             );
-    
+
             console.log(`Customer with ID ${customer.customer_id} is now ${updatedStatus ? 'active' : 'inactive'}`);
         } catch (error) {
             console.error('Error toggling user status:', error.message);
         }
     };
+
+    const handleFetchHistory = async (customerId) => {
+        try {
+            const { data: historyData, error: historyError } = await supabase
+                .from('CustomerHistory')
+                .select('*')
+                .eq('customer_id', customerId);
+
+            if (historyError) throw historyError;
+
+            // Collect all the IDs that need to be fetched
+            const locationIds = historyData.flatMap((history) =>
+                history.field_changed === 'location_id' ? [history.old_value, history.new_value] : []
+            );
+            const oltIds = historyData.flatMap((history) =>
+                history.field_changed === 'olt_id' ? [history.old_value, history.new_value] : []
+            );
+            const deviceIds = historyData.flatMap((history) =>
+                history.field_changed === 'device_id' ? [history.old_value, history.new_value] : []
+            );
+            const serviceIds = historyData.flatMap((history) =>
+                history.field_changed === 'service_id' ? [history.old_value, history.new_value] : []
+            );
+            const packageIds = historyData.flatMap((history) =>
+                history.field_changed === 'package_id' ? [history.old_value, history.new_value] : []
+            );
+
+            // Fetch details for all relevant entities
+            const [locationsData, oltsData, devicesData, servicesData, packagesData] = await Promise.all([
+                supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
+                supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
+                supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
+                supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
+                supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
+            ]);
+
+            // Create maps for easy lookup
+            const locationMap = Object.fromEntries(locationsData.data.map((loc) => [loc.location_id, loc.location_name]));
+            const oltMap = Object.fromEntries(oltsData.data.map((olt) => [olt.olt_id, olt.olt_name]));
+            const deviceMap = Object.fromEntries(devicesData.data.map((dev) => [dev.device_id, dev.device_name]));
+            const serviceMap = Object.fromEntries(servicesData.data.map((srv) => [srv.service_id, srv.service_name]));
+            const packageMap = Object.fromEntries(packagesData.data.map((pkg) => [pkg.package_id, pkg.package_name]));
+
+            const historyWithDetails = historyData.map((history) => {
+                let changeDescription;
+
+                // Generate change descriptions based on the field changed
+                if (history.field_changed === 'location_id') {
+                    const oldLocationName = locationMap[history.old_value] || 'Unknown Location';
+                    const newLocationName = locationMap[history.new_value] || 'Unknown Location';
+                    changeDescription = `Location changed from "${oldLocationName}" to "${newLocationName}"`;
+                } else if (history.field_changed === 'olt_id') {
+                    const oldOltName = oltMap[history.old_value] || 'Unknown OLT';
+                    const newOltName = oltMap[history.new_value] || 'Unknown OLT';
+                    changeDescription = `OLT changed from "${oldOltName}" to "${newOltName}"`;
+                } else if (history.field_changed === 'device_id') {
+                    const oldDeviceName = deviceMap[history.old_value] || 'Unknown Device';
+                    const newDeviceName = deviceMap[history.new_value] || 'Unknown Device';
+                    changeDescription = `Device changed from "${oldDeviceName}" to "${newDeviceName}"`;
+                } else if (history.field_changed === 'service_id') {
+                    const oldServiceName = serviceMap[history.old_value] || 'Unknown Service';
+                    const newServiceName = serviceMap[history.new_value] || 'Unknown Service';
+                    changeDescription = `Service changed from "${oldServiceName}" to "${newServiceName}"`;
+                } else if (history.field_changed === 'package_id') {
+                    const oldPackageName = packageMap[history.old_value] || 'Unknown Package';
+                    const newPackageName = packageMap[history.new_value] || 'Unknown Package';
+                    changeDescription = `Package changed from "${oldPackageName}" to "${newPackageName}"`;
+                } else if (history.field_changed === 'isActive') {
+                    const oldStatusName = history.old_value === 'true' ? 'Active' : 'Inactive';
+                    const newStatusName = history.new_value === 'true' ? 'Active' : 'Inactive';
+                    changeDescription = `Status changed from "${oldStatusName}" to "${newStatusName}"`;
+                } else {
+                    changeDescription = `${history.field_changed} changed from "${history.old_value}" to "${history.new_value}"`;
+                }
+
+                return {
+                    ...history,
+                    changeDescription,
+                };
+            });
+
+            setEditHistories((prevHistories) => ({
+                ...prevHistories,
+                [customerId]: historyWithDetails,
+            }));
+
+            // Toggle visibility of edit history
+            setExpandedRows((prevExpanded) => ({
+                ...prevExpanded,
+                [customerId]: !prevExpanded[customerId], // Toggle visibility
+            }));
+        } catch (error) {
+            console.error('Error fetching edit history:', error.message);
+        }
+    };
+    
     const handleDeleteCustomer = async () => {
         try {
             if (!customerToDelete) return;
@@ -155,6 +258,7 @@ export default function Dashboard() {
         fetchCustomers();
         fetchUserType();
     }, [customerToDelete, showModal]);
+    
     
         console.log("Filtering customers...");
     
@@ -414,13 +518,16 @@ export default function Dashboard() {
                 <thead className="title-dashboard text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-300 dark:text-gray-700">
                     <tr>
                         {/* <th scope="col" className="p-4">
-                          
+                            <!-- Adjust as needed -->
                         </th> */}
                         <th scope="col" className="px-6 py-3">
                             Name
                         </th>
                         <th scope="col" className="px-6 py-3">
                             Status
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            Edit History
                         </th>
                         <th scope="col" className="px-6 py-3">
                             Phone Number
@@ -447,98 +554,134 @@ export default function Dashboard() {
                             IP Address
                         </th>
                         <th scope="col" className="px-6 py-3">
-                            Customer Router 
+                            Customer Router
                         </th>
                         <th scope="col" className="px-6 py-3">
                             OLT
                         </th>
                         <th scope="col" className="px-6 py-3">
-                            
+                            View
                         </th>
                         <th scope="col" className="px-6 py-3">
-                          
+                            Edit
                         </th>
                         <th scope="col" className="px-6 py-3">
-                           
+                            Delete
                         </th>
                     </tr>
                 </thead>
                 <tbody>
                     {displayedCustomers.map((customer) => (
-                        <tr key={customer.customer_id} className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
-                            {/* <td className="w-4 p-4">
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                    />
-                                </div>
-                            </td> */}
-                            <td className="px-6 py-4">{customer.customer_name}</td>
-                            {/* <td className="px-6 py-4">
-                                <button
-                                    onClick={() => toggleUserStatus(customer)}
-                                    className={`text-sm font-medium rounded-lg px-3 py-1 ${
-                                        customer.isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                                    }`}
-                                >
-                                    {customer.isActive ? 'Active' : 'Inactive'}
-                                </button>
-                            </td> */}
-                            <td className="px-6 py-4">
-                                <button 
-                                className={`px-4 py-2 font-semibold text-sm text-white rounded-full ${customer.isActive ? 'bg-green-500' : 'bg-red-500'}`}>
-                                {customer.isActive ? 'Active' : 'Inactive'}
-                                </button>
-                            </td>
-                            <td className="px-6 py-4">{customer.phone_number}</td>
-                            <td className="px-6 py-4">{customer.cid}</td>
-                            <td className="px-6 py-4">{customer.package_name}</td>
-                            <td className="px-6 py-4">{customer.slot}</td>
-                            <td className="px-6 py-4">{customer.port}</td>
-                            <td className="px-6 py-4">{customer.service_port}</td>
-                            <td className="px-6 py-4">{customer.onu_id}</td>
-                            <td className="px-6 py-4">{customer.ip_address}</td>
-                            <td className="px-6 py-4">{customer.device_name}</td>
-                            <td className="px-6 py-4">{customer.olt_name}</td>
-                            <td className="px-6 py-4">
-                                <Link href={`/viewCustomer/${customer.customer_id}`}>
-                                    <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                            <path fillRule="evenodd" d="M19 10c0 3.682-2.914 6-7 6s-7-2.318-7-6 2.914-6 7-6 7 2.318 7 6zm-7 4a4 4 0 100-8 4 4 0 000 8z" clipRule="evenodd" />
-                                        </svg>
-                                        {/* Optionally, you can add a title attribute for accessibility */}
+                        <React.Fragment key={customer.customer_id}>
+                            <tr className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
+                                {/* <td className="w-4 p-4">
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                        />
                                     </div>
-                                </Link>
-                            </td>
-                            <td className="px-6 py-4">
-                                <Link href={`/editCustomer/${customer.customer_id}`}>
-                                    <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                        <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </td> */}
+                                <td className="px-6 py-4">{customer.customer_name}</td>
+                                {/* <td className="px-6 py-4">
+                                    <button
+                                        onClick={() => toggleUserStatus(customer)}
+                                        className={`text-sm font-medium rounded-lg px-3 py-1 ${
+                                            customer.isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                                        }`}
+                                    >
+                                        {customer.isActive ? 'Active' : 'Inactive'}
+                                    </button>
+                                </td> */}
+                                <td className="px-6 py-4">
+                                    <button className={`px-4 py-2 font-semibold text-sm text-white rounded-full ${customer.isActive ? 'bg-green-500' : 'bg-red-500'}`}>
+                                        {customer.isActive ? 'Active' : 'Inactive'}
+                                    </button>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <button
+                                        onClick={() => handleFetchHistory(customer.customer_id)}
+                                        className="px-4 py-2 bg-red-700 text-white rounded"
+                                    >
+                                        {expandedRows[customer.customer_id] ? 
+                                            <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 15 7-7 7 7"/>
+                                            </svg>
+                                            : 
+                                            <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+                                            </svg>
+                                            }
+                                    </button>
+                                </td>
+                                <td className="px-6 py-4">{customer.phone_number}</td>
+                                <td className="px-6 py-4">{customer.cid}</td>
+                                <td className="px-6 py-4">{customer.package_name}</td>
+                                <td className="px-6 py-4">{customer.slot}</td>
+                                <td className="px-6 py-4">{customer.port}</td>
+                                <td className="px-6 py-4">{customer.service_port}</td>
+                                <td className="px-6 py-4">{customer.onu_id}</td>
+                                <td className="px-6 py-4">{customer.ip_address}</td>
+                                <td className="px-6 py-4">{customer.device_name}</td>
+                                <td className="px-6 py-4">{customer.olt_name}</td>
+                                <td className="px-6 py-4">
+                                    <Link href={`/viewCustomer/${customer.customer_id}`}>
+                                        <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                <path fillRule="evenodd" d="M19 10c0 3.682-2.914 6-7 6s-7-2.318-7-6 2.914-6 7-6 7 2.318 7 6zm-7 4a4 4 0 100-8 4 4 0 000 8z" clipRule="evenodd" />
+                                            </svg>
+                                            {/* Optionally, you can add a title attribute for accessibility */}
+                                        </div>
+                                    </Link>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <Link href={`/editCustomer/${customer.customer_id}`}>
+                                        <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
+                                            <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                            {/* Optionally, you can add a title attribute for accessibility */}
+                                        </div>
+                                    </Link>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <button
+                                        onClick={() => {
+                                            setShowModal(true);
+                                            setCustomerToDelete(customer.customer_id);
+                                        }}
+                                        className="block text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
+                                        type="button"
+                                    >
+                                        <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"/>
                                         </svg>
-                                        {/* Optionally, you can add a title attribute for accessibility */}
-                                    </div>
-                                </Link>
-                            </td>
-                            <td className="px-6 py-4">
-                                <button
-                                    onClick={() => {
-                                        setShowModal(true);
-                                        setCustomerToDelete(customer.customer_id);
-                                    }}
-                                    className="block text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
-                                    type="button"
-                                >
-                                    <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"/>
-                                    </svg>
-                                </button>
-                            </td>
-                        </tr>
+                                    </button>
+                                </td>
+                            </tr>
+                            {expandedRows[customer.customer_id] && (
+                                <tr>
+                                    <td colSpan="15" className="px-6 py-4">
+                                        <div className="mt-4">
+                                            {editHistories[customer.customer_id]?.map((history) => (
+                                                <div key={history.id} className="p-2 border-b border-white text-black">
+                                                    <div>
+                                                        <strong>Edit Date:</strong> {new Date(history.timestamp.replace(',', '')).toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })}
+                                                    </div>
+                                                    <div>
+                                                        <strong>Changes:</strong> {history.changeDescription}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </React.Fragment>
                     ))}
                 </tbody>
             </table>
+
             <div className="flex justify-between items-center p-4 bg-white dark:bg-gray-900">
                 <span className="text-sm text-gray-700 dark:text-gray-400">
                     Showing {startIndex + 1} to {Math.min(startIndex + packagesPerPage, filteredCustomers.length)} of {filteredCustomers.length} Customers

@@ -69,18 +69,49 @@ export default function DeviceDetail() {
                         .select('location_name')
                         .eq('location_id', device.location_id)
                         .single();
-
+    
                     const { data: upsData } = await supabase
                         .from('UPS')
                         .select('ups_name')
                         .eq('ups_id', device.ups_id)
                         .single();
     
+                    // Fetch rack information by joining RackDevice and Rack tables
+                    const { data: rackDeviceData } = await supabase
+                        .from('Rack Device')
+                        .select('rack_id')
+                        .eq('device_id', device.device_id)
+                        .single();
+    
+                    let rackData = null;
+                    let popData = null;
+                    if (rackDeviceData) {
+                        const { data: rackDetailsData } = await supabase
+                            .from('Rack')
+                            .select('rack_name, pop_id')
+                            .eq('rack_id', rackDeviceData.rack_id)
+                            .single();
+    
+                        rackData = rackDetailsData;
+    
+                        if (rackDetailsData?.pop_id) {
+                            const { data: popDetailsData } = await supabase
+                                .from('POP')
+                                .select('pop_name')
+                                .eq('pop_id', rackDetailsData.pop_id)
+                                .single();
+    
+                            popData = popDetailsData;
+                        }
+                    }
+    
                     return {
                         ...device,
                         power_source_type: powerSourceData?.power_source_type || 'Unknown Power Source',
                         location_name: locationData?.location_name || 'Unknown Location',
-                        ups_name: upsData?.ups_name || 'Unknown UPS'
+                        ups_name: upsData?.ups_name || 'Unknown UPS',
+                        rack_name: rackData?.rack_name || 'Unknown Rack',
+                        pop_name: popData?.pop_name || 'Unknown Pop'
                     };
                 });
     
@@ -93,6 +124,7 @@ export default function DeviceDetail() {
     
         fetchDevices();
     }, [deviceToDelete, showModal]);
+    
     
 
         console.log("Filtering devices...");
@@ -539,6 +571,12 @@ export default function DeviceDetail() {
                             Location
                         </th>
                         <th scope="col" className="px-6 py-3">
+                            POP
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            Rack
+                        </th>
+                        <th scope="col" className="px-6 py-3">
                             Model
                         </th>
                         <th scope="col" className="px-6 py-3">
@@ -585,6 +623,8 @@ export default function DeviceDetail() {
                             </td> */}
                             <td className="px-6 py-4">{device.device_type}</td>
                             <td className="px-6 py-4">{device.location_name}</td>
+                            <td className="px-6 py-4">{device.pop_name}</td>
+                            <td className="px-6 py-4">{device.rack_name}</td>
                             <td className="px-6 py-4">{device.model}</td>
                             <td className="px-6 py-4">{device.ip_address}</td>
                             <td className="px-6 py-4">{device.power_source_type}</td>

@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useRouter } from 'next/navigation';
-import SideBar from '../component/SideBar';
 import PopUpModal from '../component/popUpmodal';
 
 export default function CreateRack() {
@@ -11,7 +10,6 @@ export default function CreateRack() {
   const [rackType, setRackType] = useState('');
   const [rackBrand, setRackBrand] = useState('');
   const [dimension, setDimension] = useState('');
-  const [numberofu, setNumberOfU] = useState('');
   const [numberOfUs, setNumberOfUs] = useState('');
   const [devices, setDevices] = useState([]);
   const [selectedDevicesId, setSelectedDevicesId] = useState(Array.from({ length: numberOfUs || 0 }, () => ''));
@@ -19,10 +17,13 @@ export default function CreateRack() {
   const [selectedPopId, setSelectedPopId] = useState('');
   const [locations, setLocations] = useState([]);
   const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [UPSs, setUPSs] = useState([]);
+  const [selectedUPSId, setSelectedUPSId] = useState('');
   const [insertedRackId, setInsertedRackId] = useState('');
   const [error, setError] = useState(null);
   const [rackImage, setRackImage] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [assignedDevices, setAssignedDevices] = useState([]);
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -41,6 +42,7 @@ export default function CreateRack() {
     };
     fetchDevices();
   }, []);
+
   useEffect(() => {
     const fetchLocations = async () => {
       try {
@@ -54,6 +56,7 @@ export default function CreateRack() {
     };
     fetchLocations();
   }, []);
+
   useEffect(() => {
     const fetchPOPs = async () => {
       try {
@@ -67,6 +70,42 @@ export default function CreateRack() {
     };
     fetchPOPs();
   }, []);
+
+  useEffect(() => {
+    const fetchUPSs = async () => {
+      try {
+        const { data, error } = await supabase.from('UPS').select('*');
+        if (error) throw new Error(error.message);
+        setUPSs(data);
+      } catch (error) {
+        console.error('Error fetching upss:', error.message);
+        setError(error.message);
+      }
+    };
+    fetchUPSs();
+  }, []);
+
+  useEffect(() => {
+    const fetchAssignedDevices = async () => {
+      try {
+        const { data: assignedDevicesData, error: assignedDevicesError } = await supabase
+          .from('Rack Device')
+          .select('device_id')
+        if (assignedDevicesError) throw new Error(assignedDevicesError.message);
+
+        const assignedDeviceIds = assignedDevicesData.map(item => item.device_id);
+        // Filter out assigned devices from the list of all devices
+        const availableDevices = devices.filter(device => !assignedDeviceIds.includes(device.device_id));
+        setDevices(availableDevices);
+      } catch (error) {
+        console.error('Error fetching assigned devices:', error.message);
+        setError(error.message);
+      }
+    };
+    fetchAssignedDevices();
+  }, [devices]); 
+
+  // Handle form submission to create a new rack
   const handleAddRack = async (e) => {
     e.preventDefault();
     try {
@@ -80,22 +119,23 @@ export default function CreateRack() {
       }
 
       const newRackId = maxRackIdData.length > 0 ? maxRackIdData[0].rack_id + 1 : 1;
+
       let imageUrl = null;
       if (rackImage) {
         try {
           const filePath = `images/${Date.now()}-${rackName}`;
           const { error: uploadError } = await supabase.storage.from('Rack Image').upload(filePath, rackImage);
-      
+
           if (uploadError) {
             throw new Error(uploadError.message);
           }
-      
+
           const { data: urlData, error: urlError } = await supabase.storage.from('Rack Image').getPublicUrl(filePath);
-      
+
           if (urlError) {
             throw new Error(urlError.message);
           }
-      
+
           imageUrl = urlData.publicUrl;
         } catch (error) {
           console.error('Error uploading image:', error.message);
@@ -103,6 +143,7 @@ export default function CreateRack() {
           return;
         }
       }
+
       const { data: rackData, error: insertError } = await supabase.from('Rack').insert([
         {
           rack_id: newRackId,
@@ -112,14 +153,16 @@ export default function CreateRack() {
           dimension: dimension,
           image_url: imageUrl,
           numberOfU: numberOfUs,
-          pop_id: parseInt(selectedPopId), 
+          pop_id: parseInt(selectedPopId),
           location_id: parseInt(selectedLocationId),
+          ups_id: parseInt(selectedUPSId),
         },
       ]);
       if (insertError) throw new Error(insertError.message);
+
       // Insert devices for the rack
       const deviceInsertPromises = selectedDevicesId.map(async (deviceId, index) => {
-        if (deviceId !== '') {
+        if (deviceId !== '' && !assignedDevices.includes(parseInt(deviceId))) {
           await supabase.from('Rack Device').insert([
             {
               rack_id: newRackId,
@@ -130,30 +173,41 @@ export default function CreateRack() {
         }
       });
       await Promise.all(deviceInsertPromises);
+
       setInsertedRackId(newRackId);
       setRackName('');
       setRackType('');
       setRackBrand('');
       setDimension('');
-      setRackImage(null); 
+      setRackImage(null);
       setSelectedDevicesId(Array.from({ length: numberOfUs || 0 }, () => ''));
       setSelectedPopId('');
       setSelectedLocationId('');
+      setSelectedUPSId('');
     } catch (error) {
       setError(error.message);
     }
   };
-  
 
+  // Handle device selection change for each U space
   const handleDeviceSelectionChange = (index, deviceId) => {
-    const updatedSelectedDevices = [...selectedDevicesId];
-    updatedSelectedDevices[index] = deviceId;
-    setSelectedDevicesId(updatedSelectedDevices);
+    if (!assignedDevices.includes(parseInt(deviceId))) {
+      const updatedSelectedDevices = [...selectedDevicesId];
+      updatedSelectedDevices[index] = deviceId;
+      setSelectedDevicesId(updatedSelectedDevices);
+    }
   };
+
+  // Handle file upload for rack image
   const handleImageUpload = (e) => {
     setRackImage(e.target.files[0]);
   };
-  const filteredPOPsByLocation = pops.filter(pop => pop.location_id === parseInt(selectedLocationId));
+
+  // Filter POPs based on selected location
+  const filteredPOPsByLocation = pops.filter((pop) => pop.location_id === parseInt(selectedLocationId));
+
+  // Filter available devices
+  const availableDevices = devices.filter((device) => !assignedDevices.includes(device.device_id));
   return (
     <div className="flex flex-col w-full items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">
@@ -255,6 +309,21 @@ export default function CreateRack() {
               required
               className="font-raleway-black w-full p-2 border mb-2"
             />
+            <label htmlFor="UPS" className="block mb-2">UPS:</label>
+            <select
+              id="UPS"
+              value={selectedLocationId}
+              onChange={(e) => setSelectedUPSId(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border mb-2"
+            >
+              <option value="">Select UPS...</option>
+              {UPSs.map((ups) => (
+                <option key={ups.ups_id} value={ups.ups_id}>
+                  {ups.ups_name}
+                </option>
+              ))}
+            </select>
             <label htmlFor="numberOfUs" className="block mb-2">Number of U spaces:</label>
             <input
               type="number"
@@ -274,7 +343,7 @@ export default function CreateRack() {
                   className="font-raleway-black w-full p-2 border mb-2"
                 >
                   <option value="">Select Device...</option>
-                  {devices.map(device => (
+                  {availableDevices.map(device => (
                     <option key={device.device_id} value={device.device_id}>
                       {device.device_name}
                     </option>

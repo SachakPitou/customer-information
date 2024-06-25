@@ -259,7 +259,7 @@ export default function SideBar() {
                                 )}
                             </ul>
                         ) : (
-                            <p>No active session found.</p> // Message when no session is active
+                            <p className='text-white'>No active session found.</p> // Message when no session is active
                         )}
                     </div>
                 </div>

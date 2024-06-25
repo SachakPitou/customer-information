@@ -9,6 +9,7 @@ export default function ViewRack() {
     const [allDevices, setAllDevices] = useState([]);
     const [allLocations, setAllLocations] = useState([]);
     const [allPops, setAllPops] = useState([]);
+    const [allUPSs, setAllUPSs] = useState([]);
     const [filteredPops, setFilteredPops] = useState([]);
     const [editingField, setEditingField] = useState(null);
     const [editedValue, setEditedValue] = useState('');
@@ -31,16 +32,19 @@ export default function ViewRack() {
 
                 const locationId = rackData.location_id;
                 const popId = rackData.pop_id;
+                const upsId = rackData.ups_id;
 
-                const [popData, locationData] = await Promise.all([
+                const [popData, locationData, upsData] = await Promise.all([
                     supabase.from('POP').select('pop_id, pop_name').eq('pop_id', popId).single(),
                     supabase.from('Location').select('location_id, location_name').eq('location_id', locationId).single(),
+                    supabase.from('UPS').select('ups_id, ups_name').eq('ups_id', upsId).single(),
                 ]);
 
                 setRack({
                     ...rackData,
                     location_name: locationData.data.location_name || 'Unknown Location',
                     pop_name: popData.data.pop_name || 'Unknown POP',
+                    ups_name: upsData.data.ups_name || 'Unknown UPS',
                 });
 
                 const { data: deviceLocationsData, error: devicesError } = await supabase
@@ -104,6 +108,15 @@ export default function ViewRack() {
 
                 setAllPops(allPopsData);
 
+                // Fetch all UPSs
+                const { data: allUPSsData, error: allUPSsError } = await supabase
+                    .from('UPS')
+                    .select('ups_id, ups_name');
+
+                if (allUPSsError) throw allUPSsError;
+
+                setAllUPSs(allUPSsData);
+
             } catch (error) {
                 console.error('Error fetching data:', error.message);
             }
@@ -114,68 +127,98 @@ export default function ViewRack() {
 
     const handleDeviceChange = async (rackDeviceId, newDeviceId, uPosition) => {
         try {
-            // Check if the device is already assigned to another rack position
-            const isDeviceAlreadyAssigned = devices.some(device => device.device_id === newDeviceId);
+            // Update or insert the new device_id or set to null if unselecting
+            if (newDeviceId === "") {
+                if (rackDeviceId) {
+                    const { error } = await supabase
+                        .from('Rack Device')
+                        .update({ device_id: null })
+                        .eq('rack_device_id', rackDeviceId);
+                    if (error) throw error;
+                }
     
-            if (isDeviceAlreadyAssigned) {
-                alert('This device is already assigned to another position in the rack.');
-                return;
-            }
+                // Immediately update state to reflect unselected device
+                const updatedDevicesData = devices.map(device =>
+                    device.rack_device_id === rackDeviceId ? { ...device, device_id: null } : device
+                );
+                setDevices(updatedDevicesData); // This state update should be immediate
     
-            if (rackDeviceId) {
-                const { error } = await supabase
-                    .from('Rack Device')
-                    .update({ device_id: newDeviceId })
-                    .eq('rack_device_id', rackDeviceId);
-    
-                if (error) throw error;
             } else {
-                const { error } = await supabase
+                // Check if the device is already assigned to another rack
+                const { data: assignedDevices, error: assignedDevicesError } = await supabase
                     .from('Rack Device')
-                    .insert({ rack_id, u_position: uPosition, device_id: newDeviceId });
+                    .select('rack_id')
+                    .eq('device_id', newDeviceId);
     
-                if (error) throw error;
-            }
+                if (assignedDevicesError) throw assignedDevicesError;
     
-            // Refresh devices after update
-            const { data: deviceLocationsData, error: devicesError } = await supabase
-                .from('Rack Device')
-                .select('rack_device_id, u_position, device_id')
-                .eq('rack_id', rack_id);
+                if (assignedDevices.length > 0) {
+                    alert('This device is already assigned to another rack.');
+                    return;
+                }
     
-            if (devicesError) throw devicesError;
+                if (rackDeviceId) {
+                    const { error } = await supabase
+                        .from('Rack Device')
+                        .update({ device_id: newDeviceId })
+                        .eq('rack_device_id', rackDeviceId);
     
-            const validDeviceIds = deviceLocationsData
-                .filter(device => device.device_id !== null)
-                .map(device => device.device_id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase
+                        .from('Rack Device')
+                        .insert({ rack_id, u_position: uPosition, device_id: newDeviceId });
     
-            let deviceMap = {};
+                    if (error) throw error;
+                }
     
-            if (validDeviceIds.length > 0) {
-                const { data: devicesData, error: devicesDataError } = await supabase
+                // Fetch updated devices
+                const { data: deviceLocationsData, error: devicesError } = await supabase
+                    .from('Rack Device')
+                    .select('rack_device_id, u_position, device_id')
+                    .eq('rack_id', rack_id);
+    
+                if (devicesError) throw devicesError;
+    
+                const validDeviceIds = deviceLocationsData
+                    .filter(device => device.device_id !== null)
+                    .map(device => device.device_id);
+    
+                // Fetch all devices from the database
+                const { data: allDevicesData, error: allDevicesError } = await supabase
                     .from('Device')
-                    .select('device_id, device_name')
-                    .in('device_id', validDeviceIds);
+                    .select('device_id, device_name');
     
-                if (devicesDataError) throw devicesDataError;
+                if (allDevicesError) throw allDevicesError;
     
-                deviceMap = devicesData.reduce((acc, device) => {
-                    acc[device.device_id] = device.device_name;
-                    return acc;
-                }, {});
+                // Filter devices that are not already assigned to another rack
+                const availableDevices = allDevicesData.filter(device =>
+                    !validDeviceIds.includes(device.device_id)
+                );
+    
+                let deviceMap = {};
+    
+                if (availableDevices.length > 0) {
+                    deviceMap = availableDevices.reduce((acc, device) => {
+                        acc[device.device_id] = device.device_name;
+                        return acc;
+                    }, {});
+                }
+    
+                const updatedDevicesData = deviceLocationsData.map(device => ({
+                    ...device,
+                    device_name: device.device_id ? deviceMap[device.device_id] || 'Unknown Device' : 'Unknown Device'
+                }));
+    
+                setDevices(updatedDevicesData); // Update state with the latest devices after selection
             }
-    
-            const updatedDevicesData = deviceLocationsData.map(device => ({
-                ...device,
-                device_name: device.device_id ? deviceMap[device.device_id] || 'Unknown Device' : 'Unknown Device'
-            }));
-    
-            setDevices(updatedDevicesData);
     
         } catch (error) {
             console.error('Error updating device:', error.message);
         }
     };
+    
+    
     
     const handleEditField = (field) => {
         setEditingField(field);
@@ -243,10 +286,10 @@ export default function ViewRack() {
         }
     };
 
-
     if (!rack) {
         return <div>Loading...</div>;
     }
+
 
     return (
         <div className="relative overflow-x-auto shadow-md">
@@ -464,6 +507,42 @@ export default function ViewRack() {
                                         </div>
                                     )}
                                 </div>
+                                <div className="flex flex-col mt-4">
+                                    <span className="font-semibold mr-2">UPS Name:</span>
+                                    {editingField === 'ups_name' ? (
+                                        <div className="flex items-center">
+                                            <select
+                                                className="border border-gray-300 p-1 rounded-md mr-2"
+                                                value={editedUps}
+                                                onChange={(e) => setEditedUps(e.target.value)}
+                                            >
+                                                <option value="">Select UPS</option>
+                                                {filteredUps.map(ups => (
+                                                    <option key={ups.ups_id} value={ups.ups_id}>
+                                                        {ups.ups_name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                className="bg-red-500 text-white px-2 py-1 rounded-md"
+                                                onClick={handleSaveField}
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center">
+                                            <span>{rack.ups_name}</span>
+                                            <button
+                                                className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
+                                                onClick={() => handleEditField('ups_name')}
+                                            >
+                                                Edit
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
                             </div>
                         </td>
                     </tr>
@@ -483,31 +562,44 @@ export default function ViewRack() {
                         </tr>
                     </thead>
                     <tbody>
-                    {[...Array(rack.numberOfU)].map((_, index) => {
-                        const device = devices.find((d) => d.u_position === index + 1);
+                        {[...Array(rack.numberOfU)].map((_, index) => {
+                            const device = devices.find((d) => d.u_position === index + 1);
 
-                        // Filter out already selected devices
-                        const availableDevices = allDevices.filter((dev) => 
-                            !devices.some((d) => d.device_id === dev.device_id) || dev.device_id === (device ? device.device_id : null)
-                        );
+                            // Get all devices that are currently assigned to any rack except the current rack
+                            const assignedDevices = devices
+                                .filter(d => d.device_id && d.u_position !== index + 1)
+                                .map(d => d.device_id);
 
-                        return (
-                            <tr key={index} className="bg-white border-b dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bggray-400">
-                                <td className="px-6 py-4">{index + 1}</td>
-                                <td className="px-6 py-4">
-                                    <select
-                                        value={device ? device.device_id : ''}
-                                        onChange={(e) => handleDeviceChange(device ? device.rack_device_id : null, e.target.value, index + 1)}
-                                    >
-                                        <option value="">Select a device</option>
-                                        {availableDevices.map((dev) => (
-                                            <option key={dev.device_id} value={dev.device_id}>{dev.device_name}</option>
-                                        ))}
-                                    </select>
-                                </td>
-                            </tr>
-                        );
-                    })}
+                            // Filter out devices that are already assigned to other racks
+                            const availableDevices = allDevices.filter((dev) => {
+                                // Include the device if it's not assigned to any other rack or matches the current device in this rack
+                                return !assignedDevices.includes(dev.device_id) || (device && dev.device_id === device.device_id);
+                            });
+
+                            return (
+                                <tr key={index} className="bg-white border-b dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-400">
+                                    <td className="px-6 py-4">{index + 1}</td>
+                                    <td className="px-6 py-4">
+                                        <select
+                                            value={device ? device.device_id : ''}
+                                            onChange={(e) => handleDeviceChange(device ? device.rack_device_id : null, e.target.value, index + 1)}
+                                        >
+                                            <option value="">Select a device</option>
+                                            {availableDevices.length > 0 ? (
+                                                availableDevices.map((dev) => (
+                                                    <option key={dev.device_id} value={dev.device_id}>{dev.device_name}</option>
+                                                ))
+                                            ) : (
+                                                <option disabled>No available devices</option>
+                                            )}
+                                        </select>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+
+
+
                     </tbody>
                 </table>
             </div>
