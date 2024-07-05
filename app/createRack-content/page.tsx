@@ -28,7 +28,12 @@ export default function CreateRack() {
   const closeModal = () => {
     setIsModalOpen(false);
   };
-
+  useEffect(() => {
+    if (insertedRackId || error) {
+      setIsModalOpen(true);
+    }
+  }, [insertedRackId, error]);
+  
   useEffect(() => {
     const fetchDevices = async () => {
       try {
@@ -85,25 +90,25 @@ export default function CreateRack() {
     fetchUPSs();
   }, []);
 
-  useEffect(() => {
-    const fetchAssignedDevices = async () => {
-      try {
-        const { data: assignedDevicesData, error: assignedDevicesError } = await supabase
-          .from('Rack Device')
-          .select('device_id')
-        if (assignedDevicesError) throw new Error(assignedDevicesError.message);
+  // useEffect(() => {
+  //   const fetchAssignedDevices = async () => {
+  //     try {
+  //       const { data: assignedDevicesData, error: assignedDevicesError } = await supabase
+  //         .from('Rack Device')
+  //         .select('device_id')
+  //       if (assignedDevicesError) throw new Error(assignedDevicesError.message);
 
-        const assignedDeviceIds = assignedDevicesData.map(item => item.device_id);
-        // Filter out assigned devices from the list of all devices
-        const availableDevices = devices.filter(device => !assignedDeviceIds.includes(device.device_id));
-        setDevices(availableDevices);
-      } catch (error) {
-        console.error('Error fetching assigned devices:', error.message);
-        setError(error.message);
-      }
-    };
-    fetchAssignedDevices();
-  }, [devices]); 
+  //       const assignedDeviceIds = assignedDevicesData.map(item => item.device_id);
+  //       // Filter out assigned devices from the list of all devices
+  //       const availableDevices = devices.filter(device => !assignedDeviceIds.includes(device.device_id));
+  //       setDevices(availableDevices);
+  //     } catch (error) {
+  //       console.error('Error fetching assigned devices:', error.message);
+  //       setError(error.message);
+  //     }
+  //   };
+  //   fetchAssignedDevices();
+  // }, [devices]); 
 
   // Handle form submission to create a new rack
   const handleAddRack = async (e) => {
@@ -333,24 +338,7 @@ export default function CreateRack() {
               required
               className="font-raleway-black w-full p-2 border mb-2"
             />
-            {Array.from({ length: Math.max(0, numberOfUs || 0) }).map((_, index) => (
-              <div key={index}>
-                <label htmlFor={`device-${index}`} className="block mb-2">{`Device for U space ${index + 1}`}</label>
-                <select
-                  id={`device-${index}`}
-                  value={selectedDevicesId[index]}
-                  onChange={(e) => handleDeviceSelectionChange(index, e.target.value)}
-                  className="font-raleway-black w-full p-2 border mb-2"
-                >
-                  <option value="">Select Device...</option>
-                  {availableDevices.map(device => (
-                    <option key={device.device_id} value={device.device_id}>
-                      {device.device_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+            {/*   */}
           </div>
           <div className="w-full p-2 text-center">
             <button

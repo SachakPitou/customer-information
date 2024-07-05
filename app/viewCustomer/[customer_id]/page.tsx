@@ -22,26 +22,39 @@ export default function viewCustomer() {
                     .eq('customer_id', customer_id);
 
                 if (customerError) throw customerError;
-
+                
                 const packageIds = customersData.map((customer) => customer.package_id);
                 const deviceIds = customersData.map((customer) => customer.device_id);
                 const serviceIds = customersData.map((customer) => customer.service_id);
                 const locationIds = customersData.map((customer) => customer.location_id);
-                const oltIds = customersData.map((customer) => customer.olt_id);
+                const interfaceIds = customersData.map((customer) => customer.interface_id);
+                const deviceTypeIds = customersData.map((customer) => customer.device_type_id);
+                // const oltIds = customersData.map((customer) => customer.olt_id);
 
-                const [packagesData, devicesData, servicesData, locationsData, oltsData] = await Promise.all([
+                const [packagesData, devicesData, servicesData, locationsData, interfacesData, deviceTypesData, portDevicesData] = await Promise.all([
                     supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
                     supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
                     supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
                     supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
-                    supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
+                    // supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
+                    supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
+                    supabase.from('Device Type').select('device_type_id, device_type').in('device_type_id', deviceTypeIds),
+                    supabase.from('PortDevice').select('*').in('interface_id', interfaceIds),
                 ]);
 
                 const packageMap = Object.fromEntries(packagesData.data.map(pkg => [pkg.package_id, pkg.package_name]));
                 const deviceMap = Object.fromEntries(devicesData.data.map(dev => [dev.device_id, dev.device_name]));
                 const serviceMap = Object.fromEntries(servicesData.data.map(srv => [srv.service_id, srv.service_name]));
                 const locationMap = Object.fromEntries(locationsData.data.map(loc => [loc.location_id, loc.location_name]));
-                const oltMap = Object.fromEntries(oltsData.data.map(olt => [olt.olt_id, olt.olt_name]));
+                const deviceTypeMap = Object.fromEntries(deviceTypesData.data.map(dvct => [dvct.device_type_id, dvct.device_type]));
+                const interfaceMap = Object.fromEntries(interfacesData.data.map(inte => [
+                    inte.interface_id, 
+                    {
+                        interface_name: inte.interface_name,
+                        port_number: portDevicesData.data.find(pd => pd.interface_id === inte.interface_id)?.port_number
+                    }
+                ]));
+                // const oltMap = Object.fromEntries(oltsData.data.map(olt => [olt.olt_id, olt.olt_name]));
 
                 const customersWithDetails = customersData.map(customer => ({
                     ...customer,
@@ -49,7 +62,11 @@ export default function viewCustomer() {
                     device_name: deviceMap[customer.device_id] || 'Unknown Device',
                     service_name: serviceMap[customer.service_id] || 'Unknown Service',
                     location_name: locationMap[customer.location_id] || 'Unknown Location',
-                    olt_name: oltMap[customer.olt_id] || 'Unknown OLT',
+                    interface_info: interfaceMap[customer.interface_id] 
+                    ? `Port Number ${interfaceMap[customer.interface_id].port_number} = ${interfaceMap[customer.interface_id].interface_name}` 
+                    : 'Unknown Interface',
+                    device_type: deviceTypeMap[customer.device_type_id] || 'Unknown Device Type',
+                    // olt_name: oltMap[customer.olt_id] || 'Unknown OLT',
                 }));
 
                 setCustomers(customersWithDetails);
@@ -86,14 +103,18 @@ export default function viewCustomer() {
             const packageIds = historyData.flatMap(history => 
                 history.field_changed === 'package_id' ? [history.old_value, history.new_value] : []
             );
+            const interfaceIds = historyData.flatMap(history => 
+                history.field_changed === 'interface_id' ? [history.old_value, history.new_value] : []
+            );
     
             // Fetch details for all relevant entities
-            const [locationsData, oltsData, devicesData, servicesData, packagesData] = await Promise.all([
+            const [locationsData, oltsData, devicesData, servicesData, packagesData, interfacesData] = await Promise.all([
                 supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
                 supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
                 supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
                 supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
                 supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
+                supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
             ]);
     
             // Create maps for easy lookup
@@ -102,6 +123,7 @@ export default function viewCustomer() {
             const deviceMap = Object.fromEntries(devicesData.data.map(dev => [dev.device_id, dev.device_name]));
             const serviceMap = Object.fromEntries(servicesData.data.map(srv => [srv.service_id, srv.service_name]));
             const packageMap = Object.fromEntries(packagesData.data.map(pkg => [pkg.package_id, pkg.package_name]));
+            const interfaceMap = Object.fromEntries(interfacesData.data.map(inte => [inte.interface_id, inte.interface_name]));
     
             const historyWithDetails = historyData.map(history => {
                 let changeDescription;
@@ -127,7 +149,11 @@ export default function viewCustomer() {
                     const oldPackageName = packageMap[history.old_value] || 'Unknown Package';
                     const newPackageName = packageMap[history.new_value] || 'Unknown Package';
                     changeDescription = `Package changed from "${oldPackageName}" to "${newPackageName}"`;
-                }else if (history.field_changed === 'isActive') {
+                } else if (history.field_changed === 'interface_id') {
+                    const oldInterfaceName = interfaceMap[history.old_value] || 'Unknown Interface';
+                    const newInterfaceName = interfaceMap[history.new_value] || 'Unknown Interface';
+                    changeDescription = `Interface changed from "${oldInterfaceName}" to "${newInterfaceName}"`;
+                } else if (history.field_changed === 'isActive') {
                     const oldStatusName = history.old_value === "true" ? "Active" : "Inactive";
                     const newStatusName = history.new_value === "true" ? "Active" : "Inactive";
                     changeDescription = `Status changed from "${oldStatusName}" to "${newStatusName}"`;
@@ -242,28 +268,60 @@ export default function viewCustomer() {
                             </td>
                             <td className="px-6 py-4">
                                 <div>
-                                    <div className="flex mb-2 dark:bg-gray-400 dark:hover:bg-gray-200 mr-2 mb-5 px-3 py-3">
-                                        <span className="secondary-title">SERVICE INFORMATION:</span>
+                                <div className="flex mb-2 dark:bg-gray-400 dark:hover:bg-gray-200 mr-2 mb-5 px-3 py-3">
+                                    <span className="secondary-title">SERVICE INFORMATION:</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">Device Name</span>
+                                    <span>: {customer.device_name}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">Device Type</span>
+                                    <span>: {customer.device_type}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">Interface Name:</span>
+                                    <span>: {customer.interface_info}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">Longtitude</span>
+                                    <span>: {customer.longtitude}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">Latitude</span>
+                                    <span>: {customer.langtitude}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">VLAN</span>
+                                    <span>: {customer.VLan}</span>
+                                </div>
+                                <br />
+                                {customer.device_type_id === 1 || customer.device_type_id === 2 ? (
+                                    <>
+                                    <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">Switch Port</span>
+                                        <span>: {customer.switch_port}</span>
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Longitude</span>
-                                        <span>: {customer.longtitude}</span>
+                                        <span className="font-semibold mr-2 w-40">Description</span>
+                                        <span>: {customer.description}</span>
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Latitude</span>
-                                        <span>: {customer.langtitude}</span>
+                                        <span className="font-semibold mr-2 w-40">Port Type</span>
+                                        <span>: {customer.port_type}</span>
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Slot</span>
-                                        <span>: {customer.slot}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Port</span>
-                                        <span>: {customer.port}</span>
+                                        <span className="font-semibold mr-2 w-40">ACL</span>
+                                        <span>: {customer.ACL}</span>
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
@@ -271,9 +329,17 @@ export default function viewCustomer() {
                                         <span>: {customer.ip_address}</span>
                                     </div>
                                     <br />
+                                    </>
+                                ) : customer.device_type_id === 3 ? (
+                                    <>
                                     <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">ONU ID</span>
-                                        <span>: {customer.onu_id}</span>
+                                        <span className="font-semibold mr-2 w-40">Slot</span>
+                                        <span>: {customer.slot}</span>
+                                    </div>
+                                    <br />
+                                    <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">Port Uplink</span>
+                                        <span>: {customer.port}</span>
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
@@ -287,15 +353,16 @@ export default function viewCustomer() {
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Device name</span>
-                                        <span>: {customer.device_name}</span>
+                                        <span className="font-semibold mr-2 w-40">ONU ID</span>
+                                        <span>: {customer.onu_id}</span>
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">OLT</span>
-                                        <span>: {customer.olt_name}</span>
+                                        <span className="font-semibold mr-2 w-40">ONU MAC Address</span>
+                                        <span>: {customer.ONU_mac_address}</span>
                                     </div>
-                                    <br />
+                                    </>
+                                ) : null}
                                 </div>
                             </td>
                             <td className="px-6 py-4">

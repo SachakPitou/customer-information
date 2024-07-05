@@ -63,6 +63,12 @@ export default function DeviceDetail() {
                         .select('power_source_type')
                         .eq('power_source_id', device.power_source_id)
                         .single();
+
+                    const { data: deviceTypeData } = await supabase
+                        .from('Device Type')
+                        .select('device_type')
+                        .eq('device_type_id', device.device_type_id)
+                        .single();                       
     
                     const { data: locationData } = await supabase
                         .from('Location')
@@ -110,6 +116,7 @@ export default function DeviceDetail() {
                         power_source_type: powerSourceData?.power_source_type || 'Unknown Power Source',
                         location_name: locationData?.location_name || 'Unknown Location',
                         ups_name: upsData?.ups_name || 'Unknown UPS',
+                        device_type: deviceTypeData?.device_type || 'Unknown Device Type',
                         rack_name: rackData?.rack_name || 'Unknown Rack',
                         pop_name: popData?.pop_name || 'Unknown Pop'
                     };

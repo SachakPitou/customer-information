@@ -4,10 +4,12 @@ import { supabase } from '../supabaseClient';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
 import PopUpModal from '../component/popUpmodal';
+import { createClient } from '@/utils/supabase/client';
 
 export default function CreateDevice() {
     const router = useRouter();
-    const [userRole, setUserRole] = useState(null);
+    const [userType, setUserType] = useState('');
+    const [session, setSession] = useState(null);
     const [deviceName, setDeviceName] = useState('');
     const [model, setModel] = useState('');
     const [deviceType, setDeviceType] = useState('');
@@ -18,10 +20,17 @@ export default function CreateDevice() {
     const [numberOfPorts, setNumberOfPorts] = useState(1); // Default to 1 port
     const [ports, setPorts] = useState([]);
     const [locations, setLocations] = useState([]);
+    const [racks, setRacks] = useState([]);
+    const [selectedLocationId, setSelectedLocationId] = useState('');
+    const [deviceTypes, setDeviceTypes] = useState([]);
+    const [selectedDeviceTypeId, setSelectedDeviceTypeId] = useState('');
+    const [POPs, setPOPs] = useState([]);
+    const [selectedPOPId, setSelectedPOPId] = useState('');
+    const [selectedRackId, setSelectedRackId] = useState('');
+    const [uPosition, setUPosition] = useState('');
     const [powerSources, setPowerSources] = useState([]);
     const [UPSs, setUPSs] = useState([]);
     const [selectedPowerSourceId, setSelectedPowerSourceId] = useState('');
-    const [selectedLocationId, setSelectedLocationId] = useState('');
     const [selectedUPSId, setSelectedUPSId] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [insertDeviceId, setInsertedDeviceId] = useState('');
@@ -46,13 +55,38 @@ export default function CreateDevice() {
     };
 
     useEffect(() => {
-        const fetchUserRole = async () => {
-            const { data, error } = await supabase.auth.getUser();
-            if (data) {
-                setUserRole(data.role);
-            }
-            if (error) {
-                console.error('Error fetching user role:', error.message);
+        const fetchUserType = async () => {
+            
+            try {
+                const supabase = createClient();
+                const { data, error } = await supabase.auth.getSession(); // Get session data
+
+                if (error) {
+                    console.error('Error fetching session:', error.message);
+                    return;
+                }
+    
+                const session = data.session;
+                setSession(session); // Set session state
+    
+                if (session) {
+                    const userId = session.user.id; // Extract user ID from session
+                    const { data: userData, error: userError } = await supabase
+                        .from('userAccount')
+                        .select('user_type') 
+                        .eq("id", userId)
+                        .single();
+    
+                    if (userError) {
+                        throw userError;
+                    }
+    
+                    if (userData) {
+                        setUserType(userData.user_type); // Set user type state
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching user type:', error.message);
             }
         };
 
@@ -67,18 +101,70 @@ export default function CreateDevice() {
                 const { data: assignedDevicesData, error: assignedDevicesError } = await supabase
                     .from('Rack Device')
                     .select('device_id')
-                    .isNotNull('device_id');
                 if (assignedDevicesError) throw new Error(assignedDevicesError.message);
                 setAssignedDevices(assignedDevicesData.map(device => device.device_id));
+
+                // Fetch locations
+                const { data: locationsData, error: locationsError } = await supabase.from('Location').select('*');
+                if (locationsError) throw new Error(locationsError.message);
+                setLocations(locationsData);
+
+                // Fetch power sources
+                const { data: powerSourcesData, error: powerSourcesError } = await supabase.from('Power Source').select('*');
+                if (powerSourcesError) throw new Error(powerSourcesError.message);
+                setPowerSources(powerSourcesData);
+
+                // Fetch UPSs
+                const { data: UPSsData, error: UPSsError } = await supabase.from('UPS').select('*');
+                if (UPSsError) throw new Error(UPSsError.message);
+                setUPSs(UPSsData);
+
+                const { data: deviceTypesData, error: deviceTypesError } = await supabase.from('Device Type').select('*');
+                if (deviceTypesError) throw new Error(deviceTypesError.message);
+                setDeviceTypes(deviceTypesData);
             } catch (error) {
                 console.error('Error fetching data:', error.message);
                 setError(error.message);
             }
         };
 
-        fetchUserRole();
+        fetchUserType();
         fetchData();
     }, []);
+
+    useEffect(() => {
+        const fetchPOPs = async () => {
+            if (selectedLocationId) {
+                try {
+                    const { data: popsData, error: popsError } = await supabase
+                        .from('POP')
+                        .select('*')
+                        .eq('location_id', selectedLocationId);
+                    if (popsError) throw new Error(popsError.message);
+                    setPOPs(popsData);
+                } catch (error) {
+                    console.error('Error fetching racks:', error.message);
+                }
+            }
+        };
+        const fetchRacks = async () => {
+            if (selectedPOPId) {
+                try {
+                    const { data: racksData, error: racksError } = await supabase
+                        .from('Rack')
+                        .select('*')
+                        .eq('pop_id', selectedPOPId);
+                    if (racksError) throw new Error(racksError.message);
+                    setRacks(racksData);
+                } catch (error) {
+                    console.error('Error fetching racks:', error.message);
+                }
+            }
+        };
+
+        fetchPOPs();
+        fetchRacks();
+    }, [selectedLocationId, selectedPOPId]);
 
     const handlePortChange = (index, field, value) => {
         const updatedPorts = [...ports];
@@ -87,85 +173,117 @@ export default function CreateDevice() {
     };
 
     const handleAddDevice = async (e) => {
-        e.preventDefault();
-        try {
-            // Insert the device
-            const { data: deviceData, error: deviceError } = await supabase.from('Device').insert([
+    e.preventDefault();
+    try {
+        // Insert the device
+        const { data: deviceData, error: deviceError } = await supabase
+            .from('Device')
+            .insert([
                 {
                     device_name: deviceName,
                     model: model,
-                    device_type: deviceType,
+                    device_type_id: parseInt(selectedDeviceTypeId),
                     description: description,
                     ip_address: ipAddress,
                     mac_address: macAddress,
                     serial_number: serialNumber,
+                    rack_id: parseInt(selectedRackId),
                     power_source_id: parseInt(selectedPowerSourceId),
                     location_id: parseInt(selectedLocationId),
                     ups_id: parseInt(selectedUPSId),
                 },
-            ]).select();
+            ])
+            .select();
 
-            if (deviceError) {
-                throw new Error(deviceError.message);
-            }
-
-            const deviceId = deviceData[0].device_id;
-
-            // Prepare interfaces to insert
-            const interfaces = ports.map(port => ({
-                device_id: parseInt(deviceId),
-                interface_name: port.interfaceName,
-                ip_address: port.ipAddress,
-                description: port.description,
-            }));
-
-            // Insert interfaces in bulk
-            const { data: interfaceData, error: interfaceError } = await supabase.from('Interface').insert(interfaces).select();
-
-            if (interfaceError) {
-                throw new Error(interfaceError.message);
-            }
-
-            // Prepare port-device relationships to insert
-            const portDevices = ports.map((port, index) => ({
-                port_number: port.port_number,
-                device_id: parseInt(deviceId),
-                interface_id: interfaceData[index].interface_id,
-            }));
-
-            // Insert port-device relationships in bulk
-            const { error: portDeviceError } = await supabase.from('PortDevice').insert(portDevices);
-
-            if (portDeviceError) {
-                throw new Error(portDeviceError.message);
-            }
-
-            setInsertedDeviceId(deviceId);
-            setIsModalOpen(true);
-
-            // Clear form fields
-            setDeviceName('');
-            setModel('');
-            setDeviceType('');
-            setDescription('');
-            setMACAddress('');
-            setSerialNumber('');
-            setSelectedPowerSourceId('');
-            setSelectedLocationId('');
-            setSelectedUPSId('');
-            setNumberOfPorts(1);
-            setPorts([]);
-
-        } catch (error) {
-            setError(error.message);
-            setIsModalOpen(true);
+        if (deviceError) {
+            throw new Error(deviceError.message);
         }
-    };
+
+        const deviceId = deviceData[0].device_id;
+
+        // Prepare interfaces to insert
+        const interfaces = ports.map((port) => ({
+            device_id: parseInt(deviceId),
+            interface_name: port.interfaceName,
+            ip_address: port.ipAddress,
+            description: port.description,
+        }));
+
+        // Insert interfaces in bulk
+        const { data: interfaceData, error: interfaceError } = await supabase
+            .from('Interface')
+            .insert(interfaces)
+            .select();
+
+        if (interfaceError) {
+            throw new Error(interfaceError.message);
+        }
+
+        // Prepare port-device relationships to insert
+        const portDevices = ports.map((port, index) => ({
+            port_number: port.port_number,
+            device_id: parseInt(deviceId),
+            interface_id: interfaceData[index].interface_id, // Ensure interface_id is populated correctly
+        }));
+
+        // Insert port-device relationships in bulk
+        const { error: portDeviceError } = await supabase
+            .from('PortDevice')
+            .insert(portDevices);
+
+        if (portDeviceError) {
+            throw new Error(portDeviceError.message);
+        }
+
+        // Assign device to rack
+        const { error: rackDeviceError } = await supabase
+            .from('Rack Device')
+            .insert([
+                {
+                    device_id: parseInt(deviceId),
+                    rack_id: parseInt(selectedRackId),
+                    u_position: parseInt(uPosition),
+                },
+            ]);
+
+        if (rackDeviceError) {
+            throw new Error(rackDeviceError.message);
+        }
+
+        setInsertedDeviceId(deviceId);
+        setIsModalOpen(true);
+
+        // Clear form fields
+        resetFormFields();
+
+    } catch (error) {
+        setError(error.message);
+        setIsModalOpen(true);
+    }
+};
+
+// Helper function to reset form fields
+const resetFormFields = () => {
+    setDeviceName('');
+    setModel('');
+    setDeviceType('');
+    setDescription('');
+    setMACAddress('');
+    setSerialNumber('');
+    setSelectedPowerSourceId('');
+    setSelectedLocationId('');
+    setSelectedRackId('');
+    setUPosition('');
+    setSelectedUPSId('');
+    setSelectedDeviceTypeId('');
+    setNumberOfPorts(1);
+    setPorts([]);
+};
+
 
     // Filter available devices based on assignedDevices state
     const availableDevices = allDevices.filter(dev => !assignedDevices.includes(dev.device_id));
 
-  
     return (
         <div className="flex flex-col w-full items-center justify-center min-h-screen dark:bg-gray-200">
             <div className="font-raleway-black w-full max-w-4xl p-5">
@@ -198,15 +316,20 @@ export default function CreateDevice() {
                             className="font-raleway-black w-full p-2 border"
                         />
                         <label htmlFor="deviceType" className="block mb-2 mt-4">Device Type:</label>
-                        <input
-                            type="text"
+                        <select
                             id="deviceType"
-                            placeholder="Enter device type"
-                            value={deviceType}
-                            onChange={(e) => setDeviceType(e.target.value)}
+                            value={selectedDeviceTypeId}
+                            onChange={(e) => setSelectedDeviceTypeId(e.target.value)}
                             required
                             className="font-raleway-black w-full p-2 border"
-                        />
+                        >
+                            <option value="">Select Device Type...</option>
+                            {deviceTypes.map((dvct) => (
+                                <option key={dvct.device_type_id} value={dvct.device_type_id}>
+                                    {dvct.device_type}
+                                </option>
+                            ))}
+                        </select>
                         <label htmlFor="description" className="block mb-2 mt-4">Description:</label>
                         <input
                             type="text"
@@ -228,81 +351,121 @@ export default function CreateDevice() {
                         />
                     </div>
                     <div className="w-full lg:w-1/2 p-2">
-                    <label htmlFor="upsName" className="block mb-2">UPS Name:</label>
-                    <select
-                      id="upslocationName"
-                      value={selectedUPSId}
-                      onChange={(e) => setSelectedUPSId(e.target.value)}
-                      required
-                      className="font-raleway-black w-full p-2 border"
-                    >
-                      <option value="">Select UPS...</option>
-                      {UPSs.map((ups) => (
-                        <option key={ups.ups_id} value={ups.ups_id}>
-                          {ups.ups_name}
-                        </option>
-                      ))}
-                    </select>
-                      <label htmlFor="powerSource" className="block mb-2 mt-4">Power Source:</label>
-                      <select
-                        id="powerSource"
-                        value={selectedPowerSourceId}
-                        onChange={(e) => setSelectedPowerSourceId(e.target.value)}
-                        required
-                        className="font-raleway-black w-full p-2 border"
-                      >
-                        <option value="">Select Power Source...</option>
-                        {powerSources.map((PWS) => (
-                          <option key={PWS.power_source_id} value={PWS.power_source_id}>
-                            {PWS.power_source_type}
-                          </option>
-                        ))}
-                      </select>
-                      <label htmlFor="macAddress" className="block mb-2 mt-4">MAC Address:</label>
-                      <input
-                        type="text"
-                        id="macAddress"
-                        placeholder="Enter MAC Address"
-                        value={macAddress}
-                        onChange={(e) => setMACAddress(e.target.value)}
-                        required
-                        className="font-raleway-black w-full p-2 border"
-                      />
-                       <label htmlFor="serialNumber" className="block mb-2 mt-4">Serial Number:</label>
-                      <input
-                        type="text"
-                        id="serialNumber"
-                        placeholder="Enter Serial Number"
-                        value={serialNumber}
-                        onChange={(e) => setSerialNumber(e.target.value)}
-                        required
-                        className="font-raleway-black w-full p-2 border"
-                      />
-                      {/* <label htmlFor="locationName" className="block mb-2 mt-4">Location Name:</label>
-                      <select
-                        id="locationName"
-                        value={selectedLocationId}
-                        onChange={(e) => setSelectedLocationId(e.target.value)}
-                        required
-                        className="font-raleway-black w-full p-2 border"
-                      >
-                        <option value="">Select Location...</option>
-                        {locations.map((location_location) => (
-                          <option key={location_location.location_id} value={location_location.location_id}>
-                            {location_location.location_name}
-                          </option>
-                        ))}
-                      </select> */}
-                      <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
-                      <input
-                        type="text"
-                        id="ipAddress"
-                        placeholder="Enter IP Address"
-                        value={ipAddress}
-                        onChange={(e) => setIPAddress(e.target.value)}
-                        required
-                        className="font-raleway-black w-full p-2 border"
-                      />
+                        <label htmlFor="upsName" className="block mb-2">UPS Name:</label>
+                        <select
+                            id="upsName"
+                            value={selectedUPSId}
+                            onChange={(e) => setSelectedUPSId(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        >
+                            <option value="">Select UPS...</option>
+                            {UPSs.map((ups) => (
+                                <option key={ups.ups_id} value={ups.ups_id}>
+                                    {ups.ups_name}
+                                </option>
+                            ))}
+                        </select>
+                        <label htmlFor="powerSource" className="block mb-2 mt-4">Power Source:</label>
+                        <select
+                            id="powerSource"
+                            value={selectedPowerSourceId}
+                            onChange={(e) => setSelectedPowerSourceId(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        >
+                            <option value="">Select Power Source...</option>
+                            {powerSources.map((PWS) => (
+                                <option key={PWS.power_source_id} value={PWS.power_source_id}>
+                                    {PWS.power_source_type}
+                                </option>
+                            ))}
+                        </select>
+                        <label htmlFor="macAddress" className="block mb-2 mt-4">MAC Address:</label>
+                        <input
+                            type="text"
+                            id="macAddress"
+                            placeholder="Enter MAC Address"
+                            value={macAddress}
+                            onChange={(e) => setMACAddress(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        />
+                        <label htmlFor="serialNumber" className="block mb-2 mt-4">Serial Number:</label>
+                        <input
+                            type="text"
+                            id="serialNumber"
+                            placeholder="Enter Serial Number"
+                            value={serialNumber}
+                            onChange={(e) => setSerialNumber(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        />
+                        <label htmlFor="locationName" className="block mb-2 mt-4">Location:</label>
+                        <select
+                            id="locationName"
+                            value={selectedLocationId}
+                            onChange={(e) => setSelectedLocationId(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        >
+                            <option value="">Select Location...</option>
+                            {locations.map((location) => (
+                                <option key={location.location_id} value={location.location_id}>
+                                    {location.location_name}
+                                </option>
+                            ))}
+                        </select>
+                        <label htmlFor="popName" className="block mb-2 mt-4">POP:</label>
+                        <select
+                            id="popName"
+                            value={selectedPOPId}
+                            onChange={(e) => setSelectedPOPId(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        >
+                            <option value="">Select POP...</option>
+                            {POPs.map((pop) => (
+                                <option key={pop.pop_id} value={pop.pop_id}>
+                                    {pop.pop_name}
+                                </option>
+                            ))}
+                        </select>
+                        <label htmlFor="rackName" className="block mb-2 mt-4">Rack:</label>
+                        <select
+                            id="rackName"
+                            value={selectedRackId}
+                            onChange={(e) => setSelectedRackId(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        >
+                            <option value="">Select Rack...</option>
+                            {racks.map((rack) => (
+                                <option key={rack.rack_id} value={rack.rack_id}>
+                                    {rack.rack_name}
+                                </option>
+                            ))}
+                        </select>
+                        <label htmlFor="uPosition" className="block mb-2 mt-4">U Position:</label>
+                        <input
+                            type="number"
+                            id="uPosition"
+                            placeholder="Enter U Position"
+                            value={uPosition}
+                            onChange={(e) => setUPosition(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        />
+                        <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
+                        <input
+                            type="text"
+                            id="ipAddress"
+                            placeholder="Enter IP Address"
+                            value={ipAddress}
+                            onChange={(e) => setIPAddress(e.target.value)}
+                            required
+                            className="font-raleway-black w-full p-2 border"
+                        />
                         {ports.map((port, index) => (
                             <div key={index} className="mt-4">
                                 <div className="flex justify-between mb-2">

@@ -29,13 +29,22 @@ export default function Page() {
         service_id: '',
         package_id: '',
         location_id: '',
+        interface_id: '',
+        device_type_id: '',
         olt_id: '',
         isActive: '',
+        description: '',
+        ACL: '',
+        VLan: '',
+        port_type: '',
+        switch_port: '',
     });
     const [services, setServices] = useState([]);
     const [packages, setPackages] = useState([]);
     const [locations, setLocations] = useState([]);
     const [devices, setDevices] = useState([]);
+    const [deviceTypes, setDeviceTypes] = useState([]);
+    const [interfaces, setInterfaces] = useState([]);
     const [OLTs, setOLTs] = useState([]);
     const [error, setError] = useState(null);
     const { customer_id } = useParams();
@@ -105,6 +114,39 @@ export default function Page() {
                 setError(error.message);
             }
         };
+        const fetchDeviceType = async () => {
+          try {
+              const { data, error } = await supabase.from('Device Type').select('*');
+              if (error) throw new Error(error.message);
+              setDeviceTypes(data);
+          } catch (error) {
+              console.error('Error fetching device types:', error.message);
+              setError(error.message);
+          }
+        };
+        const fetchInterface = async () => {
+          try {
+            const { data: interfaceData, error: interfaceError } = await supabase.from('Interface').select('*');
+            if (interfaceError) throw new Error(interfaceError.message);
+    
+            const { data: portDeviceData, error: portDeviceError } = await supabase.from('PortDevice').select('*');
+            if (portDeviceError) throw new Error(portDeviceError.message);
+    
+            // Joining Interface data with PortDevice data based on interface_id
+            const combinedData = interfaceData.map(interfaceItem => {
+              const portDeviceItem = portDeviceData.find(pd => pd.interface_id === interfaceItem.interface_id);
+              return {
+                ...interfaceItem,
+                portDevice: portDeviceItem
+              };
+            });
+    
+            setInterfaces(combinedData);
+          } catch (error) {
+            console.error('Error fetching interfaces:', error.message);
+            setError(error.message);
+          }
+        };
         const fetchOLT = async () => {
             try {
                 const { data, error } = await supabase.from('OLT').select('*');
@@ -156,8 +198,10 @@ export default function Page() {
         fetchService();
         fetchOLT();
         fetchUserType();
+        fetchInterface();
+        fetchDeviceType();
     }, [customer_id]);
-
+    
     const handleEditCustomer = async (e) => {
         e.preventDefault();
         try {
@@ -175,7 +219,8 @@ export default function Page() {
                 'customer_name', 'phone_number', 'cid', 'address', 'longtitude', 'langtitude',
                 'ONU_mac_address', 'slot', 'port', 'service_port', 'onu_id', 'camera_ip',
                 'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
-                'location_id', 'olt_id', 'isActive'
+                'location_id', 'olt_id', 'isActive', 'interface_id', 'switch_port', 'port_type',
+                'ACL', 'VLan', 'description',
             ];
 
             // Check for changes and prepare history records
@@ -219,10 +264,16 @@ export default function Page() {
                     ip_address: customer.ip_address,
                     isActive: customer.isActive,
                     activation_date: customer.activation_date,
+                    switch_port: customer.switch_port,
+                    port_type: customer.port_type,
+                    ACL: customer.ACL,
+                    VLan: customer.VLan,
+                    description: customer.description,
                     device_id: customer.device_id ? parseInt(customer.device_id) : null,
                     service_id: customer.service_id ? parseInt(customer.service_id) : null,
                     package_id: customer.package_id ? parseInt(customer.package_id) : null,
                     location_id: customer.location_id ? parseInt(customer.location_id) : null,
+                    interface_id: customer.interface_id ? parseInt(customer.interface_id) : null,
                     olt_id: customer.olt_id ? parseInt(customer.olt_id) : null,
                 })
                 .eq('customer_id', customer_id);
@@ -235,11 +286,33 @@ export default function Page() {
             setError(error.message);
         }
     };
+    const handleDeviceChange = async (deviceId) => {
+      try {
+        // Fetch device details based on deviceId from your 'Device' table
+        const { data: device, error } = await supabase
+          .from('Device')
+          .select('device_type_id')
+          .eq('device_id', deviceId)
+          .single(); // Assuming device_id uniquely identifies a device
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        setCustomer(prevCustomer => ({
+          ...prevCustomer,
+          device_id: deviceId,
+          device_type_id: device.device_type_id // Assuming device_type_id is fetched from Device table
+          // Update other fields as needed
+        }));
+      } catch (error) {
+        console.error('Error fetching device details:', error.message);
+      }
+    };
 
 
 
-
-  // const filteredPackagesByService = packages.filter(pkg => pkg.service_id === parseInt(selectedServiceId));
+  const filteredInterfaces = interfaces.filter((inf) => inf.device_id === parseInt(customer.device_id, 10));
   return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">
@@ -343,116 +416,151 @@ export default function Page() {
               </div></>
           )}
           {userType !== "customer_service" && (
-          <><div className="w-full lg:w-1/2 p-2">
-              <label htmlFor="onuMacAddress" className="block mb-2">ONU Mac Address:</label>
-              <input
-                type="float"
-                id="onuMacAddress"
-                placeholder="Enter ONU Mac Address"
-                value={customer.ONU_mac_address}
-                onChange={(e) => setCustomer({ ...customer, ONU_mac_address: e.target.value })}
-                required
-                className="font-raleway-black w-full p-2 border" />
-              <label htmlFor="onuID" className="block mb-2 mt-4">ONU ID:</label>
-              <input
-                type="int"
-                id="onuID"
-                placeholder="Enter ONU ID"
-                value={customer.onu_id}
-                onChange={(e) => setCustomer({ ...customer, onu_id: e.target.value })}
-                required
-                className="font-raleway-black w-full p-2 border" />
+            <>
+              <div className="w-full lg:w-1/2 p-2">
+                {/* Conditional Fields based on device_type_id */}
+                
 
-              <label htmlFor="locationName" className="block mb-2 mt-4">Location Name:</label>
-              <select
-                id="locationName"
-                value={customer.location_id}
-                onChange={(e) => setCustomer({ ...customer, location_id: e.target.value })}
-                required
-                className="font-raleway-black w-full p-2 border"
-              >
-                <option value="">Select Location...</option>
-                {locations.map((location_location) => (
-                  <option key={location_location.location_id} value={location_location.location_id}>
-                    {location_location.location_name}
-                  </option>
-                ))}
-              </select>
-              {/* Longtitude */}
-              <label htmlFor="longtitudes" className="block mb-2 mt-4">Longtitude:</label>
-              <input
-                type="float"
-                id="longtitudes"
-                placeholder="Enter Longtitude"
-                value={customer.longtitude}
-                onChange={(e) => setCustomer({ ...customer, longtitude: e.target.value })}
-                required
-                className="font-raleway-black w-full p-2 border" />
-              <label htmlFor="ports" className="block mb-2 mt-4">Port:</label>
-              <input
-                type="int"
-                id="ports"
-                placeholder="Enter Port"
-                value={customer.port}
-                onChange={(e) => setCustomer({ ...customer, port: e.target.value })}
-                required
-                className="font-raleway-black w-full p-2 border" />
-              <label htmlFor="cameraIP" className="block mb-2 mt-4">Camera IP:</label>
-              <input
-                type="text"
-                id="cameraIP"
-                placeholder="Enter Camera IP"
-                value={customer.camera_ip}
-                onChange={(e) => setCustomer({ ...customer, camera_ip: e.target.value })}
-                required
-                className="font-raleway-black w-full p-2 border" />
-            </div><div className="w-full lg:w-1/2 p-2">
-                {/* Langtitude */}
-                <label htmlFor="langtitudes" className="block mb-2">Langtitude:</label>
+                
+
+                {/* Location Name */}
+                <label htmlFor="langtitudes" className="block mb-2 mt-4">Langtitude:</label>
                 <input
-                  type="float"
+                  type="text"
                   id="langtitudes"
                   placeholder="Enter Langtitude"
                   value={customer.langtitude}
                   onChange={(e) => setCustomer({ ...customer, langtitude: e.target.value })}
                   required
-                  className="font-raleway-black w-full p-2 border" />
-                {/* Slot */}
-                <label htmlFor="slots" className="block mb-2 mt-4">Slot:</label>
-                <input
-                  type="int"
-                  id="slots"
-                  placeholder="Enter Slot"
-                  value={customer.slot}
-                  onChange={(e) => setCustomer({ ...customer, slot: e.target.value })}
-                  required
-                  className="font-raleway-black w-full p-2 border" />
-                {/* Service Port */}
-                <label htmlFor="servicePort" className="block mb-2 mt-4">Service Port:</label>
-                <input
-                  type="int"
-                  id="servicePort"
-                  placeholder="Enter Service Port"
-                  value={customer.service_port}
-                  onChange={(e) => setCustomer({ ...customer, service_port: e.target.value })}
-                  required
-                  className="font-raleway-black w-full p-2 border" />
-                {/* IP Address */}
-                <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
+                  className="font-raleway-black w-full p-2 border"
+                />
+
+                {/* Longtitude */}
+                <label htmlFor="longtitudes" className="block mb-2 mt-4">Longtitude:</label>
                 <input
                   type="text"
-                  id="ipAddress"
-                  placeholder="Enter IP Address"
-                  value={customer.ip_address}
-                  onChange={(e) => setCustomer({ ...customer, ip_address: e.target.value })}
+                  id="longtitudes"
+                  placeholder="Enter Longtitude"
+                  value={customer.longtitude}
+                  onChange={(e) => setCustomer({ ...customer, longtitude: e.target.value })}
                   required
-                  className="font-raleway-black w-full p-2 border" />
-                {/* Device Name */}
+                  className="font-raleway-black w-full p-2 border"
+                />
+                {(customer.device_type_id === 1 || customer.device_type_id === 2) && (
+                  <>
+                    {/* Switch Port */}
+                    <label htmlFor="switchPort" className="block mb-2 mt-4">Switch Port:</label>
+                    <input
+                      type="text"
+                      id="switchPort"
+                      placeholder="Enter Switch Port"
+                      value={customer.switch_port}
+                      onChange={(e) => setCustomer({ ...customer, switch_port: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+
+                    {/* Port Type */}
+                    <label htmlFor="portType" className="block mb-2 mt-4">Port Type:</label>
+                    <input
+                      type="text"
+                      id="portType"
+                      placeholder="Enter Port Type"
+                      value={customer.port_type}
+                      onChange={(e) => setCustomer({ ...customer, port_type: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+
+                    {/* Description */}
+                    <label htmlFor="description" className="block mb-2 mt-4">Description:</label>
+                    <input
+                      type="text"
+                      id="description"
+                      placeholder="Enter Description"
+                      value={customer.description}
+                      onChange={(e) => setCustomer({ ...customer, description: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+                    
+                    {/* ACL */}
+                  </>
+                )}
+                {customer.device_type_id === 3 && (
+                  <>
+                    {/* Port */}
+                    <label htmlFor="port" className="block mb-2 mt-4">Port:</label>
+                    <input
+                      type="text"
+                      id="port"
+                      placeholder="Enter Port"
+                      value={customer.port}
+                      onChange={(e) => setCustomer({ ...customer, port: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+
+                    {/* Slot */}
+                    <label htmlFor="slot" className="block mb-2 mt-4">Slot:</label>
+                    <input
+                      type="text"
+                      id="slot"
+                      placeholder="Enter Slot"
+                      value={customer.slot}
+                      onChange={(e) => setCustomer({ ...customer, slot: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+
+                    {/* Service Port */}
+                    <label htmlFor="servicePort" className="block mb-2 mt-4">Service Port:</label>
+                    <input
+                      type="text"
+                      id="servicePort"
+                      placeholder="Enter Service Port"
+                      value={customer.service_port}
+                      onChange={(e) => setCustomer({ ...customer, service_port: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+                    <label htmlFor="cameraIP" className="block mb-2 mt-4">Camera IP:</label>
+                    <input
+                      type="text"
+                      id="cameraIP"
+                      placeholder="Enter Camera IP"
+                      value={customer.camera_ip}
+                      onChange={(e) => setCustomer({ ...customer, camera_ip: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+                    {/* ONU Mac Address */}
+                  </>
+                )}
+              </div>
+
+              <div className="w-full lg:w-1/2 p-2">
+                {/* Langtitude */}
+                <label htmlFor="locationName" className="block mb-2 mt-4">Location Name:</label>
+                <select
+                  id="locationName"
+                  value={customer.location_id}
+                  onChange={(e) => setCustomer({ ...customer, location_id: e.target.value })}
+                  required
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">Select Location...</option>
+                  {locations.map((location) => (
+                    <option key={location.location_id} value={location.location_id}>
+                      {location.location_name}
+                    </option>
+                  ))}
+                </select>
                 <label htmlFor="deviceName" className="block mb-2 mt-4">Device Name:</label>
                 <select
                   id="deviceName"
                   value={customer.device_id}
-                  onChange={(e) => setCustomer({ ...customer, device_id: e.target.value })}
+                  onChange={(e) => handleDeviceChange(e.target.value)}
                   required
                   className="font-raleway-black w-full p-2 border"
                 >
@@ -463,23 +571,89 @@ export default function Page() {
                     </option>
                   ))}
                 </select>
-                <label htmlFor="oltName" className="block mb-2 mt-4">OLT Name:</label>
+                <label htmlFor="interfaceName" className="block mb-2 mt-4">Interface Name:</label>
                 <select
-                  id="oltName"
-                  value={customer.olt_id}
-                  onChange={(e) => setCustomer({ ...customer, olt_id: e.target.value })}
+                  id="interfaceName"
+                  value={customer.interface_id}
+                  onChange={(e) => setCustomer({ ...customer, interface_id: e.target.value })}
                   required
                   className="font-raleway-black w-full p-2 border"
                 >
-                  <option value="">Select OLT...</option>
-                  {OLTs.map((olt) => (
-                    <option key={olt.olt_id} value={olt.olt_id}>
-                      {olt.olt_name}
-                    </option>
+                  <option value="">Select Interface...</option>
+                  {filteredInterfaces.map((inf) => (
+                      <option key={inf.interface_id} value={inf.interface_id}>
+                        Port {inf.portDevice.port_number}: {inf.interface_name}
+                      </option>
                   ))}
                 </select>
-              </div></>
+                <label htmlFor="VLan" className="block mb-2 mt-4">VLan:</label>
+                    <input
+                      type="text"
+                      id="VLan"
+                      placeholder="Enter VLan"
+                      value={customer.VLan}
+                      onChange={(e) => setCustomer({ ...customer, VLan: e.target.value })}
+                      className="font-raleway-black w-full p-2 border"
+                    />
+                {customer.device_type_id === 3 && (
+                  <>
+   
+                    {/* ONU Mac Address */}
+                    <label htmlFor="onuMacAddress" className="block mb-2 mt-4">ONU Mac Address:</label>
+                    <input
+                      type="text"
+                      id="onuMacAddress"
+                      placeholder="Enter ONU Mac Address"
+                      value={customer.ONU_mac_address}
+                      onChange={(e) => setCustomer({ ...customer, ONU_mac_address: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+
+                    {/* ONU ID */}
+                    <label htmlFor="onuID" className="block mb-2 mt-4">ONU ID:</label>
+                    <input
+                      type="text"
+                      id="onuID"
+                      placeholder="Enter ONU ID"
+                      value={customer.onu_id}
+                      onChange={(e) => setCustomer({ ...customer, onu_id: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+
+                    {/* Camera IP */}
+                  </>
+                )}
+                {(customer.device_type_id === 1 || customer.device_type_id === 2) && (
+                  <>
+                    {/* ACL */}
+                    <label htmlFor="ACL" className="block mb-2 mt-4">ACL:</label>
+                    <input
+                      type="text"
+                      id="ACL"
+                      placeholder="Enter ACL"
+                      value={customer.ACL}
+                      onChange={(e) => setCustomer({ ...customer, ACL: e.target.value })}
+                      required
+                      className="font-raleway-black w-full p-2 border"
+                    />
+                    <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
+                    <input
+                      type="text"
+                      id="ipAddress"
+                      placeholder="Enter ip address"
+                      value={customer.ip_address}
+                      onChange={(e) => setCustomer({ ...customer, ip_address: e.target.value })}
+                      className="font-raleway-black w-full p-2 border"
+                    />
+                    {/* VLan */}
+                  </>
+                )}
+              </div>
+            </>
           )}
+
           <div className="w-full p-2 text-center">
             <button
               type="submit"

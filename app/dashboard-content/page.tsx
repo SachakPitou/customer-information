@@ -19,6 +19,7 @@ export default function Dashboard() {
     const [session, setSession] = useState(null);
     const [editHistories, setEditHistories] = useState({});
     const [expandedRows, setExpandedRows] = useState({});
+    
 
     const router = useRouter();
     const packagesPerPage = 15;
@@ -78,14 +79,18 @@ export default function Dashboard() {
             const packageIds = historyData.flatMap((history) =>
                 history.field_changed === 'package_id' ? [history.old_value, history.new_value] : []
             );
+            const interfaceIds = historyData.flatMap((history) =>
+                history.field_changed === 'interface_id' ? [history.old_value, history.new_value] : []
+            );
 
             // Fetch details for all relevant entities
-            const [locationsData, oltsData, devicesData, servicesData, packagesData] = await Promise.all([
+            const [locationsData, oltsData, devicesData, servicesData, packagesData, interfacesData] = await Promise.all([
                 supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
                 supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
                 supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
                 supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
                 supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
+                supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
             ]);
 
             // Create maps for easy lookup
@@ -94,6 +99,7 @@ export default function Dashboard() {
             const deviceMap = Object.fromEntries(devicesData.data.map((dev) => [dev.device_id, dev.device_name]));
             const serviceMap = Object.fromEntries(servicesData.data.map((srv) => [srv.service_id, srv.service_name]));
             const packageMap = Object.fromEntries(packagesData.data.map((pkg) => [pkg.package_id, pkg.package_name]));
+            const interfaceMap = Object.fromEntries(interfacesData.data.map((inte) => [inte.interface_id, inte.interface_name]));
 
             const historyWithDetails = historyData.map((history) => {
                 let changeDescription;
@@ -119,6 +125,10 @@ export default function Dashboard() {
                     const oldPackageName = packageMap[history.old_value] || 'Unknown Package';
                     const newPackageName = packageMap[history.new_value] || 'Unknown Package';
                     changeDescription = `Package changed from "${oldPackageName}" to "${newPackageName}"`;
+                } else if (history.field_changed === 'interface_id') {
+                    const oldInterfaceName = interfaceMap[history.old_value] || 'Unknown Interface';
+                    const newInterfaceName = interfaceMap[history.new_value] || 'Unknown Interface';
+                    changeDescription = `Package changed from "${oldInterfaceName}" to "${newInterfaceName}"`;
                 } else if (history.field_changed === 'isActive') {
                     const oldStatusName = history.old_value === 'true' ? 'Active' : 'Inactive';
                     const newStatusName = history.new_value === 'true' ? 'Active' : 'Inactive';
@@ -198,6 +208,12 @@ export default function Dashboard() {
                         .select('olt_name')
                         .eq('olt_id', customer.olt_id)
                         .single();
+
+                    const { data: interfaceData } = await supabase
+                        .from('Interface')
+                        .select('interface_name')
+                        .eq('interface_id', customer.interface_id)
+                        .single();
                     
                     const { data: statusData } = await supabase
                         .from('Customer')
@@ -209,6 +225,7 @@ export default function Dashboard() {
                         ...customer,
                         package_name: packageData?.package_name || 'Unknown Package',
                         device_name: deviceData?.device_name || 'Unknown Device',
+                        interface_name: interfaceData?.interface_name || 'Unknown Interface',
                         olt_name: oltData?.olt_name || 'Unknown OLT',
                         status: statusData?.status
                     };
@@ -360,9 +377,9 @@ export default function Dashboard() {
         return <div>Loading...</div>;
     }
     return (
-        <div className="relative overflow-x-auto shadow-md">
-            <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-900">
-                <div className="relative flex items-center mr-5">
+        <div className="w-full relative overflow-x-auto shadow-md">
+            <div className="w-full flex items-center justify-between p-4 bg-white dark:bg-gray-900">
+                <div className="w-full relative flex items-center mr-5">
                     <button onClick={() => router.back()} type="button" className="w-full flex items-center justify-center w-1/2 ml-5 mt-5 mb-2 px-5 py-2 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-gray-800 dark:bg-gray-900 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700">
                         <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
@@ -483,11 +500,11 @@ export default function Dashboard() {
                         <option value="phone_number">Phone Number</option>
                         <option value="cid">CID</option>
                         <option value="internet_package">Internet Package</option>
-                        <option value="slot">Slot</option>
+                        {/* <option value="slot">Slot</option>
                         <option value="port">Port</option>
                         <option value="service_port">Service Port</option>  
                         <option value="onu_id">ONU ID</option>  
-                        <option value="ip_address">IP Address</option>  
+                        <option value="ip_address">IP Address</option>   */}
                     </select>
                     <label htmlFor="table-search" className="sr-only">Search</label> 
                     <div className="relative">
@@ -538,7 +555,7 @@ export default function Dashboard() {
                         <th scope="col" className="px-6 py-3">
                             Internet Package
                         </th>
-                        <th scope="col" className="px-6 py-3">
+                        {/* {/* <th scope="col" className="px-6 py-3">
                             Slot
                         </th>
                         <th scope="col" className="px-6 py-3">
@@ -549,16 +566,16 @@ export default function Dashboard() {
                         </th>
                         <th scope="col" className="px-6 py-3">
                             ONU ID
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            IP Address
-                        </th>
+                        </th> */}
                         <th scope="col" className="px-6 py-3">
                             Customer Router
                         </th>
                         <th scope="col" className="px-6 py-3">
+                            Interface
+                        </th> 
+                        {/* <th scope="col" className="px-6 py-3">
                             OLT
-                        </th>
+                        </th> */}
                         <th scope="col" className="px-6 py-3">
                             View
                         </th>
@@ -617,13 +634,14 @@ export default function Dashboard() {
                                 <td className="px-6 py-4">{customer.phone_number}</td>
                                 <td className="px-6 py-4">{customer.cid}</td>
                                 <td className="px-6 py-4">{customer.package_name}</td>
-                                <td className="px-6 py-4">{customer.slot}</td>
+                                {/* <td className="px-6 py-4">{customer.slot}</td>
                                 <td className="px-6 py-4">{customer.port}</td>
                                 <td className="px-6 py-4">{customer.service_port}</td>
                                 <td className="px-6 py-4">{customer.onu_id}</td>
-                                <td className="px-6 py-4">{customer.ip_address}</td>
+                                <td className="px-6 py-4">{customer.ip_address}</td> */}
                                 <td className="px-6 py-4">{customer.device_name}</td>
-                                <td className="px-6 py-4">{customer.olt_name}</td>
+                                <td className="px-6 py-4">{customer.interface_name}</td>
+                                {/* <td className="px-6 py-4">{customer.olt_name}</td> */}
                                 <td className="px-6 py-4">
                                     <Link href={`/viewCustomer/${customer.customer_id}`}>
                                         <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
@@ -635,6 +653,18 @@ export default function Dashboard() {
                                         </div>
                                     </Link>
                                 </td>
+                                {userType !== "technical" && (
+                                <td className="px-6 py-4">
+                                    <Link href={`/editCustomerService/${customer.customer_id}`}>
+                                        <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
+                                            <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                            {/* Optionally, you can add a title attribute for accessibility */}
+                                        </div>
+                                    </Link>
+                                </td>
+                                )}
+                                {userType !== "customer_service" && (
                                 <td className="px-6 py-4">
                                     <Link href={`/editCustomer/${customer.customer_id}`}>
                                         <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
@@ -644,6 +674,7 @@ export default function Dashboard() {
                                         </div>
                                     </Link>
                                 </td>
+                                )}
                                 <td className="px-6 py-4">
                                     <button
                                         onClick={() => {
