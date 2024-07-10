@@ -28,6 +28,8 @@ export default function TechnicalForm({ customerId }) {
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [selectedDeviceTypeId, setSelectedDeviceTypeId] = useState('');
+  const [frame, setFrame] = useState('');
+  const [ontId, setOntId] = useState('');
   const [selectedOLTId, setSelectedOLTId] = useState('');
   const [error, setError] = useState(null);
   const router = useRouter();
@@ -159,6 +161,8 @@ export default function TechnicalForm({ customerId }) {
           port_type: portType || null,
           ACL: ACL || null,
           VLan: vLan || null,
+          frame: frame || null,
+          ont_id: ontId || null,
           device_id: parseInt(selectedDeviceId, 10),
           location_id: parseInt(selectedLocationId, 10),
           // olt_id: parseInt(selectedOLTId, 10),
@@ -242,17 +246,18 @@ export default function TechnicalForm({ customerId }) {
                     <input type="text" value={onuMacAddress} onChange={e => setOnuMacAddress(e.target.value)} className="block w-full border rounded p-2" />
                   </div>
                   <div>
+                    <label>Frame:</label>
+                    <input type="text" value={frame} onChange={e => setFrame(e.target.value)} className="block w-full border rounded p-2" />
+                  </div>
+                  <div>
                     <label>Slot:</label>
                     <input type="text" value={slots} onChange={e => setSlot(e.target.value)} className="block w-full border rounded p-2" />
                   </div>
                   <div>
-                    <label>Port Uplink</label>
+                    <label>Port</label>
                     <input type="text" value={ports} onChange={e => setPorts(e.target.value)} className="block w-full border rounded p-2" />
                   </div>
-                  <div>
-                    <label>Service Port:</label>
-                    <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
+                  
                 </>
               ) : null}
               <label htmlFor="locationName" className="block mb-2">Location Name:</label>
@@ -287,21 +292,25 @@ export default function TechnicalForm({ customerId }) {
                     </option>
                   ))}
                 </select>
-                <label htmlFor="interfaceName" className="block">Interface Name:</label>
-                  <select
-                    id="interfaceName"
-                    value={selectedInterfaceId}
-                    onChange={(e) => setSelectedInterfaceId(e.target.value)}
-                    required
-                    className="font-raleway-black w-full p-2 border mb-2"
-                  >
-                    <option value="">Select Interface...</option>
-                    {filteredInterfaces.map((inf) => (
-                      <option key={inf.interface_id} value={inf.interface_id}>
-                        Port {inf.portDevice.port_number}: {inf.interface_name}
-                      </option>
-                    ))}
-                  </select>
+                {selectedDeviceTypeId !== '3' && (
+                  <>
+                    <label htmlFor="interfaceName" className="block">Interface Name:</label>
+                    <select
+                      id="interfaceName"
+                      value={selectedInterfaceId}
+                      onChange={(e) => setSelectedInterfaceId(e.target.value)}
+                      required
+                      className="font-raleway-black w-full p-2 border mb-2"
+                    >
+                      <option value="">Select Interface...</option>
+                      {filteredInterfaces.map((inf) => (
+                        <option key={inf.interface_id} value={inf.interface_id}>
+                          Port {inf.portDevice.port_number}: {inf.interface_name}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
             {selectedDeviceTypeId === '1' || selectedDeviceTypeId === '2' ? (
                 <> {/* Router or Switch */}
                     <div>
@@ -316,12 +325,20 @@ export default function TechnicalForm({ customerId }) {
               ) : selectedDeviceTypeId === '3' ? ( // OLT
                 <>
                   <div>
+                    <label>ONT ID:</label>
+                    <input type="text" value={ontId} onChange={e => setOntId(e.target.value)} className="block w-full border rounded p-2" />
+                  </div>
+                  <div>
                     <label>ONU ID:</label>
                     <input type="text" value={onuID} onChange={e => setOnuID(e.target.value)} className="block w-full border rounded p-2" />
                   </div>
                   <div>
                     <label>Camera IP:</label>
                     <input type="text" value={cameraIP} onChange={e => setCameraIP(e.target.value)} className="block w-full border rounded p-2" />
+                  </div>
+                  <div>
+                    <label>Service Port:</label>
+                    <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="block w-full border rounded p-2" />
                   </div>
                 </>
               ) : null}

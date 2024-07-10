@@ -568,11 +568,11 @@ export default function Dashboard() {
                             ONU ID
                         </th> */}
                         <th scope="col" className="px-6 py-3">
-                            Customer Router
+                            IP Address
                         </th>
-                        <th scope="col" className="px-6 py-3">
+                        {/* <th scope="col" className="px-6 py-3">
                             Interface
-                        </th> 
+                        </th>  */}
                         {/* <th scope="col" className="px-6 py-3">
                             OLT
                         </th> */}
@@ -639,8 +639,8 @@ export default function Dashboard() {
                                 <td className="px-6 py-4">{customer.service_port}</td>
                                 <td className="px-6 py-4">{customer.onu_id}</td>
                                 <td className="px-6 py-4">{customer.ip_address}</td> */}
-                                <td className="px-6 py-4">{customer.device_name}</td>
-                                <td className="px-6 py-4">{customer.interface_name}</td>
+                                <td className="px-6 py-4">{customer.ip_address}</td>
+                                {/* <td className="px-6 py-4">{customer.interface_name}</td> */}
                                 {/* <td className="px-6 py-4">{customer.olt_name}</td> */}
                                 <td className="px-6 py-4">
                                     <Link href={`/viewCustomer/${customer.customer_id}`}>

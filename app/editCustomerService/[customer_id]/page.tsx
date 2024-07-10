@@ -164,12 +164,14 @@ export default function Page() {
             if (error) throw new Error(error.message);
 
             setIsModalOpen(true);
+            router.push('/dashboard');
             console.log('Customer edit saved successfully');
         } catch (error) {
             console.error('Error saving customer edit:', error.message);
             setError(error.message);
         }
     };
+    const filteredPackages = packages.filter((pkg) => pkg.service_id === parseInt(customer.service_id, 10));
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
@@ -181,100 +183,120 @@ export default function Page() {
             </button>
             <span>Edit Customer Information: </span>
             <form onSubmit={handleEditCustomer} className="flex flex-wrap justify-between mt-10">
-                <div className="w-full lg:w-1/2 p-2">
-                    <label htmlFor="customerName" className="block mb-2">Customer Name:</label>
-                    <input
-                        type="text"
-                        id="customerName"
-                        placeholder="Enter customer name"
-                        value={customer.customer_name}
-                        onChange={(e) => setCustomer({ ...customer, customer_name: e.target.value })}
-                        required
-                        className="font-raleway-black w-full p-2 border" 
-                    />
-                    <label htmlFor="phoneNumber" className="block mb-2 mt-4">Phone Number:</label>
-                    <input
-                        type="text"
-                        id="phoneNumber"
-                        placeholder="Enter Phone Number"
-                        value={customer.phone_number}
-                        onChange={(e) => setCustomer({ ...customer, phone_number: e.target.value })}
-                        required
-                        className="font-raleway-black w-full p-2 border" 
-                    />
-                    <label htmlFor="CID" className="block mb-2">CID:</label>
-                    <input
-                        type="text"
-                        id="CID"
-                        placeholder="Enter CID"
-                        value={customer.cid}
-                        onChange={(e) => setCustomer({ ...customer, cid: e.target.value })}
-                        required
-                        className="font-raleway-black w-full p-2 border" 
-                    />
-                    <label htmlFor="activationDate" className="block mb-2 mt-4">Activation Date:</label>
-                    <input
-                        type="date"
-                        id="activationDate"
-                        value={customer.activation_date}
-                        onChange={(e) => setCustomer({ ...customer, activation_date: e.target.value })}
-                        required
-                        className="font-raleway-black w-full p-2 border" 
-                    />
-                </div>
-                <div className="w-full lg:w-1/2 p-2">
-                    <label htmlFor="packageName" className="block mb-2">Package Name:</label>
-                    <select
-                    id="packageName"
-                    value={customer.package_id}
-                    onChange={(e) => setCustomer({ ...customer, package_id: e.target.value })}
-                    required
-                    className="font-raleway-black w-full p-2 border"
-                    >
-                    <option value="">Select Package...</option>
-                    {packages.map((pkg) => (
-                        <option key={pkg.package_id} value={pkg.package_id}>
-                        {pkg.package_name}
-                        </option>
-                    ))}
-                    </select>
-                    <label htmlFor="Address" className="block mb-2 mt-4">Address:</label>
-                    <input
-                    type="text"
-                    id="Address"
-                    placeholder="Enter Address"
-                    value={customer.address}
-                    onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
-                    required
-                    className="font-raleway-black w-full p-2 border" />
-                    <label htmlFor="serviceName" className="block mb-2 mt-2">Service Name:</label>
-                    <select
-                    id="serviceName"
-                    value={customer.service_id}
-                    onChange={(e) => setCustomer({ ...customer, service_id: e.target.value })}
-                    required
-                    className="font-raleway-black w-full p-2 border mb-2"
-                    >
-                    <option value="">Select Service...</option>
-                    {services.map((service) => (
-                        <option key={service.service_id} value={service.service_id}>
-                        {service.service_name}
-                        </option>
-                    ))}
-                    </select>
-                    <label htmlFor="status" className="block mt-4">
-                    Status:
-                    </label>
-                    <select
-                    id="isActive"
-                    value={customer.isActive ? 'true' : 'false'}
-                    onChange={(e) => setCustomer({ ...customer, isActive: e.target.value === 'true' })}
-                    className="font-raleway-black w-full p-2 border mb-3"
-                    >
-                    <option value="">Select Status...</option>
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
-                    </select>
+            <div className="flex flex-wrap -mx-2">
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="customerName" className="block mb-2">Customer Name:</label>
+                        <input
+                            type="text"
+                            id="customerName"
+                            placeholder="Enter customer name"
+                            value={customer.customer_name}
+                            onChange={(e) => setCustomer({ ...customer, customer_name: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded" 
+                        />
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="packageName" className="block mb-2">Package Name:</label>
+                        <select
+                            id="packageName"
+                            value={customer.package_id}
+                            onChange={(e) => setCustomer({ ...customer, package_id: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded"
+                        >
+                            <option value="">Select Package...</option>
+                            {filteredPackages.map((pkg) => (
+                                <option key={pkg.package_id} value={pkg.package_id}>
+                                    {pkg.package_name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="phoneNumber" className="block mb-2">Phone Number:</label>
+                        <input
+                            type="text"
+                            id="phoneNumber"
+                            placeholder="Enter Phone Number"
+                            value={customer.phone_number}
+                            onChange={(e) => setCustomer({ ...customer, phone_number: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded" 
+                        />
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="Address" className="block mb-2">Address:</label>
+                        <input
+                            type="text"
+                            id="Address"
+                            placeholder="Enter Address"
+                            value={customer.address}
+                            onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded" 
+                        />
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="CID" className="block mb-2">CID:</label>
+                        <input
+                            type="text"
+                            id="CID"
+                            placeholder="Enter CID"
+                            value={customer.cid}
+                            onChange={(e) => setCustomer({ ...customer, cid: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded" 
+                        />
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="serviceName" className="block mb-2">Service Name:</label>
+                        <select
+                            id="serviceName"
+                            value={customer.service_id}
+                            onChange={(e) => {
+                                const newServiceId = e.target.value;
+                                setCustomer(prevCustomer => ({
+                                    ...prevCustomer,
+                                    service_id: newServiceId,
+                                    package_id: ''
+                                }));
+                            }}
+                            required
+                            className="w-full p-2 border rounded"
+                        >
+                            <option value="">Select Service...</option>
+                            {services.map((service) => (
+                                <option key={service.service_id} value={service.service_id}>
+                                    {service.service_name} (ID: {service.service_id})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="activationDate" className="block mb-2">Activation Date:</label>
+                        <input
+                            type="date"
+                            id="activationDate"
+                            value={customer.activation_date}
+                            onChange={(e) => setCustomer({ ...customer, activation_date: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded" 
+                        />
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="status" className="block mb-2">Status:</label>
+                        <select
+                            id="isActive"
+                            value={customer.isActive ? 'true' : 'false'}
+                            onChange={(e) => setCustomer({ ...customer, isActive: e.target.value === 'true' })}
+                            className="w-full p-2 border rounded"
+                        >
+                            <option value="">Select Status...</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
                 </div>
                 <div className="w-full p-2 text-center">
                     <button

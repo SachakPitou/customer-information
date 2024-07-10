@@ -282,11 +282,16 @@ export default function viewCustomer() {
                                     <span>: {customer.device_type}</span>
                                 </div>
                                 <br />
-                                <div className="flex mb-2">
-                                    <span className="font-semibold mr-2 w-40">Interface Name:</span>
-                                    <span>: {customer.interface_info}</span>
-                                </div>
-                                <br />
+                                {customer.device_type_id !== 3 && (
+                                    <>
+                                        <div className="flex mb-2">
+                                            <span className="font-semibold mr-2 w-40">Interface Name:</span>
+                                            <span>: {customer.interface_info}</span>
+                                        </div>
+                                        <br />
+                                    </>
+                                )}
+                                
                                 <div className="flex mb-2">
                                     <span className="font-semibold mr-2 w-40">Longtitude</span>
                                     <span>: {customer.longtitude}</span>
@@ -333,12 +338,17 @@ export default function viewCustomer() {
                                 ) : customer.device_type_id === 3 ? (
                                     <>
                                     <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">Frame</span>
+                                        <span>: {customer.frame}</span>
+                                    </div>
+                                    <br />
+                                    <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Slot</span>
                                         <span>: {customer.slot}</span>
                                     </div>
                                     <br />
                                     <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Port Uplink</span>
+                                        <span className="font-semibold mr-2 w-40">Port</span>
                                         <span>: {customer.port}</span>
                                     </div>
                                     <br />
@@ -360,6 +370,11 @@ export default function viewCustomer() {
                                     <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">ONU MAC Address</span>
                                         <span>: {customer.ONU_mac_address}</span>
+                                    </div>
+                                    <br />
+                                    <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">ONT ID</span>
+                                        <span>: {customer.ont_id}</span>
                                     </div>
                                     </>
                                 ) : null}

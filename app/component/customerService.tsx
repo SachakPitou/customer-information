@@ -52,7 +52,7 @@ export default function CustomerServiceForm() {
       }]);
       if (insertError) throw new Error(insertError.message);
       setInsertedCustomerId(customerId);
-      router.push(`/`);
+      router.push(`/dashboard`);
     } catch (error) {
       setError(error.message);
     }

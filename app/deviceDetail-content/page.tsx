@@ -587,7 +587,7 @@ export default function DeviceDetail() {
                             Model
                         </th>
                         <th scope="col" className="px-6 py-3">
-                            IP Address
+                            IP Management
                         </th>
                         <th scope="col" className="px-6 py-3">
                             Power Source

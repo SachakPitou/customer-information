@@ -5,7 +5,6 @@ import { supabase } from '@/app/supabaseClient';
 
 export default function ApproveCustomerEdits() {
     const [customerEdits, setCustomerEdits] = useState([]);
-    const [editHistory, setEditHistory] = useState([]);
     const [packages, setPackages] = useState([]);
     const [services, setServices] = useState([]);
     const [error, setError] = useState(null);
@@ -14,19 +13,16 @@ export default function ApproveCustomerEdits() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [customerEditsResponse, editHistoryResponse, packagesResponse, servicesResponse] = await Promise.all([
+                const [customerEditsResponse, packagesResponse, servicesResponse] = await Promise.all([
                     supabase.from('Customer Edit').select('*').eq('approved', false),
-                    supabase.from('CustomerHistory').select('*'),
                     supabase.from('Package').select('*'),
                     supabase.from('Service').select('*')
                 ]);
 
                 const customerEditsData = customerEditsResponse.data;
-                const editHistoryData = editHistoryResponse.data;
                 const packagesData = packagesResponse.data;
                 const servicesData = servicesResponse.data;
 
-                // Fetch corresponding Customer data for each edit
                 const customerFetchPromises = customerEditsData.map(async (edit) => {
                     const { data: customerData, error: fetchError } = await supabase
                         .from('Customer')
@@ -42,7 +38,6 @@ export default function ApproveCustomerEdits() {
                 const resolvedCustomerData = await Promise.all(customerFetchPromises);
                 
                 setCustomerEdits(resolvedCustomerData);
-                setEditHistory(editHistoryData);
                 setPackages(packagesData);
                 setServices(servicesData);
             } catch (error) {
@@ -51,125 +46,62 @@ export default function ApproveCustomerEdits() {
             }
         };
     
-        fetchData(); // Call the function to fetch data on mount
-    }, []); // Empty dependency array ensures this runs only once on mount
+        fetchData();
+    }, []);
 
     const approveEdit = async (editId, customerId) => {
-        try {
-            const { data: editData, error: fetchError } = await supabase
-                .from('Customer Edit')
-                .select('*')
-                .eq('edit_id', editId)
-                .single();
-
-            if (fetchError) throw new Error(fetchError.message);
-
-            const currentCustomerDataResponse = await supabase
-                .from('Customer')
-                .select('*')
-                .eq('customer_id', customerId)
-                .single();
-
-            if (currentCustomerDataResponse.error) {
-                throw new Error(currentCustomerDataResponse.error.message);
-            }
-
-            const currentCustomerData = currentCustomerDataResponse.data;
-
-            // Update Customer table with the edit data
-            const { error } = await supabase
-                .from('Customer')
-                .update({
-                    customer_name: editData.customer_name,
-                    phone_number: editData.phone_number,
-                    cid: editData.cid,
-                    address: editData.address,
-                    longtitude: editData.longtitude,
-                    langtitude: editData.langtitude,
-                    activation_date: editData.activation_date,
-                    service_id: editData.service_id,
-                    package_id: editData.package_id,
-                    isActive: editData.isActive,
-                })
-                .eq('customer_id', customerId);
-
-            if (error) throw new Error(error.message);
-
-            // Update Customer Edit table to mark the edit as approved
-            const { error: updateError } = await supabase
-                .from('Customer Edit')
-                .update({ approved: true })
-                .eq('edit_id', editId);
-
-            if (updateError) throw new Error(updateError.message);
-
-            // Fetch and update edit history related to this customer edit
-            const { data: fetchedHistory, error: historyError } = await supabase
-                .from('CustomerHistory')
-                .select('*')
-                .eq('customer_id', customerId)
-                .order('timestamp', { ascending: false });
-
-            if (historyError) throw new Error(historyError.message);
-
-            setEditHistory(fetchedHistory);
-
-            // Filter out the approved edit from the customerEdits state
-            setCustomerEdits(customerEdits.filter(edit => edit.edit_id !== editId));
-            console.log('Customer edit approved and updated successfully');
-        } catch (error) {
-            console.error('Error approving customer edit:', error.message);
-            setError(error.message);
-        }
+        // ... (keep the existing approveEdit function)
     };
 
-    // Render function for displaying changes
+    const getPackageName = (packageId) => {
+        const pkg = packages.find(p => p.package_id === packageId);
+        return pkg ? pkg.package_name : 'Unknown';
+    };
+
+    const getServiceName = (serviceId) => {
+        const svc = services.find(s => s.service_id === serviceId);
+        return svc ? svc.service_name : 'Unknown';
+    };
+
     const renderChanges = (edit) => {
         const customerData = edit.customerData;
-        const getPackageName = (packageId) => {
-            const pkg = packages.find(p => p.package_id === packageId);
-            return pkg ? pkg.package_name : 'Unknown';
-        };
-        const getServiceName = (serviceId) => {
-            const svc = services.find(s => s.service_id === serviceId);
-            return svc ? svc.service_name : 'Unknown';
-        };
-
         const changes = [
-            { label: 'Customer Name', old: customerData.customer_name, new: edit.customer_name },
-            { label: 'Phone Number', old: customerData.phone_number, new: edit.phone_number },
-            { label: 'CID', old: customerData.cid, new: edit.cid },
-            { label: 'Address', old: customerData.address, new: edit.address },
-            { label: 'Longitude', old: customerData.longtitude, new: edit.longtitude },
-            { label: 'Latitude', old: customerData.langtitude, new: edit.langtitude },
-            { label: 'Activation Date', old: customerData.activation_date, new: edit.activation_date },
-            { label: 'Service', old: getServiceName(customerData.service_id), new: getServiceName(edit.service_id) },
-            { label: 'Package', old: getPackageName(customerData.package_id), new: getPackageName(edit.package_id) },
-            { label: 'Status', old: customerData.isActive ? "Active" : "Inactive", new: edit.isActive ? "Active" : "Inactive" },
+            { field: 'Customer Name', old: customerData.customer_name, new: edit.customer_name },
+            { field: 'Phone Number', old: customerData.phone_number, new: edit.phone_number },
+            { field: 'CID', old: customerData.cid, new: edit.cid },
+            { field: 'Address', old: customerData.address, new: edit.address },
+            // { field: 'Longitude', old: customerData.longtitude, new: edit.longtitude },
+            // { field: 'Latitude', old: customerData.langtitude, new: edit.langtitude },
+            { field: 'Activation Date', old: customerData.activation_date, new: edit.activation_date },
+            { field: 'Service', old: getServiceName(customerData.service_id), new: getServiceName(edit.service_id) },
+            { field: 'Package', old: getPackageName(customerData.package_id), new: getPackageName(edit.package_id) },
+            { field: 'Status', old: customerData.isActive ? "Active" : "Inactive", new: edit.isActive ? "Active" : "Inactive" },
         ];
-
-        return (
-            <tr key={edit.edit_id} className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
+    
+        const changedFields = changes.filter(change => 
+            change.old !== change.new && 
+            (change.old !== null || change.new !== null) && 
+            (change.old !== undefined || change.new !== undefined)
+        );
+        const formatDate = (dateString) => {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString();
+        };
+    
+        return changedFields.map((change, index) => (
+            <tr key={`${edit.edit_id}-${index}`} className="bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
+                <td className="px-6 py-4">{edit.customer_name || customerData.customer_name}</td>
+                <td className="px-6 py-4">{change.field}</td>
+                <td className="px-6 py-4">{change.old !== null && change.old !== undefined ? change.old : 'N/A'}</td>
+                <td className="px-6 py-4">{change.new !== null && change.new !== undefined ? change.new : 'N/A'}</td>
+                <td className="px-6 py-4">{formatDate(edit.timestamp)}</td>
                 <td className="px-6 py-4">
-                    {changes.map((change, index) => (
-                        <div key={index}>
-                            <strong>{change.label}:</strong> <br />
-                            <span className="text-red-500">Old: {change.old}</span> <br />
-                            <span className="text-green-500">New: {change.new}</span>
-                        </div>
-                    ))}
-                </td>
-                <td className="px-6 py-4">
-                    <button onClick={() => approveEdit(edit.edit_id, edit.customer_id)} className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600">Approve</button>
+                    <button onClick={() => approveEdit(edit.edit_id, edit.customer_id)} className="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600">Approve</button>
                 </td>
             </tr>
-        );
+        ));
     };
-
-    // Filter edit history records that match customer edits awaiting approval
-    const historyToApprove = editHistory.filter(historyRecord =>
-        customerEdits.some(edit => edit.edit_id === historyRecord.edit_id)
-    );
 
     return (
         <div className="relative overflow-x-auto shadow-md">
@@ -182,10 +114,14 @@ export default function ApproveCustomerEdits() {
                 </button>
                 <span>Approve Customer Edits</span>
             </div>
-            <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                <thead className="title-dashboard text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-300 dark:text-gray-700">
+            <table className="w-full text-sm text-left rtl:text-right text-black dark:text-black">
+                <thead className="title-dashboard text-xs text-black uppercase bg-gray-50 dark:bg-gray-300 dark:text-black">
                     <tr>
-                        <th scope="col" className="px-6 py-3">Changes</th>
+                        <th scope="col" className="px-6 py-3">Name</th>
+                        <th scope="col" className="px-6 py-3">Field</th>
+                        <th scope="col" className="px-6 py-3">Old Value</th>
+                        <th scope="col" className="px-6 py-3">New Value</th>
+                        <th scope="col" className="px-6 py-3">Change Date</th>
                         <th scope="col" className="px-6 py-3">Action</th>
                     </tr>
                 </thead>
@@ -193,22 +129,6 @@ export default function ApproveCustomerEdits() {
                     {customerEdits.map((edit) => renderChanges(edit))}
                 </tbody>
             </table>
-
-            {/* Display Edit History Needing Approval */}
-            {/* <div className="mt-8">
-                <h2 className="text-lg font-semibold mb-4">Edit History Needing Approval</h2>
-                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {historyToApprove.map((historyRecord, index) => (
-                        <li key={index} className="py-2">
-                            <p className="text-gray-600 dark:text-gray-400">
-                                <span className="font-semibold">{historyRecord.field_changed}: </span>
-                                {`Changed from "${historyRecord.old_value}" to "${historyRecord.new_value}" on ${new Date(historyRecord.timestamp).toLocaleString()}`}
-                            </p>
-                        </li>
-                    ))}
-                </ul>
-            </div> */}
-
             {error && <p className="text-red-500">{error}</p>}
         </div>
     );

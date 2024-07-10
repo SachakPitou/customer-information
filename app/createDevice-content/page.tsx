@@ -17,8 +17,7 @@ export default function CreateDevice() {
     const [ipAddress, setIPAddress] = useState('');
     const [macAddress, setMACAddress] = useState('');
     const [serialNumber, setSerialNumber] = useState('');
-    const [numberOfPorts, setNumberOfPorts] = useState(1); // Default to 1 port
-    const [ports, setPorts] = useState([]);
+    const [numberOfPorts, setNumberOfPorts] = useState(1);
     const [locations, setLocations] = useState([]);
     const [racks, setRacks] = useState([]);
     const [selectedLocationId, setSelectedLocationId] = useState('');
@@ -35,31 +34,75 @@ export default function CreateDevice() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [insertDeviceId, setInsertedDeviceId] = useState('');
     const [error, setError] = useState(null);
-    const [allDevices, setAllDevices] = useState([]); // State to store all devices
-    const [assignedDevices, setAssignedDevices] = useState([]); // State to store assigned devices
+    const [allDevices, setAllDevices] = useState([]);
+    const [assignedDevices, setAssignedDevices] = useState([]);
+    const [portAttributes, setPortAttributes] = useState([]);
 
     const closeModal = () => {
         setIsModalOpen(false);
     };
-
+    const handleDeviceTypeChange = (e) => {
+        const deviceTypeId = e.target.value;
+        setSelectedDeviceTypeId(deviceTypeId);
+        setupPortAttributes(deviceTypeId, numberOfPorts);
+    };
+    
     const handleNumberOfPortsChange = (e) => {
-        const count = parseInt(e.target.value);
-        setNumberOfPorts(count);
-        // Reset ports array when the number of ports changes
-        setPorts(Array.from({ length: count }, (_, index) => ({
-            port_number: index + 1,
-            interfaceName: '',
-            ipAddress: '',
-            description: '',
-        })));
+        const value = e.target.value;
+        if (value === '' || value === null) {
+            setNumberOfPorts('');
+            setPortAttributes([]);
+        } else {
+            const count = parseInt(value);
+            if (!isNaN(count) && count > 0) {
+                setNumberOfPorts(count);
+                if (selectedDeviceTypeId) {
+                    setupPortAttributes(selectedDeviceTypeId, count);
+                }
+            }
+        }
+    };
+
+    const setupPortAttributes = (deviceTypeId, portCount) => {
+        const selectedDeviceType = deviceTypes.find(type => type.device_type_id === parseInt(deviceTypeId));
+        if (!selectedDeviceType) return;
+    
+        portCount = Math.max(1, portCount || 1); // Ensure portCount is at least 1
+    
+        let attributes = [];
+        switch(selectedDeviceType.device_type.toLowerCase()) {
+            case 'switch':
+                attributes = Array(portCount).fill().map(() => ({
+                    interface_name: null,
+                }));
+                break;
+            case 'olt':
+                attributes = Array(portCount).fill().map(() => ({
+                    interface_name: null,
+                    description: null,
+                    port_type: null,
+                    link_mode: null,
+                    capacity: null,
+                }));
+                break;
+            case 'router':
+                attributes = Array(portCount).fill().map(() => ({
+                    interface_name: null,
+                    capacity: null,
+                    link_protocol: null,
+                }));
+                break;
+            default:
+                attributes = Array(portCount).fill().map(() => ({}));
+        }
+        setPortAttributes(attributes);
     };
 
     useEffect(() => {
         const fetchUserType = async () => {
-            
             try {
                 const supabase = createClient();
-                const { data, error } = await supabase.auth.getSession(); // Get session data
+                const { data, error } = await supabase.auth.getSession();
 
                 if (error) {
                     console.error('Error fetching session:', error.message);
@@ -67,10 +110,10 @@ export default function CreateDevice() {
                 }
     
                 const session = data.session;
-                setSession(session); // Set session state
+                setSession(session);
     
                 if (session) {
-                    const userId = session.user.id; // Extract user ID from session
+                    const userId = session.user.id;
                     const { data: userData, error: userError } = await supabase
                         .from('userAccount')
                         .select('user_type') 
@@ -82,7 +125,7 @@ export default function CreateDevice() {
                     }
     
                     if (userData) {
-                        setUserType(userData.user_type); // Set user type state
+                        setUserType(userData.user_type);
                     }
                 }
             } catch (error) {
@@ -92,29 +135,24 @@ export default function CreateDevice() {
 
         const fetchData = async () => {
             try {
-                // Fetch all devices
                 const { data: allDevicesData, error: allDevicesError } = await supabase.from('Device').select('*');
                 if (allDevicesError) throw new Error(allDevicesError.message);
                 setAllDevices(allDevicesData);
 
-                // Fetch devices already assigned to any rack
                 const { data: assignedDevicesData, error: assignedDevicesError } = await supabase
                     .from('Rack Device')
                     .select('device_id')
                 if (assignedDevicesError) throw new Error(assignedDevicesError.message);
                 setAssignedDevices(assignedDevicesData.map(device => device.device_id));
 
-                // Fetch locations
                 const { data: locationsData, error: locationsError } = await supabase.from('Location').select('*');
                 if (locationsError) throw new Error(locationsError.message);
                 setLocations(locationsData);
 
-                // Fetch power sources
                 const { data: powerSourcesData, error: powerSourcesError } = await supabase.from('Power Source').select('*');
                 if (powerSourcesError) throw new Error(powerSourcesError.message);
                 setPowerSources(powerSourcesData);
 
-                // Fetch UPSs
                 const { data: UPSsData, error: UPSsError } = await supabase.from('UPS').select('*');
                 if (UPSsError) throw new Error(UPSsError.message);
                 setUPSs(UPSsData);
@@ -143,7 +181,7 @@ export default function CreateDevice() {
                     if (popsError) throw new Error(popsError.message);
                     setPOPs(popsData);
                 } catch (error) {
-                    console.error('Error fetching racks:', error.message);
+                    console.error('Error fetching POPs:', error.message);
                 }
             }
         };
@@ -166,120 +204,121 @@ export default function CreateDevice() {
         fetchRacks();
     }, [selectedLocationId, selectedPOPId]);
 
+    useEffect(() => {
+        if (selectedDeviceTypeId) {
+            setupPortAttributes(selectedDeviceTypeId, numberOfPorts);
+        }
+    }, [selectedDeviceTypeId, numberOfPorts]);
+
     const handlePortChange = (index, field, value) => {
-        const updatedPorts = [...ports];
-        updatedPorts[index][field] = value;
-        setPorts(updatedPorts);
-    };
+    const updatedPorts = [...portAttributes];
+    updatedPorts[index][field] = value === '' ? null : value;
+    setPortAttributes(updatedPorts);
+};
 
     const handleAddDevice = async (e) => {
-    e.preventDefault();
-    try {
-        // Insert the device
-        const { data: deviceData, error: deviceError } = await supabase
-            .from('Device')
-            .insert([
-                {
-                    device_name: deviceName,
-                    model: model,
-                    device_type_id: parseInt(selectedDeviceTypeId),
-                    description: description,
-                    ip_address: ipAddress,
-                    mac_address: macAddress,
-                    serial_number: serialNumber,
-                    rack_id: parseInt(selectedRackId),
-                    power_source_id: parseInt(selectedPowerSourceId),
-                    location_id: parseInt(selectedLocationId),
-                    ups_id: parseInt(selectedUPSId),
-                },
-            ])
-            .select();
+        e.preventDefault();
+        try {
+            const { data: deviceData, error: deviceError } = await supabase
+                .from('Device')
+                .insert([
+                    {
+                        device_name: deviceName,
+                        model: model,
+                        device_type_id: parseInt(selectedDeviceTypeId),
+                        description: description,
+                        ip_address: ipAddress,
+                        mac_address: macAddress,
+                        serial_number: serialNumber,
+                        rack_id: parseInt(selectedRackId),
+                        power_source_id: parseInt(selectedPowerSourceId),
+                        location_id: parseInt(selectedLocationId),
+                        ups_id: parseInt(selectedUPSId),
+                    },
+                ])
+                .select();
 
-        if (deviceError) {
-            throw new Error(deviceError.message);
+            if (deviceError) {
+                throw new Error(deviceError.message);
+            }
+
+            const deviceId = deviceData[0].device_id;
+
+            const interfaces = portAttributes.map((port) => ({
+                device_id: parseInt(deviceId),
+                ...port,
+            }));
+
+            const { data: interfaceData, error: interfaceError } = await supabase
+                .from('Interface')
+                .insert(interfaces)
+                .select();
+
+            if (interfaceError) {
+                throw new Error(interfaceError.message);
+            }
+
+            const portDevices = portAttributes.map((port, index) => ({
+                port_number: index + 1,
+                device_id: parseInt(deviceId),
+                interface_id: interfaceData[index].interface_id,
+            }));
+
+            const { error: portDeviceError } = await supabase
+                .from('PortDevice')
+                .insert(portDevices);
+
+            if (portDeviceError) {
+                throw new Error(portDeviceError.message);
+            }
+
+            const { error: rackDeviceError } = await supabase
+                .from('Rack Device')
+                .insert([
+                    {
+                        device_id: parseInt(deviceId),
+                        rack_id: parseInt(selectedRackId),
+                        u_position: parseInt(uPosition),
+                    },
+                ]);
+
+            if (rackDeviceError) {
+                throw new Error(rackDeviceError.message);
+            }
+
+            setInsertedDeviceId(deviceId);
+            setIsModalOpen(true);
+
+            resetFormFields();
+
+        } catch (error) {
+            setError(error.message);
+            setIsModalOpen(true);
         }
+    };
 
-        const deviceId = deviceData[0].device_id;
-
-        // Prepare interfaces to insert
-        const interfaces = ports.map((port) => ({
-            device_id: parseInt(deviceId),
-            interface_name: port.interfaceName,
-            ip_address: port.ipAddress,
-            description: port.description,
-        }));
-
-        // Insert interfaces in bulk
-        const { data: interfaceData, error: interfaceError } = await supabase
-            .from('Interface')
-            .insert(interfaces)
-            .select();
-
-        if (interfaceError) {
-            throw new Error(interfaceError.message);
-        }
-
-        // Prepare port-device relationships to insert
-        const portDevices = ports.map((port, index) => ({
-            port_number: port.port_number,
-            device_id: parseInt(deviceId),
-            interface_id: interfaceData[index].interface_id, // Ensure interface_id is populated correctly
-        }));
-
-        // Insert port-device relationships in bulk
-        const { error: portDeviceError } = await supabase
-            .from('PortDevice')
-            .insert(portDevices);
-
-        if (portDeviceError) {
-            throw new Error(portDeviceError.message);
-        }
-
-        // Assign device to rack
-        const { error: rackDeviceError } = await supabase
-            .from('Rack Device')
-            .insert([
-                {
-                    device_id: parseInt(deviceId),
-                    rack_id: parseInt(selectedRackId),
-                    u_position: parseInt(uPosition),
-                },
-            ]);
-
-        if (rackDeviceError) {
-            throw new Error(rackDeviceError.message);
-        }
-
-        setInsertedDeviceId(deviceId);
-        setIsModalOpen(true);
-
-        // Clear form fields
-        resetFormFields();
-
-    } catch (error) {
-        setError(error.message);
-        setIsModalOpen(true);
-    }
-};
-
-// Helper function to reset form fields
-const resetFormFields = () => {
-    setDeviceName('');
-    setModel('');
-    setDeviceType('');
-    setDescription('');
-    setMACAddress('');
-    setSerialNumber('');
-    setSelectedPowerSourceId('');
-    setSelectedLocationId('');
-    setSelectedRackId('');
-    setUPosition('');
-    setSelectedUPSId('');
-    setSelectedDeviceTypeId('');
-    setNumberOfPorts(1);
-    setPorts([]);
-};
-
+    const resetFormFields = () => {
+        setDeviceName('');
+        setModel('');
+        setDeviceType('');
+        setDescription('');
+        setMACAddress('');
+        setSerialNumber('');
+        setSelectedPowerSourceId('');
+        setSelectedLocationId('');
+        setSelectedRackId('');
+        setUPosition('');
+        setSelectedUPSId('');
+        setSelectedDeviceTypeId('');
+        setNumberOfPorts(1);
+        setPortAttributes([]);
+    };
+    const formatAttributeName = (attr) => {
+        return attr
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    };
 
     // Filter available devices based on assignedDevices state
     const availableDevices = allDevices.filter(dev => !assignedDevices.includes(dev.device_id));
@@ -319,7 +358,7 @@ const resetFormFields = () => {
                         <select
                             id="deviceType"
                             value={selectedDeviceTypeId}
-                            onChange={(e) => setSelectedDeviceTypeId(e.target.value)}
+                            onChange={handleDeviceTypeChange}
                             required
                             className="font-raleway-black w-full p-2 border"
                         >
@@ -346,7 +385,7 @@ const resetFormFields = () => {
                             placeholder="Enter number of ports"
                             value={numberOfPorts}
                             onChange={handleNumberOfPortsChange}
-                            required
+                            min="1"
                             className="font-raleway-black w-full p-2 border"
                         />
                     </div>
@@ -456,48 +495,39 @@ const resetFormFields = () => {
                             required
                             className="font-raleway-black w-full p-2 border"
                         />
-                        <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Address:</label>
+                        <label htmlFor="ipAddress" className="block mb-2 mt-4">IP Management:</label>
                         <input
                             type="text"
                             id="ipAddress"
-                            placeholder="Enter IP Address"
+                            placeholder="Enter IP Management"
                             value={ipAddress}
                             onChange={(e) => setIPAddress(e.target.value)}
                             required
                             className="font-raleway-black w-full p-2 border"
                         />
-                        {ports.map((port, index) => (
+                        {portAttributes.map((port, index) => (
                             <div key={index} className="mt-4">
                                 <div className="flex justify-between mb-2">
-                                    <span>Port {index + 1}</span>
+                                    <span className="font-bold">Port {index + 1}</span>
                                 </div>
-                                <label htmlFor={`interfaceName${index}`} className="block mb-2">Interface Name:</label>
-                                <input
-                                    type="text"
-                                    id={`interfaceName${index}`}
-                                    placeholder="Enter interface name"
-                                    value={port.interfaceName}
-                                    onChange={(e) => handlePortChange(index, 'interfaceName', e.target.value)}
-                                    className="font-raleway-black w-full p-2 border"
-                                />
-                                <label htmlFor={`ipAddress${index}`} className="block mb-2 mt-4">IP Address:</label>
-                                <input
-                                    type="text"
-                                    id={`ipAddress${index}`}
-                                    placeholder="Enter IP address"
-                                    value={port.ipAddress}
-                                    onChange={(e) => handlePortChange(index, 'ipAddress', e.target.value)}
-                                    className="font-raleway-black w-full p-2 border"
-                                />
-                                <label htmlFor={`description${index}`} className="block mb-2 mt-4">Description:</label>
-                                <input
-                                    type="text"
-                                    id={`description${index}`}
-                                    placeholder="Enter description"
-                                    value={port.description}
-                                    onChange={(e) => handlePortChange(index, 'description', e.target.value)}
-                                    className="font-raleway-black w-full p-2 border"
-                                />
+                                {Object.keys(port).map(attr => (
+                                    <div key={attr}>
+                                        <label 
+                                            htmlFor={`${attr}${index}`} 
+                                            className="block mb-2 mt-4 font-semibold"
+                                        >
+                                            {formatAttributeName(attr)}:
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id={`${attr}${index} `}
+                                            placeholder={`Enter ${formatAttributeName(attr)}`}
+                                            value={port[attr] || ''}
+                                            onChange={(e) => handlePortChange(index, attr, e.target.value)}
+                                            className="font-raleway-black w-full p-2 border"
+                                        />
+                                    </div>
+                                ))}
                             </div>
                         ))}
                     </div>
