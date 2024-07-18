@@ -129,18 +129,9 @@ export default function CustomerServiceInfoForm({ customerId }) {
                 className="block w-full border rounded p-2 mb-2"
               />
             </div>
-            <label htmlFor="activationDate" className="block">Activation Date:</label>
-            <input
-              type="date"
-              id="activationDate"
-              value={customer.activation_date}
-              readOnly={true}
-              required
-              className="font-raleway-black w-full p-2 border mb-2"
-            />
           </div>
           <div className="w-full lg:w-1/2 p-2">
-            <div>
+            {/* <div>
               <label className="block">Longitude:</label>
               <input
                 type="text"
@@ -157,7 +148,7 @@ export default function CustomerServiceInfoForm({ customerId }) {
                 readOnly={true}
                 className="block w-full border rounded p-2 mb-2"
               />
-            </div>
+            </div> */}
             <label htmlFor="serviceName" className="block">
               Service Name:
             </label>
@@ -203,6 +194,15 @@ export default function CustomerServiceInfoForm({ customerId }) {
               <option value="true">Active</option>
               <option value="false">Inactive</option>
             </select>
+            <label htmlFor="activationDate" className="block">Activation Date:</label>
+            <input
+              type="date"
+              id="activationDate"
+              value={customer.activation_date}
+              readOnly={true}
+              required
+              className="font-raleway-black w-full p-2 border mb-2"
+            />
           </div>
           <div className="w-full p-2 text-center">
             <button

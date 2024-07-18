@@ -194,6 +194,7 @@ export default function EditDevice() {
       }
   
       setIsModalOpen(true);
+      router.push('/deviceDetail')
       console.log('Device and Rack Device updated successfully');
     } catch (error) {
       console.error('Error updating device:', error.message);

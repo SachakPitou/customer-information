@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import PopUpModal from './popUpmodal';
+import { lang } from 'moment-timezone';
 
 export default function TechnicalForm({ customerId }) {
   const [customerData, setCustomerData] = useState(null);
@@ -14,6 +15,8 @@ export default function TechnicalForm({ customerId }) {
   const [cameraIP, setCameraIP] = useState('');
   const [switchPort, setSwitchPort] = useState('');
   const [description, setDescription] = useState('');
+  const [longtitude, setLongtitudes] = useState('');
+  const [langtitude, setLangtitudes] = useState('');
   const [portType, setPortType] = useState('');
   const [ACL, setACL] = useState('');
   const [vLan, setVLan] = useState('');
@@ -163,6 +166,8 @@ export default function TechnicalForm({ customerId }) {
           VLan: vLan || null,
           frame: frame || null,
           ont_id: ontId || null,
+          longtitude: longtitude || null,
+          langtitude: langtitude || null,
           device_id: parseInt(selectedDeviceId, 10),
           location_id: parseInt(selectedLocationId, 10),
           // olt_id: parseInt(selectedOLTId, 10),
@@ -173,7 +178,7 @@ export default function TechnicalForm({ customerId }) {
 
       if (updateError) throw new Error(updateError.message);
       setInsertedCustomerId(customerId); // Assuming customerId is set correctly
-      router.push('/');
+      router.push('/dashboard');
     } catch (error) {
       setError(error.message);
     }
@@ -207,15 +212,16 @@ export default function TechnicalForm({ customerId }) {
         </button>
         <span>Create New Customer: </span>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex flex-wrap justify-between">
-            <div className="w-full lg:w-1/2 p-2">
-              <label htmlFor="deviceType" className="block mb-2 mt-4">Select Device Type:</label>
+        <div className="flex flex-wrap">
+          <div className="w-full lg:w-1/2 p-2">
+            <div className="mb-4">
+              <label htmlFor="deviceType" className="block mb-2">Select Device Type:</label>
               <select
                 id="deviceType"
                 value={selectedDeviceTypeId}
                 onChange={(e) => setSelectedDeviceTypeId(e.target.value)}
                 required
-                className="font-raleway-black w-full p-2 border mb-2"
+                className="font-raleway-black w-full p-2 border"
               >
                 <option value="">Select Device Type...</option>
                 {deviceTypes.map((dvct) => (
@@ -224,49 +230,68 @@ export default function TechnicalForm({ customerId }) {
                   </option>
                 ))}
               </select>
-              {selectedDeviceTypeId === '1' || selectedDeviceTypeId === '2' ? (
-                <> {/* Router or Switch */}
-                    <div>
-                      <label>Switch Port:</label>
-                      <input type="text" value={switchPort} onChange={e => setSwitchPort(e.target.value)} className="block w-full border rounded p-2" />
-                    </div>
-                    <div>
-                      <label>Description:</label>
-                      <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="block w-full border rounded p-2" />
-                    </div>
-                    <div>
-                      <label>Port Type:</label>
-                      <input type="text" value={portType} onChange={e => setPortType(e.target.value)} className="block w-full border rounded p-2" />
-                    </div>
-                </>
-              ) : selectedDeviceTypeId === '3' ? ( // OLT
-                <>
-                  <div>
-                    <label>ONU MAC Address:</label>
-                    <input type="text" value={onuMacAddress} onChange={e => setOnuMacAddress(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
-                  <div>
-                    <label>Frame:</label>
-                    <input type="text" value={frame} onChange={e => setFrame(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
-                  <div>
-                    <label>Slot:</label>
-                    <input type="text" value={slots} onChange={e => setSlot(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
-                  <div>
-                    <label>Port</label>
-                    <input type="text" value={ports} onChange={e => setPorts(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
-                  
-                </>
-              ) : null}
+            </div>
+            <div className="mb-4">
+                <label className="block mb-2">Longtitude:</label>
+                <input type="text" value={longtitude} onChange={e => setLongtitudes(e.target.value)} className="w-full p-2 border" />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
+              <select
+                id="deviceName"
+                value={selectedDeviceId}
+                onChange={(e) => setSelectedDeviceId(e.target.value)}
+                required
+                className="font-raleway-black w-full p-2 border"
+              >
+                <option value="">Select Device...</option>
+                {filteredDevices.map((dvc) => (
+                  <option key={dvc.device_id} value={dvc.device_id}>
+                    {dvc.device_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="mb-4">
+                <label className="block mb-2">IP Address:</label>
+                <input type="text" value={ipAddress} onChange={e => setIPAddress(e.target.value)} className="w-full p-2 border" />
+            </div>
+            <div className="mb-4">
+                <label className="block mb-2">VLAN:</label>
+                <input type="text" value={vLan} onChange={e => setVLan(e.target.value)} className="w-full p-2 border" />
+            </div>
+            
+
+            {(selectedDeviceTypeId === '1' || selectedDeviceTypeId === '2') && (
+              <>
+                
+                <div className="mb-4">
+                  <label className="block mb-2">Description:</label>
+                  <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full p-2 border" />
+                </div>
+              </>
+            )}
+
+            {selectedDeviceTypeId === '3' && (
+              <>
+                <div className="mb-4">
+                  <label className="block mb-2">Camera IP:</label>
+                  <input type="text" value={cameraIP} onChange={e => setCameraIP(e.target.value)} className="w-full p-2 border" />
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="w-full lg:w-1/2 p-2">
+            <div className="mb-4">
               <label htmlFor="locationName" className="block mb-2">Location Name:</label>
               <select
-                id="locationNamee"
+                id="locationName"
                 value={selectedLocationId}
                 onChange={(e) => setSelectedLocationId(e.target.value)}
                 required
-                className="font-raleway-black w-full p-2 border mb-2"
+                className="font-raleway-black w-full p-2 border"
               >
                 <option value="">Select Location...</option>
                 {locations.map((location_location) => (
@@ -276,78 +301,75 @@ export default function TechnicalForm({ customerId }) {
                 ))}
               </select>
             </div>
-            <div className="w-full lg:w-1/2 p-2">
-              <label htmlFor="deviceName" className="block mt-6">Device Name:</label>
-                <select
-                  id="deviceName"
-                  value={selectedDeviceId}
-                  onChange={(e) => setSelectedDeviceId(e.target.value)}
-                  required
-                  className="font-raleway-black w-full p-2 border mb-4"
-                >
-                  <option value="">Select Device...</option>
-                  {filteredDevices.map((dvc) => (
-                    <option key={dvc.device_id} value={dvc.device_id}>
-                      {dvc.device_name}
-                    </option>
-                  ))}
-                </select>
-                {selectedDeviceTypeId !== '3' && (
-                  <>
-                    <label htmlFor="interfaceName" className="block">Interface Name:</label>
-                    <select
-                      id="interfaceName"
-                      value={selectedInterfaceId}
-                      onChange={(e) => setSelectedInterfaceId(e.target.value)}
-                      required
-                      className="font-raleway-black w-full p-2 border mb-2"
-                    >
-                      <option value="">Select Interface...</option>
-                      {filteredInterfaces.map((inf) => (
-                        <option key={inf.interface_id} value={inf.interface_id}>
-                          Port {inf.portDevice.port_number}: {inf.interface_name}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-            {selectedDeviceTypeId === '1' || selectedDeviceTypeId === '2' ? (
-                <> {/* Router or Switch */}
-                    <div>
-                      <label>ACL:</label>
-                      <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="block w-full border rounded p-2" />
-                    </div>
-                    <div>
-                      <label>IP Address:</label>
-                      <input type="text" value={ipAddress} onChange={e => setIPAddress(e.target.value)} className="block w-full border rounded p-2" />
-                    </div>
-                </>
-              ) : selectedDeviceTypeId === '3' ? ( // OLT
-                <>
-                  <div>
-                    <label>ONT ID:</label>
-                    <input type="text" value={ontId} onChange={e => setOntId(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
-                  <div>
-                    <label>ONU ID:</label>
-                    <input type="text" value={onuID} onChange={e => setOnuID(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
-                  <div>
-                    <label>Camera IP:</label>
-                    <input type="text" value={cameraIP} onChange={e => setCameraIP(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
-                  <div>
-                    <label>Service Port:</label>
-                    <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="block w-full border rounded p-2" />
-                  </div>
-                </>
-              ) : null}
-              <div>
-                <label>VLAN:</label>
-                <input type="text" value={vLan} onChange={e => setVLan(e.target.value)} className="block w-full border rounded p-2" />
-              </div>
+            <div className="mb-4">
+                <label className="block mb-2">Langtitude:</label>
+                <input type="text" value={langtitude} onChange={e => setLangtitudes(e.target.value)} className="w-full p-2 border" />
             </div>
+
+            {(selectedDeviceTypeId === '1' || selectedDeviceTypeId === '2') && (
+              <>
+                <div className="mb-4">
+                  <label htmlFor="interfaceName" className="block mb-2">Interface Name:</label>
+                  <select
+                    id="interfaceName"
+                    value={selectedInterfaceId}
+                    onChange={(e) => setSelectedInterfaceId(e.target.value)}
+                    required
+                    className="font-raleway-black w-full p-2 border"
+                  >
+                    <option value="">Select Interface...</option>
+                    {filteredInterfaces.map((inf) => (
+                      <option key={inf.interface_id} value={inf.interface_id}>
+                        {inf.interface_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">ACL:</label>
+                  <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">Switch Port:</label>
+                  <input type="text" value={switchPort} onChange={e => setSwitchPort(e.target.value)} className="w-full p-2 border" />
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">Port Type:</label>
+                  <input type="text" value={portType} onChange={e => setPortType(e.target.value)} className="w-full p-2 border" />
+                </div>
+              </>
+            )}
+
+            {selectedDeviceTypeId === '3' && (
+              <>
+                <div className="mb-4">
+                  <label className="block mb-2">Frame:</label>
+                  <input type="text" value={frame} onChange={e => setFrame(e.target.value)} className="w-full p-2 border" />
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">Slot:</label>
+                  <input type="text" value={slots} onChange={e => setSlot(e.target.value)} className="w-full p-2 border" />
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">Port:</label>
+                  <input type="text" value={ports} onChange={e => setPorts(e.target.value)} className="w-full p-2 border" />
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">ONT ID:</label>
+                  <input type="text" value={ontId} onChange={e => setOntId(e.target.value)} className="w-full p-2 border" />
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">Service Port:</label>
+                  <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="w-full p-2 border" />
+                </div>
+              </>
+            )}
+
+            {/* {selectedDeviceTypeId !== '3' && (
+              
+            )} */}
           </div>
+        </div>
           <div className="w-full p-2 text-center">
             <button
               type="submit"

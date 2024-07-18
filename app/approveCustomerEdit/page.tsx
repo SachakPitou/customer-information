@@ -37,6 +37,8 @@ export default function ApproveCustomerEdits() {
 
                 const resolvedCustomerData = await Promise.all(customerFetchPromises);
                 
+                console.log('Resolved Customer Data:', resolvedCustomerData); // Debug log
+                
                 setCustomerEdits(resolvedCustomerData);
                 setPackages(packagesData);
                 setServices(servicesData);
@@ -50,7 +52,62 @@ export default function ApproveCustomerEdits() {
     }, []);
 
     const approveEdit = async (editId, customerId) => {
-        // ... (keep the existing approveEdit function)
+        try {
+            // Fetch the edit data
+            const { data: editData, error: fetchError } = await supabase
+                .from('Customer Edit')
+                .select('*')
+                .eq('edit_id', editId)
+                .single();
+    
+            if (fetchError) throw new Error(fetchError.message);
+    
+            // Fetch the current customer data
+            const currentCustomerDataResponse = await supabase
+                .from('Customer')
+                .select('*')
+                .eq('customer_id', customerId)
+                .single();
+    
+            if (currentCustomerDataResponse.error) {
+                throw new Error(currentCustomerDataResponse.error.message);
+            }
+    
+            const currentCustomerData = currentCustomerDataResponse.data;
+    
+            // Update Customer table with the edit data
+            const { error } = await supabase
+                .from('Customer')
+                .update({
+                    customer_name: editData.customer_name,
+                    phone_number: editData.phone_number,
+                    cid: editData.cid,
+                    address: editData.address,
+                    activation_date: editData.activation_date,
+                    service_id: editData.service_id,
+                    package_id: editData.package_id,
+                    isActive: editData.isActive,
+                })
+                .eq('customer_id', customerId);
+    
+            if (error) throw new Error(error.message);
+    
+            // Update Customer Edit table to mark the edit as approved
+            const { error: updateError } = await supabase
+                .from('Customer Edit')
+                .update({ approved: true })
+                .eq('edit_id', editId);
+    
+            if (updateError) throw new Error(updateError.message);
+    
+            // Filter out the approved edit from the customerEdits state
+            setCustomerEdits(customerEdits.filter(edit => edit.edit_id !== editId));
+            console.log('Customer edit approved and updated successfully');
+    
+        } catch (error) {
+            console.error('Error approving customer edit:', error.message);
+            setError(error.message);
+        }
     };
 
     const getPackageName = (packageId) => {
@@ -63,6 +120,29 @@ export default function ApproveCustomerEdits() {
         return svc ? svc.service_name : 'Unknown';
     };
 
+    const formatDate = (dateString) => {
+        console.log('Input dateString:', dateString);
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        console.log('Parsed date object:', date);
+        if (isNaN(date.getTime())) return 'Invalid Date';
+        
+        const options = { 
+            timeZone: 'Asia/Phnom_Penh',
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit',
+            hour12: true
+        };
+        
+        const formattedDate = date.toLocaleString('km-KH', options);
+        console.log('Formatted date:', formattedDate);
+        return formattedDate;
+    };
+
     const renderChanges = (edit) => {
         const customerData = edit.customerData;
         const changes = [
@@ -70,8 +150,6 @@ export default function ApproveCustomerEdits() {
             { field: 'Phone Number', old: customerData.phone_number, new: edit.phone_number },
             { field: 'CID', old: customerData.cid, new: edit.cid },
             { field: 'Address', old: customerData.address, new: edit.address },
-            // { field: 'Longitude', old: customerData.longtitude, new: edit.longtitude },
-            // { field: 'Latitude', old: customerData.langtitude, new: edit.langtitude },
             { field: 'Activation Date', old: customerData.activation_date, new: edit.activation_date },
             { field: 'Service', old: getServiceName(customerData.service_id), new: getServiceName(edit.service_id) },
             { field: 'Package', old: getPackageName(customerData.package_id), new: getPackageName(edit.package_id) },
@@ -83,11 +161,6 @@ export default function ApproveCustomerEdits() {
             (change.old !== null || change.new !== null) && 
             (change.old !== undefined || change.new !== undefined)
         );
-        const formatDate = (dateString) => {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString();
-        };
     
         return changedFields.map((change, index) => (
             <tr key={`${edit.edit_id}-${index}`} className="bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
@@ -95,7 +168,7 @@ export default function ApproveCustomerEdits() {
                 <td className="px-6 py-4">{change.field}</td>
                 <td className="px-6 py-4">{change.old !== null && change.old !== undefined ? change.old : 'N/A'}</td>
                 <td className="px-6 py-4">{change.new !== null && change.new !== undefined ? change.new : 'N/A'}</td>
-                <td className="px-6 py-4">{formatDate(edit.timestamp)}</td>
+                <td className="px-6 py-4">{formatDate(edit.created_at)}</td>
                 <td className="px-6 py-4">
                     <button onClick={() => approveEdit(edit.edit_id, edit.customer_id)} className="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600">Approve</button>
                 </td>

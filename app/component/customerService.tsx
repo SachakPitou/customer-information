@@ -42,8 +42,8 @@ export default function CustomerServiceForm() {
         phone_number: phoneNumber,
         cid: CID,
         address: Address,
-        longtitude: longtitudes,
-        langtitude: langtitudes,
+        // longtitude: longtitudes,
+        // langtitude: langtitudes,
         activation_date: activationDate, 
         service_id: parseInt(selectedServiceId),
         package_id: parseInt(selectedPackageId),
@@ -130,18 +130,10 @@ return (
             className="block w-full border rounded p-2 mb-2"
           />
         </div>
-        <label htmlFor="activationDate" className="block">Activation Date:</label>
-            <input
-              type="date"
-              id="activationDate"
-              value={activationDate}
-              onChange={(e) => setActivationDate(e.target.value)}
-              required
-              className="font-raleway-black w-full p-2 border mb-2"
-            />
+        
         </div>
         <div className="w-full lg:w-1/2 p-2">
-        <div>
+        {/* <div>
           <label className="block">Longtitude:</label>
           <input
             type="text"
@@ -158,7 +150,7 @@ return (
             onChange={(e) => setLangtitudes(e.target.value)}
             className="block w-full border rounded p-2 mb-2"
           />
-        </div>
+        </div> */}
         <label htmlFor="serviceName" className="block">
           Service Name:
         </label>
@@ -208,6 +200,15 @@ return (
                 <option value="true">Active</option>
                 <option value="false">Inactive</option>
             </select>
+            <label htmlFor="activationDate" className="block">Activation Date:</label>
+            <input
+              type="date"
+              id="activationDate"
+              value={activationDate}
+              onChange={(e) => setActivationDate(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border mb-2"
+            />
         </div>
         <div className="w-full p-2 text-center">
             <button

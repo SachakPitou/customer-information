@@ -14,6 +14,7 @@ export default function ViewRack() {
     const [editingField, setEditingField] = useState(null);
     const [editedValue, setEditedValue] = useState('');
     const [editedPop, setEditedPop] = useState('');
+    const [editedUps, setEditedUps] = useState('');
     const router = useRouter();
     const { rack_id } = useParams();
 
@@ -107,6 +108,8 @@ export default function ViewRack() {
             setEditedValue(rack.location_id);
         } else if (field === 'pop_name') {
             setEditedValue(rack.pop_id);
+        } else if (field === 'ups_name') {
+            setEditedUps(rack.ups_id);
         } else {
             setEditedValue(rack[field]);
         }
@@ -129,40 +132,39 @@ export default function ViewRack() {
                 }
             } else if (editingField === 'pop_name') {
                 updateData = { pop_id: editedPop };
+            } else if (editingField === 'ups_name') {
+                updateData = { ups_id: editedUps };
             } else {
                 updateData = { [editingField]: editedValue };
             }
-
+    
             const { error } = await supabase
                 .from('Rack')
                 .update(updateData)
                 .eq('rack_id', rack_id);
-
+    
             if (error) throw error;
-
+    
             const { data: updatedRackData, error: rackError } = await supabase
                 .from('Rack')
                 .select('*')
                 .eq('rack_id', rack_id)
                 .single();
             if (rackError) throw rackError;
-
+    
             setRack({
                 ...rack,
                 ...updatedRackData,
                 location_name: allLocations.find(location => location.location_id === updatedRackData.location_id).location_name,
-                pop_name: allPops.find(pop => pop.pop_id === updatedRackData.pop_id).pop_name
+                pop_name: allPops.find(pop => pop.pop_id === updatedRackData.pop_id).pop_name,
+                ups_name: allUPSs.find(ups => ups.ups_id === updatedRackData.ups_id).ups_name
             });
-
+    
             setEditingField(null);
         } catch (error) {
             console.error('Error updating rack information:', error.message);
         }
     };
-
-    if (!rack) {
-        return <div>Loading...</div>;
-    }
 
     // Pre-process devices to create a map from u_position to device
     const deviceMap = devices.reduce((acc, device) => {
@@ -399,7 +401,7 @@ export default function ViewRack() {
                                                 onChange={(e) => setEditedUps(e.target.value)}
                                             >
                                                 <option value="">Select UPS</option>
-                                                {filteredUps.map(ups => (
+                                                {allUPSs.map(ups => (
                                                     <option key={ups.ups_id} value={ups.ups_id}>
                                                         {ups.ups_name}
                                                     </option>

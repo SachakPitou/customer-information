@@ -317,7 +317,7 @@ export default function CreateRack() {
             <label htmlFor="UPS" className="block mb-2">UPS:</label>
             <select
               id="UPS"
-              value={selectedLocationId}
+              value={selectedUPSId}
               onChange={(e) => setSelectedUPSId(e.target.value)}
               required
               className="font-raleway-black w-full p-2 border mb-2"
