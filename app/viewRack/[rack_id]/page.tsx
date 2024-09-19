@@ -18,6 +18,11 @@ interface Rack {
     ups_name: string;
 }
 
+interface DeviceData {
+    device_id: number;
+    device_name: string;
+}
+
 interface Device {
     rack_device_id: number;
     u_position: number;
@@ -41,10 +46,11 @@ interface UPS {
     ups_name: string;
 }
 
+
 export default function ViewRack() {
     const [rack, setRack] = useState<Rack | null>(null);
     const [devices, setDevices] = useState<Device[]>([]);
-    const [allDevices, setAllDevices] = useState<Device[]>([]);
+    const [allDevices, setAllDevices] = useState<DeviceData[]>([]);
     const [allLocations, setAllLocations] = useState<Location[]>([]);
     const [allPops, setAllPops] = useState<POP[]>([]);
     const [allUPSs, setAllUPSs] = useState<UPS[]>([]);
