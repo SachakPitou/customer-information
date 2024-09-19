@@ -25,7 +25,6 @@ export default function UPSDetail() {
     const [searchValue, setSearchValue] = useState('');
     const [searchField, setSearchField] = useState('all');
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [serviceFilter, setServiceFilter] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const upssPerPage = 15;
     
@@ -35,9 +34,6 @@ export default function UPSDetail() {
         setDropdownOpen(!dropdownOpen);
     };
 
-    const handleServiceFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        setServiceFilter(event.target.value);
-    };
 
     const handleDeleteUPS = async () => {
         try {
@@ -76,10 +72,8 @@ export default function UPSDetail() {
     const filteredUPSs = upss.filter((ups) => {
         const searchTerm = searchValue.toLowerCase();
         
-        const serviceMatch =
-            serviceFilter === '' || ups.service_name.toLowerCase() === serviceFilter.toLowerCase(); 
 
-        if (searchValue === '' && serviceMatch) {
+        if (searchValue === '') {
             return true;
         }
     
@@ -87,16 +81,10 @@ export default function UPSDetail() {
     
         if (searchField === 'all') {
             isMatchingSearch = (
-                ups.package_name.toLowerCase().includes(searchTerm) ||
-                ups.service_name.toLowerCase().includes(searchTerm)
+                ups.ups_name.toLowerCase().includes(searchTerm) 
             );
-        } else if (searchField === 'package_name') {
-            isMatchingSearch = ups.package_name.toLowerCase().includes(searchTerm);
-        } else if (searchField === 'service_name') {
-            isMatchingSearch = ups.service_name.toLowerCase().includes(searchTerm);
-        }
-    
-        return isMatchingSearch && serviceMatch;
+        } 
+        return isMatchingSearch;
     });
     
     const handleSearch = () => {
@@ -148,109 +136,13 @@ export default function UPSDetail() {
                 
                 </div> */}
                 <div className="relative flex items-center mr-5">
-                <div className='mr-5'>
-                    <button
-                        id="dropdownServiceButton"
-                        data-dropdown-toggle="dropdownService"
-                        className="inline-flex items-center text-gray-500 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-lg text-sm px-3 py-1.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700"
-                        type="button"
-                        onClick={toggleDropdown}
-                    >
-                        Service Type
-                        <svg
-                            className="w-2.5 h-2.5 ms-2.5"
-                            aria-hidden="true"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 10 6"
-                        >
-                            <path
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="m1 1 4 4 4-4"
-                            />
-                        </svg>
-                    </button>
-                    {dropdownOpen && (
-                        <div
-                            id="dropdownService"
-                            className="z-10 absolute top-full left-0 mt-1 w-48 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600"
-                            data-popper-reference-hidden=""
-                            data-popper-escaped=""
-                            data-popper-placement="top"
-                        >
-                            <ul
-                                className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
-                                aria-labelledby="dropdownServiceButton"
-                            >
-                                <li>
-                                    <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                        <input
-                                            type="radio"
-                                            value=""
-                                            name="service-filter"
-                                            checked={serviceFilter === ""}
-                                            onChange={handleServiceFilterChange}
-                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                        />
-                                        <label
-                                            htmlFor="filter-service-example-1"
-                                            className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                        >
-                                            All
-                                        </label>
-                                    </div>
-                                </li>
-                                <li>
-                                    <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                        <input
-                                            type="radio"
-                                            value="Shared Internet Access (SIA)"
-                                            name="service-filter"
-                                            checked={serviceFilter === "Shared Internet Access (SIA)"}
-                                            onChange={handleServiceFilterChange}
-                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                        />
-                                        <label
-                                            htmlFor="filter-service-example-2"
-                                            className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                        >
-                                            Shared Internet Access
-                                        </label>
-                                    </div>
-                                </li>
-                                <li>
-                                    <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                        <input
-                                            type="radio"
-                                            value="Dedicated Internet Access (DIA)"
-                                            name="service-filter"
-                                            checked={serviceFilter === "Dedicated Internet Access (DIA)"}
-                                            onChange={handleServiceFilterChange}
-                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                        />
-                                        <label
-                                            htmlFor="filter-service-example-3"
-                                            className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                        >
-                                            Dedicated Internet Access
-                                        </label>
-                                    </div>
-                                </li>
-                            </ul>
-                        </div>
-                    )}
-                </div>
                     <select 
                         value={searchField} 
                         onChange={handleSearchFieldChange} 
                         className="mr-5 p-2 text-sm text-gray-900 border border-gray-300 rounded-lg w-30 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-50" // Updated styling
                     >
                         <option value="all">All Fields</option>
-                        <option value="package_name">Package Name</option>
-                        <option value="service_name">Service Name</option>
+                        <option value="ups_name">UPS Name</option>
                     </select>
                     <label htmlFor="table-search" className="sr-only">Search</label> 
                     <div className="relative">
