@@ -4,18 +4,20 @@ import { supabase } from '../supabaseClient';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
 import PopUpModal from '../component/popUpmodal';
+
 export default function CreatePackage() {
   const router = useRouter();
-  const [packageName, setPackageName] = useState('');
-  const [services, setServices] = useState([]);
-  const [selectedServiceId, setSelectedServiceId] = useState('');
-  const [insertPackageId, setInsertedPackageId] = useState('');
-  const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [packageName, setPackageName] = useState<string>('');
+  const [services, setServices] = useState<Array<{ service_id: number, service_name: string }>>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+  const [insertPackageId, setInsertedPackageId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   const closeModal = () => {
     setIsModalOpen(false);
   };
+
   useEffect(() => {
     if (insertPackageId || error) {
       setIsModalOpen(true);
@@ -27,8 +29,8 @@ export default function CreatePackage() {
       try {
         const { data, error } = await supabase.from('Service').select('*');
         if (error) throw new Error(error.message);
-        setServices(data);
-      } catch (error) {
+        setServices(data || []);
+      } catch (error: any) {
         console.error('Error fetching Service:', error.message);
         setError(error.message);
       }
@@ -36,7 +38,7 @@ export default function CreatePackage() {
     fetchService();
   }, []);
 
-  const handleAddPackage = async (e) => {
+  const handleAddPackage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       // Get the maximum package_id from the database
@@ -46,40 +48,57 @@ export default function CreatePackage() {
         .order('package_id', { ascending: false })
         .limit(1)
         .single();
-  
+
       if (maxPackageIdError) {
         throw new Error(maxPackageIdError.message);
       }
-  
+
       // Calculate the new package_id by incrementing the maximum package_id by 1
       const newPackageId = maxPackageIdData ? maxPackageIdData.package_id + 1 : 1;
-  
+
       // Insert the new package with the calculated package_id
-      const { data, error: insertError } = await supabase.from('Package').insert([
+      const { error: insertError } = await supabase.from('Package').insert([
         {
           package_id: newPackageId,
           package_name: packageName,
-          service_id: parseInt(selectedServiceId),
+          service_id: parseInt(selectedServiceId, 10),
         },
       ]);
+
       if (insertError) throw new Error(insertError.message);
-  
+
       setInsertedPackageId(newPackageId);
       setPackageName('');
       setSelectedServiceId('');
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message);
     }
   };
+
   return (
     <div className="flex flex-col w-full items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">
-        <button onClick={() => router.back()} type="button" className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-red-700 dark:bg-red-500 hover:bg-red-100 dark:text-red-200 dark:border-red-700">
-          <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
+        <button
+          onClick={() => router.back()}
+          type="button"
+          className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-red-700 dark:bg-red-500 hover:bg-red-100 dark:text-red-200 dark:border-red-700"
+        >
+          <svg
+            className="w-5 h-5 rtl:rotate-180"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18"
+            />
           </svg>
         </button>
-        <span>Create New Device: </span>
+        <span>Create New Package: </span>
         <form onSubmit={handleAddPackage} className="flex flex-wrap justify-between mt-10">
           <div className="w-full lg:w-1/2 p-2">
             <label htmlFor="packageName" className="block mb-2">Package Name:</label>
@@ -104,7 +123,7 @@ export default function CreatePackage() {
             >
               <option value="">Select Service...</option>
               {services.map((svc) => (
-                <option key={svc.service_id} value={svc.service_id}>
+                <option key={svc.service_id} value={svc.service_id.toString()}>
                   {svc.service_name}
                 </option>
               ))}
@@ -120,24 +139,25 @@ export default function CreatePackage() {
           </div>
         </form>
         <PopUpModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={insertPackageId ? 'Success' : 'Error'}
-        content={
-          <>
-            {insertPackageId && (
-              <p className="text-center text-green-700 mt-4">
-                Package created successfully with ID: {insertPackageId}
-              </p>
-            )}
-            {error && (
-              <p className="text-center text-red-700 mt-4">Error creating package: {error}</p>
-            )}
-          </>
-        }
-      />
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          title={insertPackageId ? 'Success' : 'Error'}
+          content={
+            <>
+              {insertPackageId && (
+                <p className="text-center text-green-700 mt-4">
+                  Package created successfully with ID: {insertPackageId}
+                </p>
+              )}
+              {error && (
+                <p className="text-center text-red-700 mt-4">Error creating package: {error}</p>
+              )}
+            </>
+          }
+        />
       </div>
     </div>
   );
 }
+
 

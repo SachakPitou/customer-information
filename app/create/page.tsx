@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { useEffect, useState } from 'react';
 import CustomerServiceForm from "../component/customerService";
 import { createClient } from '@/utils/supabase/client';
@@ -6,7 +6,7 @@ import PendingRequests from '../pendingRequest/page';
 
 export default function CreatePage() {
   const [userType, setUserType] = useState('');
-
+  
   useEffect(() => {
     const fetchUserType = async () => {
       try {
@@ -18,15 +18,14 @@ export default function CreatePage() {
           return;
         }
 
-        const session = data.session;
-        // No need to set session state here
-
+        const session = data?.session;
+        
         if (session) {
           const userId = session.user.id; // Extract user ID from session
           const { data: userData, error: userError } = await supabase
             .from('userAccount')
-            .select('user_type') 
-            .eq("id", userId)
+            .select('user_type')
+            .eq('id', userId)
             .single();
 
           if (userError) {
@@ -38,7 +37,11 @@ export default function CreatePage() {
           }
         }
       } catch (error) {
-        console.error('Error fetching user type:', error.message);
+        if (error instanceof Error) {
+          console.error('Error fetching user type:', error.message);
+        } else {
+          console.error('An unknown error occurred.');
+        }
       }
     };
 

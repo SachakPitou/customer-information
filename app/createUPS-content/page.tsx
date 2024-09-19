@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useRouter } from 'next/navigation';
-import SideBar from '../component/SideBar';
 import PopUpModal from '../component/popUpmodal';
+
 export default function CreateUPS() {
   const router = useRouter();
   const [upsName, setUPSName] = useState('');
@@ -11,53 +11,38 @@ export default function CreateUPS() {
   const [upsBrand, setUPSBrand] = useState('');
   const [capacity, setCapacity] = useState('');
   const [vendor, setVendor] = useState('');
-  // const [upss, setUpss] = useState([]);
-  // const [selectedUPSId, setSelectedUPSId] = useState('');
   const [insertUPSId, setInsertedUPSId] = useState('');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null); // Specify type for error state
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const closeModal = () => {
     setIsModalOpen(false);
   };
+
   useEffect(() => {
     if (insertUPSId || error) {
       setIsModalOpen(true);
     }
   }, [insertUPSId, error]);
 
-  // useEffect(() => {
-  //   const fetchService = async () => {
-  //     try {
-  //       const { data, error } = await supabase.from('Service').select('*');
-  //       if (error) throw new Error(error.message);
-  //       setServices(data);
-  //     } catch (error) {
-  //       console.error('Error fetching Service:', error.message);
-  //       setError(error.message);
-  //     }
-  //   };
-  //   fetchService();
-  // }, []);
-
-  const handleAddUPS = async (e) => {
+  const handleAddUPS = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      // Get the maximum package_id from the database
+      // Get the maximum ups_id from the database
       const { data: maxUPSIdData, error: maxUPSIdError } = await supabase
         .from('UPS')
         .select('ups_id')
         .order('ups_id', { ascending: false })
         .limit(1);
-    
+
       if (maxUPSIdError) {
         throw new Error(maxUPSIdError.message);
       }
-  
-      // Check if we received any data
+
+      // Determine the new UPS ID
       const newUPSId = maxUPSIdData.length > 0 ? maxUPSIdData[0].ups_id + 1 : 1;
-    
-      // Insert the new package with the calculated package_id
+
+      // Insert the new UPS
       const { data, error: insertError } = await supabase.from('UPS').insert([
         {
           ups_id: newUPSId,
@@ -66,21 +51,20 @@ export default function CreateUPS() {
           ups_brand: upsBrand,
           capacity: capacity,
           vendor: vendor,
-          // ups_id: parseInt(selectedUPSId),
         },
       ]);
-  
+
       if (insertError) throw new Error(insertError.message);
-    
+
       setInsertedUPSId(newUPSId);
+      // Clear form fields
       setUPSName('');
       setUPSType('');
       setUPSBrand('');
       setCapacity('');
       setVendor('');
-      // setSelectedServiceId('');
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : String(error));
     }
   };
   return (

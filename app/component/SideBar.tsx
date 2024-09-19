@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { createClient } from '@/utils/supabase/client';
+import { Session } from '@supabase/supabase-js';
 
 export default function SideBar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -14,8 +15,8 @@ export default function SideBar() {
     const [isOpen7, setIsOpen7] = useState(false);
     const [customerCount, setCustomerCount] = useState(0);
     const [pendingEditCount, setPendingEditCount] = useState(0);
-    const [userType, setUserType] = useState('');
-    const [session, setSession] = useState(null); // Add session state
+    const [userType, setUserType] = useState<string | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
 
     const toggleSidebar = () => {
         setIsOpen(!isOpen);
@@ -42,97 +43,70 @@ export default function SideBar() {
         setIsOpen7(!isOpen7);
     };
     
-    
     useEffect(() => {
-        const fetchCustomerCount = async () => {
-            try {
-                const { data: customers, error } = await supabase
-                    .from('Customer')
-                    .select('customer_id')
-                    .eq('status', 'Completed');
-
-                if (error) {
-                    throw error;
-                }
-
-                const customerCount = customers ? customers.length : 0;
-                setCustomerCount(customerCount);
-            } catch (error) {
-                console.error('Error fetching customer count:', error.message);
-            }
-        };
-        const fetchPendingEditCount = async () => {
-            try {
-                const { data: pendingEdits, error } = await supabase
-                    .from('Customer Edit')
-                    .select('customer_id')
-                    .eq('approved', 'FALSE');
-
-                if (error) {
-                    throw error;
-                }
-
-                const pendingEditCount = pendingEdits ? pendingEdits.length : 0;
-                setPendingEditCount(pendingEditCount);
-            } catch (error) {
-                console.error('Error fetching customer count:', error.message);
-            }
-        };
-        
-        const fetchUserType = async () => {
-            
+        const fetchData = async () => {
             try {
                 const supabase = createClient();
-                const { data, error } = await supabase.auth.getSession(); // Get session data
-
+                const { data, error } = await supabase.auth.getSession();
+    
                 if (error) {
-                    console.error('Error fetching session:', error.message);
-                    return;
+                    throw error;
                 }
     
                 const session = data.session;
-                setSession(session); // Set session state
+                setSession(session);
     
-                if (session) {
-                    const userId = session.user.id; // Extract user ID from session
-                    const { data: userData, error: userError } = await supabase
-                        .from('userAccount')
-                        .select('user_type') 
-                        .eq("id", userId)
-                        .single();
-    
-                    if (userError) {
-                        throw userError;
-                    }
-    
-                    if (userData) {
-                        setUserType(userData.user_type); // Set user type state
-                    }
+                if (!session) {
+                    return;
                 }
+    
+                const [customerData, pendingEditData, userData] = await Promise.all([
+                    supabase
+                        .from('Customer')
+                        .select('customer_id')
+                        .eq('status', 'Completed'),
+                    supabase
+                        .from('Customer')
+                        .select('customer_id')
+                        .eq('status', 'Pending Technical Review'),
+                    supabase
+                        .from('userAccount')
+                        .select('user_type')
+                        .eq("id", session.user.id)
+                        .single()
+                ]);
+    
+                if (customerData.error) throw customerData.error;
+                if (pendingEditData.error) throw pendingEditData.error;
+                if (userData.error) throw userData.error;
+    
+                setCustomerCount(customerData.data ? customerData.data.length : 0);
+                setPendingEditCount(pendingEditData.data ? pendingEditData.data.length : 0);
+                setUserType(userData.data?.user_type || null);
+    
             } catch (error) {
-                console.error('Error fetching user type:', error.message);
+                console.error('Error fetching data:', error instanceof Error ? error.message : String(error));
             }
         };
-        fetchCustomerCount();
-        fetchUserType();
-        fetchPendingEditCount();
+    
+        fetchData();
     }, []);
 
     console.log('User type state:', userType);
-    console.log('Session state:', session); // Log session state
+    console.log('Session state:', session);
 
     return (
         <div>
             <div
                 id="drawer-navigation"
-                className={`flex top-0 left-0 z-40 p-6 overflow-y-auto transition-transform bg-white dark:bg-gray-900`}
+                className={`flex top-0 left-0 z-40 p-6 overflow-y-auto transition-transform !bg-gray-200 dark:!bg-gray-800`}
                 style={{ width: isOpen ? 'auto' : '64px', height: '100%' }}
-                tabIndex="-1"
+                tabIndex={-1}
                 aria-labelledby="drawer-navigation-label"
             >
                 <div className={`overflow-hidden transition-width ${isOpen ? 'w-full' : 'w-0'}`}>
                     <button onClick={toggleSidebar} className="fixed top-4 left-4 z-50 p-2 dark:bg-gray-900 text-gray-800 rounded-md">
-                        <svg className="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg className="w-6 h-6" fill="none" stroke="black" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             {isOpen ? (
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             ) : (
@@ -154,7 +128,7 @@ export default function SideBar() {
                                         <span className="inline-flex items-center justify-center px-2 ms-3 text-sm font-medium text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">{customerCount}</span>
                                     </a>
                                 </li>
-                                {userType !== "customer_service" && (
+                                {/* {userType !== "customer_service" && (
                                 <li>
                                     <a href="/approveCustomerEdit" className="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
                                         <svg className="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
@@ -164,7 +138,7 @@ export default function SideBar() {
                                         <span className="inline-flex items-center justify-center px-2 ms-3 text-sm font-medium text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">{pendingEditCount}</span>
                                     </a>
                                 </li>
-                                )}
+                                )} */}
                                 {userType !== "customer_service" && (
                                     <li>
                                         <button onClick={toggleDropdown} className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-expanded={isOpen1} aria-controls="dropdown-example">
@@ -186,7 +160,17 @@ export default function SideBar() {
                                         </ul>
                                     </li>
                                 )}
-                                
+                                {userType !== "technical" && (
+                                <li>
+                                    <a href="/pendingCreateCustomer" className="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                                        <svg className="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
+                                            <path d="M14 2a3.963 3.963 0 0 0-1.4.267 6.439 6.439 0 0 1-1.331 6.638A4 4 0 1 0 14 2Zm1 9h-1.264A6.957 6.957 0 0 1 15 15v2a2.97 2.97 0 0 1-.184 1H19a1 1 0 0 0 1-1v-1a5.006 5.006 0 0 0-5-5ZM6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Z" />
+                                        </svg>
+                                        <span className="flex-1 ms-3 whitespace-nowrap">Submit Customers</span>
+                                        <span className="inline-flex items-center justify-center px-2 ms-3 text-sm font-medium text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">{pendingEditCount}</span>
+                                    </a>
+                                </li>
+                                )}
                                 {userType !== "technical" && (
                                 <li>
                                     <button onClick={toggleDropdown2} className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-expanded={isOpen2} aria-controls="dropdown-example">

@@ -1,9 +1,14 @@
-"use client"
+"use client";
 import { useParams } from 'next/navigation';
 import CustomerServiceInfoForm from '@/app/component/customerServiceInfo';
 
 export default function CustomerInfoPage() {
-  const { customer_id } = useParams();
+  // Ensure the customer_id is typed correctly
+  const { customer_id } = useParams() as { customer_id: string };
 
-  return customer_id ? <CustomerServiceInfoForm customerId={ customer_id } /> : <div>Loading...</div>;
+  return customer_id ? (
+    <CustomerServiceInfoForm customerId={customer_id} />
+  ) : (
+    <div>Loading...</div>
+  );
 }

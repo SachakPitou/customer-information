@@ -4,201 +4,292 @@ import { supabase } from '../supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import React, { useState, useEffect } from 'react';
 import PopUpModal from './popUpmodal';
+import { PostgrestError } from '@supabase/supabase-js';
+
+interface CustomerData {
+  customer_id: string;
+  customer_name: string;
+  phone_number: string;
+  cid: string;
+  address: string;
+  activation_date: string;
+  service_id: number;
+  package_id: number;
+  location_id: number;
+  status_type: string | null;
+  status: string;
+  active_timestamp?: string;
+  inactive_timestamp?: string;
+  reactive_timestamp?: string;
+  terminate_timestamp?: string;
+}
+
+interface Service {
+  service_id: number;
+  service_name: string;
+}
+
+interface Package {
+  package_id: number;
+  package_name: string;
+  service_id: number;
+}
+
+interface Location {
+  location_id: number;
+  location_name: string;
+}
+
+type Database = {
+  public: {
+    Tables: {
+      Service: {
+        Row: Service;
+      },
+      Package: {
+        Row: Package;
+      },
+      Location: {
+        Row: Location;
+      },
+      Customer: {
+        Row: CustomerData;
+      };
+    };
+  };
+};
 
 export default function CustomerServiceForm() {
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [CID, setCID] = useState('');
   const [Address, setAddress] = useState('');
-  const [longtitudes, setLongtitudes] = useState('');
-  const [langtitudes, setLangtitudes] = useState('');
   const [activationDate, setActivationDate] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [services, setServices] = useState([]);
-  const [packages, setPackages] = useState([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
-  const [error, setError] = useState(null);
+  const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const [insertCustomerId, setInsertedCustomerId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [statusType, setStatusType] = useState<string | null>(null);
+  const [statusTimestamp, setStatusTimestamp] = useState<string | undefined>(undefined);
 
   const closeModal = () => {
     setIsModalOpen(false);
   };
+
   useEffect(() => {
     if (insertCustomerId || error) {
       setIsModalOpen(true);
     }
   }, [insertCustomerId, error]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const customerId = uuidv4();
-      const { data, error: insertError } = await supabase.from('Customer').insert([{
-        customer_id: customerId,
-        customer_name: customerName,
-        phone_number: phoneNumber,
-        cid: CID,
-        address: Address,
-        // longtitude: longtitudes,
-        // langtitude: langtitudes,
-        activation_date: activationDate, 
-        service_id: parseInt(selectedServiceId),
-        package_id: parseInt(selectedPackageId),
-        isActive: isActive,
-        status: 'Pending Technical Review' 
-      }]);
-      if (insertError) throw new Error(insertError.message);
-      setInsertedCustomerId(customerId);
-      router.push(`/dashboard`);
-    } catch (error) {
+  const handleStatusTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStatusType = e.target.value;
+    setStatusType(newStatusType);
+    setStatusTimestamp(new Date().toISOString());
+  };
+
+
+// Ensure CustomerData type matches the Supabase schema
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    const customerId = uuidv4();
+    const customerData: CustomerData = {
+      customer_id: customerId,
+      customer_name: customerName,
+      phone_number: phoneNumber,
+      cid: CID,
+      address: Address,
+      activation_date: activationDate,
+      service_id: parseInt(selectedServiceId),
+      package_id: parseInt(selectedPackageId),
+      location_id: parseInt(selectedLocationId),
+      status_type: statusType,
+      status: 'Pending Technical Review',
+      active_timestamp: statusType === 'ACTIVE' ? statusTimestamp : undefined,
+      inactive_timestamp: statusType === 'INACTIVE' ? statusTimestamp : undefined,
+      reactive_timestamp: statusType === 'REACTIVE' ? statusTimestamp : undefined,
+      terminate_timestamp: statusType === 'TERMINATE' ? statusTimestamp : undefined,
+    };
+
+    const { data, error: insertError } = await supabase
+      .from('Customer')
+      .insert([customerData]);
+
+    if (insertError) throw new Error(insertError.message);
+    setInsertedCustomerId(customerId);
+    router.push(`/dashboard`);
+  } catch (error) {
+    if (error instanceof Error) {
       setError(error.message);
+    } else {
+      setError("An unknown error occurred.");
+    }
+  }
+};
+
+  
+useEffect(() => {
+  const fetchService = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('Service')
+        .select('*');
+      if (error) throw new Error(error.message);
+      setServices(data as Service[] || []);
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("An unknown error occurred.");
+      }
     }
   };
-  useEffect(() => {
-    const fetchService = async () => {
-      try {
-        const { data, error } = await supabase.from('Service').select('*');
-        if (error) throw new Error(error.message);
-        setServices(data);
-      } catch (error) {
-        console.error('Error fetching services:', error.message);
+
+  const fetchPackage = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('Package')
+        .select('*');
+      if (error) throw new Error(error.message);
+      setPackages(data as Package[] || []);
+    } catch (error) {
+      if (error instanceof Error) {
         setError(error.message);
+      } else {
+        setError("An unknown error occurred.");
       }
-    };
-    const fetchPackage = async () => {
-      try {
-        const { data, error } = await supabase.from('Package').select('*');
-        if (error) throw new Error(error.message);
-        setPackages(data);
-      } catch (error) {
-        console.error('Error fetching packages:', error.message);
+    }
+  };
+
+  const fetchLocation = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('Location')
+        .select('*');
+      if (error) throw new Error(error.message);
+      setLocations(data as Location[] || []);
+    } catch (error) {
+      if (error instanceof Error) {
         setError(error.message);
+      } else {
+        setError("An unknown error occurred.");
       }
-    };
-    fetchPackage();
-    fetchService();
+    }
+  };
+
+  fetchService();
+  fetchPackage();
+  fetchLocation();
   }, []);
   const filteredPackagesByService = packages.filter(pkg => pkg.service_id === parseInt(selectedServiceId));
-return (
+
+  return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
-        <div className="font-raleway-black w-full max-w-4xl p-5">
-            {error && <p className="text-red-500">{error}</p>}
-            <button onClick={() => router.back()} type="button" className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-red-700 dark:bg-red-500 hover:bg-red-100 dark:text-red-200 dark:border-red-700">
-                <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
-                </svg>
-                </button>
-                <span>Create New Customer: </span>
-      <form onSubmit={handleSubmit} className="flex flex-wrap justify-between mt-10">
-      <div className="w-full lg:w-1/2 p-2">
-        <div>
-          <label className="block">Customer Name:</label>
-          <input
-            type="text"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            className="block w-full border rounded p-2 mb-2"
-          />
-        </div>
-        <div>
-          <label className="block">Phone Number:</label>
-          <input
-            type="text"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            className="block w-full border rounded p-2 mb-2"
-          />
-        </div>
-        <div>
-          <label className="block">CID:</label>
-          <input
-            type="text"
-            value={CID}
-            onChange={(e) => setCID(e.target.value)}
-            className="block w-full border rounded p-2 mb-2"
-          />
-        </div>
-        <div>
-          <label className="block">Address:</label>
-          <input
-            type="text"
-            value={Address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="block w-full border rounded p-2 mb-2"
-          />
-        </div>
-        
-        </div>
-        <div className="w-full lg:w-1/2 p-2">
-        {/* <div>
-          <label className="block">Longtitude:</label>
-          <input
-            type="text"
-            value={longtitudes}
-            onChange={(e) => setLongtitudes(e.target.value)}
-            className="block w-full border rounded p-2 mb-2"
-          />
-        </div>
-        <div>
-          <label className="block">Langtitude:</label>
-          <input
-            type="text"
-            value={langtitudes}
-            onChange={(e) => setLangtitudes(e.target.value)}
-            className="block w-full border rounded p-2 mb-2"
-          />
-        </div> */}
-        <label htmlFor="serviceName" className="block">
-          Service Name:
-        </label>
-        <select
-          id="serviceName"
-          value={selectedServiceId}
-          onChange={(e) => setSelectedServiceId(e.target.value)}
-          required
-          className="font-raleway-black w-full p-2 border mb-3"
-        >
-          <option value="">Select Service...</option>
-          {services.map((service) => (
-            <option key={service.service_id} value={service.service_id}>
-              {service.service_name}
-            </option>
-          ))}
-        </select>
-        <label htmlFor="packageName" className="block">
-          Package Name:
-        </label>
-        <select
-          id="packageName"
-          value={selectedPackageId}
-          onChange={(e) => setSelectedPackageId(e.target.value)}
-          required
-          className="font-raleway-black w-full p-2 border mb-3"
-        >
-          <option value="">Select Package...</option>
-          {/* Render options based on filtered packages */}
-          {filteredPackagesByService.map((pkg) => (
-            <option key={pkg.package_id} value={pkg.package_id}>
-              {pkg.package_name}
-            </option>
-          ))}
-        </select>
-        <label htmlFor="status" className="block">
-            Status:
-            </label>
-                <select
-                id="status"
-                value={isActive}
-                onChange={(e) => setIsActive(e.target.value === 'true')}
+      <div className="font-raleway-black w-full max-w-4xl p-5">
+        {error && <p className="text-red-500">{error}</p>}
+        <button onClick={() => router.back()} type="button" className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-red-700 dark:bg-red-500 hover:bg-red-100 dark:text-red-200 dark:border-red-700">
+          <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
+          </svg>
+        </button>
+        <span>Create New Customer: </span>
+        <form onSubmit={handleSubmit} className="flex flex-wrap justify-between mt-10">
+          <div className="w-full lg:w-1/2 p-2">
+            <div>
+              <label className="block">Customer Name:</label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="block w-full border rounded p-2 mb-2"
+              />
+            </div>
+            <div>
+              <label className="block">Phone Number:</label>
+              <input
+                type="text"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="block w-full border rounded p-2 mb-2"
+              />
+            </div>
+            <div>
+              <label className="block">CID:</label>
+              <input
+                type="text"
+                value={CID}
+                onChange={(e) => setCID(e.target.value)}
+                className="block w-full border rounded p-2 mb-2"
+              />
+            </div>
+            <div>
+              <label className="block">Address:</label>
+              <input
+                type="text"
+                value={Address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="block w-full border rounded p-2 mb-2"
+              />
+            </div>
+            <div>
+              <label htmlFor="locationName" className="block mb-2">Location Name:</label>
+              <select
+                id="locationName"
+                value={selectedLocationId}
+                onChange={(e) => setSelectedLocationId(e.target.value)}
                 required
-                className="font-raleway-black w-full p-2 border mb-3"
-                >
-                <option value="">Select Status...</option>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
+                className="font-raleway-black w-full p-2 border"
+              >
+                <option value="">Select Location...</option>
+                {locations.map((location) => (
+                  <option key={location.location_id} value={location.location_id}>
+                    {location.location_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="w-full lg:w-1/2 p-2">
+            <label htmlFor="serviceName" className="block">
+              Service Name:
+            </label>
+            <select
+              id="serviceName"
+              value={selectedServiceId}
+              onChange={(e) => setSelectedServiceId(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border mb-3"
+            >
+              <option value="">Select Service...</option>
+              {services.map((service) => (
+                <option key={service.service_id} value={service.service_id}>
+                  {service.service_name}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="packageName" className="block">
+              Package Name:
+            </label>
+            <select
+              id="packageName"
+              value={selectedPackageId}
+              onChange={(e) => setSelectedPackageId(e.target.value)}
+              required
+              className="font-raleway-black w-full p-2 border mb-3"
+            >
+              <option value="">Select Package...</option>
+              {filteredPackagesByService.map((pkg) => (
+                <option key={pkg.package_id} value={pkg.package_id}>
+                  {pkg.package_name}
+                </option>
+              ))}
             </select>
             <label htmlFor="activationDate" className="block">Activation Date:</label>
             <input
@@ -209,17 +300,38 @@ return (
               required
               className="font-raleway-black w-full p-2 border mb-2"
             />
-        </div>
-        <div className="w-full p-2 text-center">
+            <label htmlFor="statusType" className="block">
+              Status Type:
+            </label>
+            <select
+              id="statusType"
+              value={statusType || ''}
+              onChange={handleStatusTypeChange}
+              required
+              className="font-raleway-black w-full p-2 border mb-3"
+            >
+              <option value="">Select Status Type...</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="REACTIVE">Reactive</option>
+              <option value="TERMINATE">Terminate</option>
+            </select>
+            {statusTimestamp && (
+              <p className="text-sm text-gray-600">
+                Status last updated: {new Date(statusTimestamp).toLocaleString()}
+              </p>
+            )}
+          </div>
+          <div className="w-full p-2 text-center">
             <button
               type="submit"
               className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600"
             >
               Add Customer
             </button>
-            </div>
-      </form>
-      <PopUpModal
+          </div>
+        </form>
+        <PopUpModal
           isOpen={isModalOpen}
           onClose={closeModal}
           title={insertCustomerId ? 'Success' : 'Error'}

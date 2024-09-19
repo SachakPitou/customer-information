@@ -8,145 +8,116 @@ import SideBar from '../component/SideBar';
 
 // const ACTIVE = 'active';
 // const INACTIVE = 'inactive';
-export default function LocationDetail() {
-    const [locations, setLocations] = useState([]);
-    const [statusFilter, setStatusFilter] = useState('');
-    const [showModal, setShowModal] = useState(false); 
-    const [locationToDelete, setLocationToDelete] = useState(null);
-    const [searchValue, setSearchValue] = useState('');
-    const [searchField, setSearchField] = useState('all');
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [serviceFilter, setServiceFilter] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const locationsPerPage = 15;
-    
-    const toggleDropdown = () => {
-        setDropdownOpen(!dropdownOpen);
-    };
-
-    const handleServiceFilterChange = (event) => {
-        setServiceFilter(event.target.value);
-    };
-
-    const router = useRouter();
-
-    const handleDeleteLocation = async () => {
-        try {
-            if (!locationToDelete) return;
-
-            // Delete the package from the database
-            await supabase.from("Location")
-                .delete()
-                .eq("location_id", locationToDelete);
-        
-            // Update the state to remove the deleted package
-            setLocations(prevLocations => prevLocations.filter(loc => loc.location_id !== locationToDelete));
-        
-            // Log success message
-            console.log(`Location with ID ${locationToDelete} deleted successfully`);
-        
-            // Close the modal after successful deletion
-            setShowModal(false);
-        } catch (error) {
-            console.error('Error deleting location:', error.message);
-        }
-    };
-    
-
-    useEffect(() => {
-        async function fetchLocations() {
-            try {
-                const { data: locationsData, error } = await supabase
-                    .from('Location')
-                    .select('*');
-        
-                if (error) {
-                    throw error;
-                }
-                // const serviceIds = packagesData.map(pkg => pkg.service_id);
-
-                // // Fetch service names based on service_ids
-                // const { data: servicesData, error: serviceError } = await supabase
-                //     .from('Service')
-                //     .select('service_id, service_name')
-                //     .in('service_id', serviceIds);
-
-                // if (serviceError) {
-                //     throw serviceError;
-                // }
-
-                // // Map service_ids to service_names
-                // const serviceMap = {};
-                // servicesData.forEach(svc => {
-                //     serviceMap[svc.service_id] = svc.service_name;
-                // });
-
-                // // Combine package data with service names
-                // const packagesWithServices = packagesData.map(pkg => ({
-                //     ...pkg,
-                //     service_name: serviceMap[pkg.service_id] || 'Unknown Package',
-                // }));
-
-                // Update the state with packages including service names
-                setLocations(locationsData);
-
-            } catch (error) {
-                console.error('Error fetching data:', error.message);
-            }
-        }
-        fetchLocations();
-    }, [locationToDelete, showModal]);
-
-        console.log("Filtering locations...");
-        const filteredLocations = locations.filter((loc) => {
-            const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
-        
-            if (searchValue === '') {
-                return true; // No search term, return all locations
-            }
-        
-            // Search filter for location name only
-            const isMatchingSearch = loc.location_name.toLowerCase().includes(searchTerm);
-            
-            return isMatchingSearch; // Return true if search matches
-        });
-        
-        console.log("Filtered locations:", filteredLocations);
-        
-        const handleSearch = () => {
-            // Log the search value
-            console.log("Search value:", searchValue);
-            // Perform search logic if needed
-        };
-        
-        const handleSearchInputChange = (event) => {
-            setSearchValue(event.target.value); // Update the search input value
-        };
-        
-        const handleSearchInputKeyPress = (event) => {
-            if (event.key === 'Enter') {
-                handleSearch(); // Call the search function when Enter key is pressed
-            }
-        };
-        
-        const handleSearchFieldChange = (event) => {
-            setSearchField(event.target.value);
-        };
-
-        const handlePageChange = (pageNumber) => {
-            setCurrentPage(pageNumber);
-        };
-    
-        // Calculate the packages to be displayed on the current page
-        const totalPages = Math.ceil(filteredLocations.length / locationsPerPage);
-        const startIndex = (currentPage - 1) * locationsPerPage;
-        const displayedLocations = filteredLocations.slice(startIndex, startIndex + locationsPerPage);
-
-        
-        if (locations.length === 0) {
-            return <div>Loading...</div>;
-        }
-        
+interface Location {
+    location_id: number;
+    location_name: string;
+    // Add other properties as needed
+  }
+  
+  export default function LocationDetail() {
+      const [locations, setLocations] = useState<Location[]>([]);
+      const [statusFilter, setStatusFilter] = useState<string>('');
+      const [showModal, setShowModal] = useState<boolean>(false); 
+      const [locationToDelete, setLocationToDelete] = useState<number | null>(null);
+      const [searchValue, setSearchValue] = useState<string>('');
+      const [searchField, setSearchField] = useState<string>('all');
+      const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
+      const [serviceFilter, setServiceFilter] = useState<string>("");
+      const [currentPage, setCurrentPage] = useState<number>(1);
+      const locationsPerPage = 15;
+      
+      const toggleDropdown = () => {
+          setDropdownOpen(!dropdownOpen);
+      };
+  
+      const handleServiceFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+          setServiceFilter(event.target.value);
+      };
+  
+      const router = useRouter();
+  
+      const handleDeleteLocation = async () => {
+          try {
+              if (!locationToDelete) return;
+  
+              await supabase.from("Location")
+                  .delete()
+                  .eq("location_id", locationToDelete);
+          
+              setLocations(prevLocations => prevLocations.filter(loc => loc.location_id !== locationToDelete));
+          
+              console.log(`Location with ID ${locationToDelete} deleted successfully`);
+          
+              setShowModal(false);
+          } catch (error) {
+              console.error('Error deleting location:', (error as Error).message);
+          }
+      };
+      
+      useEffect(() => {
+          async function fetchLocations() {
+              try {
+                  const { data: locationsData, error } = await supabase
+                      .from('Location')
+                      .select('*');
+          
+                  if (error) {
+                      throw error;
+                  }
+  
+                  setLocations(locationsData || []);
+  
+              } catch (error) {
+                  console.error('Error fetching data:', (error as Error).message);
+              }
+          }
+          fetchLocations();
+      }, [locationToDelete, showModal]);
+  
+      console.log("Filtering locations...");
+      const filteredLocations = locations.filter((loc) => {
+          const searchTerm = searchValue.toLowerCase();
+      
+          if (searchValue === '') {
+              return true;
+          }
+      
+          const isMatchingSearch = loc.location_name.toLowerCase().includes(searchTerm);
+          
+          return isMatchingSearch;
+      });
+      
+      console.log("Filtered locations:", filteredLocations);
+      
+      const handleSearch = () => {
+          console.log("Search value:", searchValue);
+      };
+      
+      const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+          setSearchValue(event.target.value);
+      };
+      
+      const handleSearchInputKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+          if (event.key === 'Enter') {
+              handleSearch();
+          }
+      };
+      
+      const handleSearchFieldChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+          setSearchField(event.target.value);
+      };
+  
+      const handlePageChange = (pageNumber: number) => {
+          setCurrentPage(pageNumber);
+      };
+  
+      const totalPages = Math.ceil(filteredLocations.length / locationsPerPage);
+      const startIndex = (currentPage - 1) * locationsPerPage;
+      const displayedLocations = filteredLocations.slice(startIndex, startIndex + locationsPerPage);
+  
+      if (locations.length === 0) {
+          return <div>Loading...</div>;
+      }
     return (
         <div className="relative w-full overflow-x-auto shadow-md">
             <div className="flex w-full items-center justify-between p-4 bg-white dark:bg-gray-900">

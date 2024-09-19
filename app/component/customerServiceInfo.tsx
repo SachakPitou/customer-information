@@ -1,10 +1,48 @@
 "use client";
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
-import React , { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-export default function CustomerServiceInfoForm({ customerId }) {
-  const [customer, setCustomer] = useState({
+// Define types for your data structures
+type Customer = {
+  customer_id: string;
+  customer_name: string;
+  phone_number: string;
+  cid: string;
+  address: string;
+  longtitude: string;
+  langtitude: string;
+  activation_date: string;
+  isActive: boolean;
+  service_id: string;
+  package_id: string;
+  location_id: string;
+  status: string;
+};
+
+type Service = {
+  service_id: string;
+  service_name: string;
+};
+
+type Package = {
+  package_id: string;
+  package_name: string;
+};
+
+type Location = {
+  location_id: string;
+  location_name: string;
+};
+
+// Define props for the component
+interface CustomerServiceInfoFormProps {
+  customerId: string;
+}
+
+export default function CustomerServiceInfoForm({ customerId }: CustomerServiceInfoFormProps) {
+  const [customer, setCustomer] = useState<Customer>({
+    customer_id: '',
     customer_name: '',
     phone_number: '',
     cid: '',
@@ -15,61 +53,78 @@ export default function CustomerServiceInfoForm({ customerId }) {
     isActive: true,
     service_id: '',
     package_id: '',
+    location_id: '',
     status: '',
   });
-  const [services, setServices] = useState([]);
-  const [packages, setPackages] = useState([]);
-  const [error, setError] = useState(null);
-//   const { customer_id } = useParams();
+  const [services, setServices] = useState<Service[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const fetchService = async () => {
-        try {
-          const { data, error } = await supabase.from('Service').select('*');
-          if (error) throw new Error(error.message);
-          setServices(data);
-        } catch (error) {
-          console.error('Error fetching service:', error.message);
-          setError(error.message);
-        }
+      try {
+        const { data, error } = await supabase.from('Service').select('*');
+        if (error) throw new Error(error.message);
+        setServices(data || []);
+      } catch (error) {
+        console.error('Error fetching service:', error instanceof Error ? error.message : String(error));
+        setError(error instanceof Error ? error.message : 'An unknown error occurred');
       }
-      const fetchPackage = async () => {
-        try {
-          const { data, error } = await supabase.from('Package').select('*');
-          if (error) throw new Error(error.message);
-          setPackages(data);
-        } catch (error) {
-          console.error('Error fetching package:', error.message);
-          setError(error.message);
-        }
+    };
+
+    const fetchPackage = async () => {
+      try {
+        const { data, error } = await supabase.from('Package').select('*');
+        if (error) throw new Error(error.message);
+        setPackages(data || []);
+      } catch (error) {
+        console.error('Error fetching package:', error instanceof Error ? error.message : String(error));
+        setError(error instanceof Error ? error.message : 'An unknown error occurred');
       }
-      const fetchCustomer = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('Customer')
-            .select('*')
-            .eq('customer_id', customerId)
-            .single();
-  
-          if (error) throw error;
-  
-          setCustomer(data);
-        } catch (error) {
-          console.error('Error fetching customer data:', error.message);
-        }
-      };
-  
-      if (customerId) {
-        fetchCustomer();
-        fetchPackage();
-        fetchService();
+    };
+
+    const fetchLocation = async () => {
+      try {
+        const { data, error } = await supabase.from('Location').select('*');
+        if (error) throw new Error(error.message);
+        setLocations(data || []);
+      } catch (error) {
+        console.error('Error fetching location:', error instanceof Error ? error.message : String(error));
+        setError(error instanceof Error ? error.message : 'An unknown error occurred');
       }
-    }, [customerId]);
-  const handleSubmit = async (e) => {
+    };
+
+    const fetchCustomer = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('Customer')
+          .select('*')
+          .eq('customer_id', customerId)
+          .single();
+
+        if (error) throw error;
+
+        setCustomer(data || {} as Customer);
+      } catch (error) {
+        console.error('Error fetching customer data:', error instanceof Error ? error.message : String(error));
+      }
+    };
+
+    if (customerId) {
+      fetchCustomer();
+      fetchPackage();
+      fetchService();
+      fetchLocation();
+    }
+  }, [customerId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     router.push(`${customerId}/technical/`);
   };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">
@@ -90,7 +145,7 @@ export default function CustomerServiceInfoForm({ customerId }) {
             <path d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
           </svg>
         </button>
-        <span>Create New Customer: </span>
+        <span>New Customer: </span>
         <form onSubmit={handleSubmit} className="flex flex-wrap justify-between mt-10">
           <div className="w-full lg:w-1/2 p-2">
             <div>
@@ -129,26 +184,26 @@ export default function CustomerServiceInfoForm({ customerId }) {
                 className="block w-full border rounded p-2 mb-2"
               />
             </div>
+            <div>
+              <label htmlFor="serviceName" className="block">
+                Location Name:
+              </label>
+              <select
+                id="locationName"
+                value={customer.location_id}
+                disabled
+                className="font-raleway-black w-full p-2 border mb-3"
+              >
+                {/* Render options based on fetched services */}
+                {locations.map((location) => (
+                  <option key={location.location_id} value={location.location_id}>
+                    {location.location_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="w-full lg:w-1/2 p-2">
-            {/* <div>
-              <label className="block">Longitude:</label>
-              <input
-                type="text"
-                value={customer.longtitude}
-                readOnly={true}
-                className="block w-full border rounded p-2 mb-2"
-              />
-            </div>
-            <div>
-              <label className="block">Latitude:</label>
-              <input
-                type="text"
-                value={customer.langtitude}
-                readOnly={true}
-                className="block w-full border rounded p-2 mb-2"
-              />
-            </div> */}
             <label htmlFor="serviceName" className="block">
               Service Name:
             </label>
@@ -210,7 +265,7 @@ export default function CustomerServiceInfoForm({ customerId }) {
               className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600"
               // Disable the button to prevent form submission
             >
-              Continue
+              Technical Info
             </button>
           </div>
         </form>

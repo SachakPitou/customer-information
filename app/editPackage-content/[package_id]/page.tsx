@@ -1,20 +1,33 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import PopUpModal from '@/app/component/popUpmodal';
 
+// Define your types
+interface Package {
+  package_id: number;
+  package_name: string;
+  service_id: number;
+}
+
+interface Service {
+  service_id: number;
+  service_name: string; // Add other relevant fields if necessary
+}
+
 export default function EditPackage() {
   const router = useRouter();
-  const [packages, setPackages] = useState({
+  const [packages, setPackages] = useState<Package>({
+    package_id: 0,
     package_name: '',
-    service_id: '',
+    service_id: 0,
   });
-  const [services, setServices] = useState([]);
-  const [error, setError] = useState(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const { package_id } = useParams();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -30,46 +43,48 @@ export default function EditPackage() {
           .eq('package_id', package_id)
           .single();
         if (error) throw new Error(error.message);
-        setPackages(packageData);
+        setPackages(packageData!);
       } catch (error) {
-        console.error('Error fetching package:', error.message);
-        setError(error.message);
+        console.error('Error fetching package:', (error as Error).message);
+        setError((error as Error).message);
       }
     };
 
     const fetchService = async () => {
       try {
-        const { data, error } = await supabase.from('Service').select('*');
+        const { data, error } = await supabase
+          .from('Service')
+          .select('*');
         if (error) throw new Error(error.message);
-        setServices(data);
+        setServices(data!);
       } catch (error) {
-        console.error('Error fetching service:', error.message);
-        setError(error.message);
+        console.error('Error fetching service:', (error as Error).message);
+        setError((error as Error).message);
       }
-    }
+    };
 
     fetchPackage();
     fetchService();
   }, [package_id]);
 
-  const handleEditPackage = async (e) => {
+  const handleEditPackage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       const { error } = await supabase
         .from('Package')
         .update({
-            package_name: packages.package_name,
-            service_id: parseInt(packages.service_id),
+          package_name: packages.package_name,
+          service_id: packages.service_id,
         })
         .eq('package_id', package_id);
       if (error) throw new Error(error.message);
       setIsModalOpen(true);
-  
-      console.log('Service updated successfully');
+
+      console.log('Package updated successfully');
       // Optionally, you can navigate to a different page or show a success message
     } catch (error) {
-      console.error('Error updating service:', error.message);
-      setError(error.message);
+      console.error('Error updating package:', (error as Error).message);
+      setError((error as Error).message);
     }
   };
 
@@ -101,7 +116,10 @@ export default function EditPackage() {
             <select
               id="services"
               value={packages.service_id}
-              onChange={(e) => setPackages({ ...packages, service_id: e.target.value })}
+              onChange={(e) => setPackages({
+                ...packages,
+                service_id: parseInt(e.target.value, 10) || 0 // Convert string to number, default to 0 if conversion fails
+              })}
               required
               className="font-raleway-black w-full p-2 border"
             >

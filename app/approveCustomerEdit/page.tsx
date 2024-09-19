@@ -123,26 +123,33 @@ export default function ApproveCustomerEdits() {
     const formatDate = (dateString) => {
         console.log('Input dateString:', dateString);
         if (!dateString) return 'N/A';
+        
+        // Create a date object in UTC
         const date = new Date(dateString);
         console.log('Parsed date object:', date);
         if (isNaN(date.getTime())) return 'Invalid Date';
         
+        // Adjust for Cambodia time (UTC+7)
+        const cambodiaOffset = 7 * 60 * 60 * 1000; // UTC+7 in milliseconds
+        const cambodiaTime = new Date(date.getTime() + cambodiaOffset);
+        
         const options = { 
-            timeZone: 'Asia/Phnom_Penh',
             year: 'numeric', 
             month: 'long', 
             day: 'numeric', 
             hour: '2-digit', 
             minute: '2-digit', 
             second: '2-digit',
-            hour12: true
+            hour12: true,
+            timeZone: 'Asia/Phnom_Penh'
         };
         
-        const formattedDate = date.toLocaleString('km-KH', options);
+        const formattedDate = cambodiaTime.toLocaleString('en-US', options);
         console.log('Formatted date:', formattedDate);
         return formattedDate;
     };
-
+    
+    
     const renderChanges = (edit) => {
         const customerData = edit.customerData;
         const changes = [

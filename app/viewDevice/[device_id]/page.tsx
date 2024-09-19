@@ -10,6 +10,8 @@ export default function ViewDevice() {
     const [interfaces, setInterfaces] = useState([]);
     const [error, setError] = useState(null);
     const router = useRouter();
+    const [deviceImage, setDeviceImage] = useState(null);
+    const [newDeviceImage, setNewDeviceImage] = useState(null);
     const { device_id } = useParams();
 
     const fetchDeviceAndInterfaces = async () => {
@@ -26,6 +28,7 @@ export default function ViewDevice() {
             if (deviceError) throw deviceError;
 
             setDevice(deviceData);
+            setDeviceImage(deviceData.image_url);
 
             // Fetch the device type
             const { data: deviceTypeData, error: deviceTypeError } = await supabase
@@ -78,13 +81,21 @@ export default function ViewDevice() {
 
     const handleInterfaceChange = (index, field, value) => {
         const newInterfaces = [...interfaces];
-        newInterfaces[index] = {
-            ...newInterfaces[index],
-            [field]: value
-        };
+        if (field === 'interface_name') {
+            // Only allow numbers
+            const sanitizedValue = value.replace(/[^0-9]/g, '');
+            newInterfaces[index] = {
+                ...newInterfaces[index],
+                [field]: sanitizedValue
+            };
+        } else {
+            newInterfaces[index] = {
+                ...newInterfaces[index],
+                [field]: value
+            };
+        }
         setInterfaces(newInterfaces);
     };
-
     const handleAddInterface = () => {
         const nextPortNumber = interfaces.length > 0 ? interfaces[interfaces.length - 1].port_number + 1 : 1;
         let newInterface = {
@@ -167,7 +178,10 @@ export default function ViewDevice() {
             alert('Failed to delete interface. Check console for details.');
         }
     };
-
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        setNewDeviceImage(file);
+    };
     const handleSave = async () => {
         if (!device || !device.device_id) {
             alert('Device information is missing. Please refresh the page and try again.');
@@ -176,6 +190,32 @@ export default function ViewDevice() {
     
         try {
             for (let iface of interfaces) {
+            let imageUrl = device.image_url;
+
+            if (newDeviceImage) {
+                const filePath = `images/${Date.now()}-${device.device_name}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('Device Image')
+                    .upload(filePath, newDeviceImage);
+
+                if (uploadError) throw uploadError;
+
+                const { data: urlData, error: urlError } = await supabase.storage
+                    .from('Device Image')
+                    .getPublicUrl(filePath);
+
+                if (urlError) throw urlError;
+
+                imageUrl = urlData.publicUrl;
+            }
+
+            // Update device with new image URL
+            const { error: deviceUpdateError } = await supabase
+                .from('Device')
+                .update({ image_url: imageUrl })
+                .eq('device_id', device.device_id);
+
+            if (deviceUpdateError) throw deviceUpdateError;
                 const interfaceData = {
                     device_id: device.device_id,
                     interface_name: iface.interface_name,
@@ -233,43 +273,48 @@ export default function ViewDevice() {
                 }
             }
     
-            alert('Interfaces updated successfully!');
-            // Refresh the interfaces data after saving
+            alert('Device and interfaces updated successfully!');
+            setDeviceImage(imageUrl);
+            setNewDeviceImage(null);
             fetchDeviceAndInterfaces();
         } catch (error) {
-            console.error('Error updating interfaces:', error);
-            alert('Failed to update interfaces. Check console for details.');
+            console.error('Error updating device and interfaces:', error);
+            alert('Failed to update device and interfaces. Check console for details.');
         }
     };
 
     const renderInterfaceFields = (iface, index) => {
+        const interfacePrefix = "Gigabit 0/0/";
+        const renderInterfaceNameInput = () => (
+            <label>
+                Interface Name:
+                <div className="flex">
+                    <span className="bg-gray-100 border border-r-0 rounded-l px-2 py-2 text-gray-500">
+                        {interfacePrefix}
+                    </span>
+                    <input
+                        type="text"
+                        value={iface.interface_name}
+                        onChange={(e) => handleInterfaceChange(index, 'interface_name', e.target.value)}
+                        className="block w-full p-2 border rounded-r"
+                        placeholder=""
+                    />
+                </div>
+                <p className="mt-1 text-sm text-gray-600">Full Interface Name: {interfacePrefix}{iface.interface_name}</p>
+            </label>
+        );
+    
         switch (deviceType.device_type_id) {
             case 2: // Switch
                 return (
                     <>
-                        <label>
-                            Interface Name:
-                            <input
-                                type="text"
-                                value={iface.interface_name}
-                                onChange={(e) => handleInterfaceChange(index, 'interface_name', e.target.value)}
-                                className="block w-full mt-1 p-2 border rounded"
-                            />
-                        </label>
+                        {renderInterfaceNameInput()}
                     </>
                 );
             case 3: // OLT
                 return (
                     <>
-                        <label>
-                            Interface Name:
-                            <input
-                                type="text"
-                                value={iface.interface_name}
-                                onChange={(e) => handleInterfaceChange(index, 'interface_name', e.target.value)}
-                                className="block w-full mt-1 p-2 border rounded"
-                            />
-                        </label>
+                        {renderInterfaceNameInput()}
                         <label>
                             Description:
                             <input
@@ -311,15 +356,7 @@ export default function ViewDevice() {
             case 1: // Router
                 return (
                     <>
-                        <label>
-                            Interface Name:
-                            <input
-                                type="text"
-                                value={iface.interface_name}
-                                onChange={(e) => handleInterfaceChange(index, 'interface_name', e.target.value)}
-                                className="block w-full mt-1 p-2 border rounded"
-                            />
-                        </label>
+                        {renderInterfaceNameInput()}
                         <label>
                             Capacity:
                             <input
@@ -361,10 +398,34 @@ export default function ViewDevice() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
                     </svg>
                 </button>
-                <span>Device Details: {device.device_type}</span>
+                <span>Device Details: {device.device_name}</span>
             </div>
             
             <div className="p-5">
+                <div className="mt-6">
+                    {/* <h3 className="text-xl font-semibold mb-2">Device Image</h3> */}
+                    {deviceImage && (
+                        <img
+                            src={deviceImage}
+                            alt="Device"
+                            className="mt-2 max-w-50 h-50 mb-4"
+                        />
+                    )}
+                    {newDeviceImage && (
+                        <img
+                            src={URL.createObjectURL(newDeviceImage)}
+                            alt="New device preview"
+                            className="mt-2 max-w-full h-auto mb-4"
+                        />
+                    )}
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                        className="mb-4"
+                    />
+                </div>
+
                 <div className="mt-6">
                     <h3 className="text-xl font-semibold mb-2">Ports</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -372,6 +433,7 @@ export default function ViewDevice() {
                             <div key={index} className="bg-white border rounded-lg shadow-md p-4 dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-400">
                                 <h4 className="text-lg font-semibold">Port {iface.port_number}</h4>
                                 {renderInterfaceFields(iface, index)}
+                                <p className="mt-2">Full Interface Name: Gigabit 0/0/{iface.interface_name}</p>
                                 <button
                                     onClick={() => handleDeleteInterface(index)}
                                     className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"

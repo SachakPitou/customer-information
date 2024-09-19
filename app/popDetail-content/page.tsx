@@ -348,11 +348,9 @@ export default function PopDetail() {
                 </button> */}
             </div>
             <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                <thead className="title-dashboard text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-300 dark:text-gray-700">
+                {/* <thead className="title-dashboard text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-300 dark:text-gray-700">
                     <tr>
-                        {/* <th scope="col" className="p-4">
-                          
-                        </th> */}
+                
                         <th scope="col" className="px-6 py-3">
                             Pop Name
                         </th>
@@ -369,50 +367,40 @@ export default function PopDetail() {
                            
                         </th>
                     </tr>
-                </thead>
+                </thead> */}
                 <tbody>
-                    {displayedPops.map((pop)=> (
-                        <tr key={pop.pop_id} className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
-            
-                            <td className="px-6 py-4">{pop.pop_name}</td> {/* Changed from pkg.service_name */}
-                            <td className="px-6 py-4">{pop.location_name}</td>
-                            <td className="px-6 py-4">
-                                <Link href={`/viewPop/${pop.pop_id}`}>
-                                    <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                            <path fillRule="evenodd" d="M19 10c0 3.682-2.914 6-7 6s-7-2.318-7-6 2.914-6 7-6 7 2.318 7 6zm-7 4a4 4 0 100-8 4 4 0 000 8z" clipRule="evenodd" />
-                                        </svg>
-                                        {/* Optionally, you can add a title attribute for accessibility */}
-                                    </div>
-                                </Link>
-                            </td>
-                            <td className="px-6 py-4">
-                                <Link href={`/editPOP/${pop.pop_id}`}>
-                                    <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                        <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                        </svg>
-                                        {/* Optionally, you can add a title attribute for accessibility */}
-                                    </div>
-                                </Link>
-                            </td>
-                            
-                            <td className="px-6 py-4">
-                                <button
-                                    onClick={() => {
-                                        setShowModal(true);
-                                        setPopToDelete(pop.pop_id);
-                                    }}
-                                    className="block text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
-                                    type="button"
-                                >
-                                    <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"/>
-                                    </svg>
-                                </button>
-                            </td>
-                        </tr>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
+                    {displayedPops.map((pop) => (
+                        <div key={pop.pop_id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                            <img 
+                                src={pop.image_url || "/api/placeholder/300/200"} 
+                                alt={pop.pop_name} 
+                                className="w-full h-48 object-cover"
+                            />
+                            <div className="p-4">
+                                <h3 className="text-lg font-semibold">{pop.pop_name}</h3>
+                                <p className="text-sm text-gray-600">{pop.location_name}</p>
+                                <div className="mt-4 flex justify-between">
+                                    <Link href={`/viewPop/${pop.pop_id}`}>
+                                        <span className="text-blue-600 hover:underline">View</span>
+                                    </Link>
+                                    <Link href={`/editPOP/${pop.pop_id}`}>
+                                        <span className="text-green-600 hover:underline">Edit</span>
+                                    </Link>
+                                    <button
+                                        onClick={() => {
+                                            setShowModal(true);
+                                            setPopToDelete(pop.pop_id);
+                                        }}
+                                        className="text-red-600 hover:underline"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     ))}
+                </div>
                 </tbody>
             </table>
             <div className="flex justify-between items-center p-4 bg-white dark:bg-gray-900">
@@ -431,33 +419,7 @@ export default function PopDetail() {
                     ))}
                 </div>
             </div>
-            {/* {totalPages > 1 && (
-                <div className="flex justify-center my-4">
-                    <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className={`px-4 py-2 mx-1 border rounded ${currentPage === 1 ? 'bg-gray-200' : 'bg-white hover:bg-gray-100'}`}
-                    >
-                        Previous
-                    </button>
-                    {[...Array(totalPages)].map((_, index) => (
-                        <button
-                            key={index}
-                            onClick={() => handlePageChange(index + 1)}
-                            className={`px-4 py-2 mx-1 border rounded ${currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-100'}`}
-                        >
-                            {index + 1}
-                        </button>
-                    ))}
-                    <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className={`px-4 py-2 mx-1 border rounded ${currentPage === totalPages ? 'bg-gray-200' : 'bg-white hover:bg-gray-100'}`}
-                    >
-                        Next
-                    </button>
-                </div>
-            )} */}
+            
             {showModal && (
                 <div className="fixed top-0 left-0 z-50 w-full h-full flex items-center justify-center bg-black bg-opacity-50">
                 <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">

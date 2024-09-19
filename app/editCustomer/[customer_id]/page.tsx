@@ -5,195 +5,315 @@ import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import PopUpModal from '@/app/component/popUpmodal';
+import { useSupabase } from '@/app/context/SupabaseProvider';
+import { Session } from '@supabase/supabase-js';
+
+interface CustomerData {
+  customer_id: string;
+  customer_name: string;
+  phone_number: string;
+  cid: string;
+  address: string;
+  longtitude: string;
+  langtitude: string;
+  ONU_mac_address: string;
+  slot: string;
+  port: string;
+  service_port: string;
+  onu_id: string;
+  camera_ip: string;
+  ip_address: string;
+  activation_date: string;
+  device_id: string;
+  service_id: string;
+  package_id: string;
+  location_id: string;
+  interface_id: string;
+  device_type_id: number;
+  olt_id: string;
+  isActive: boolean;
+  description: string;
+  ACL: string;
+  VLan: string;
+  frame: string;
+  ont_id: string;
+  port_type: string;
+  switch_port: string;
+  router_device_id: string;
+  capacity_bandwidth: string;
+  status_type: string;
+  subnet: string;
+  [key: string]: any;
+}
+
+interface ServiceData {
+  service_id: number;
+  service_name: string;
+  // Add other service properties
+}
+
+interface PackageData {
+  package_id: number;
+  service_id: number;
+  package_name: string;
+  // Add other package properties
+}
+
+interface LocationData {
+  location_id: number;
+  location_name: string;
+  // Add other location properties
+}
+
+interface DeviceData {
+  device_id: number;
+  device_type_id: number;
+  device_name: string;
+  // Add other device properties
+}
+
+interface DeviceTypeData {
+  device_type_id: number;
+  // Add other device type properties
+}
+
+interface InterfaceData {
+  interface_id: number;
+  interface_name: string;
+  device_id: number;
+  portDevice?: PortDeviceData;
+}
+
+interface OLTData {
+  olt_id: number;
+  // Add other OLT properties
+}
+
+interface PortDeviceData {
+  interface_id: number;
+  interface_name: string;
+  port_number: number;
+  // Add other port device properties
+}
+
+interface UserData {
+  user_type: string;
+  // Add other user properties
+}
 
 export default function Page() {
-    const router = useRouter();
-    const [userType, setUserType] = useState('');
-    const [session, setSession] = useState('null');
-    const [customer, setCustomer] = useState({
-        customer_name: '',
-        phone_number: '',
-        cid: '',
-        address: '',
-        longtitude: '',
-        langtitude: '',
-        ONU_mac_address: '',
-        slot: '',
-        port: '',
-        service_port: '',
-        onu_id: '',
-        camera_ip: '',
-        ip_address: '',
-        activation_date: '',
-        device_id: '',
-        service_id: '',
-        package_id: '',
-        location_id: '',
-        interface_id: '',
-        device_type_id: '',
-        olt_id: '',
-        isActive: '',
-        description: '',
-        ACL: '',
-        VLan: '',
-        frame: '',
-        ont_id: '',
-        port_type: '',
-        switch_port: '',
-    });
-    const [services, setServices] = useState([]);
-    const [packages, setPackages] = useState([]);
-    const [locations, setLocations] = useState([]);
-    const [devices, setDevices] = useState([]);
-    const [deviceTypes, setDeviceTypes] = useState([]);
-    const [interfaces, setInterfaces] = useState([]);
-    const [OLTs, setOLTs] = useState([]);
-    const [error, setError] = useState(null);
-    const { customer_id } = useParams();
-    const [isModalOpen, setIsModalOpen] = useState(false);
+  const { supabase } = useSupabase();
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+  const [userType, setUserType] = useState<string | null>(null);
+  const [customer, setCustomer] = useState<CustomerData>({
+    customer_id: '',
+    customer_name: '',
+    phone_number: '',
+    cid: '',
+    address: '',
+    longtitude: '',
+    langtitude: '',
+    ONU_mac_address: '',
+    slot: '',
+    port: '',
+    service_port: '',
+    onu_id: '',
+    camera_ip: '',
+    ip_address: '',
+    activation_date: '',
+    device_id: '',
+    service_id: '',
+    package_id: '',
+    location_id: '',
+    interface_id: '',
+    device_type_id: 0,
+    olt_id: '',
+    isActive: false,
+    description: '',
+    ACL: '',
+    VLan: '',
+    frame: '',
+    ont_id: '',
+    port_type: '',
+    switch_port: '',
+    router_device_id: '',
+    capacity_bandwidth: '',
+    status_type: '',
+    subnet: '',
+  });
+  const [services, setServices] = useState<ServiceData[]>([]);
+  const [packages, setPackages] = useState<PackageData[]>([]);
+  const [locations, setLocations] = useState<LocationData[]>([]);
+  const [devices, setDevices] = useState<DeviceData[]>([]);
+  const [routers, setRouters] = useState<DeviceData[]>([]);
+  const [deviceTypes, setDeviceTypes] = useState<DeviceTypeData[]>([]);
+  const [interfaces, setInterfaces] = useState<InterfaceData[]>([]);
+  const [OLTs, setOLTs] = useState<OLTData[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const { customer_id } = useParams<{ customer_id: string }>();
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const closeModal = () => {
+      setIsModalOpen(false);
+      console.log('Modal Closed');
+  };
 
-    const closeModal = () => {
-        setIsModalOpen(false);
-        console.log('Modal Closed'); // Add console log to check if modal is being closed
-    };
-
-    useEffect(() => {
-        const fetchCustomer = async () => {
-            try {
-                const { data: customerData, error } = await supabase
-                    .from('Customer')
-                    .select('*')
-                    .eq('customer_id', customer_id)
-                    .single();
-                if (error) throw new Error(error.message);
-                setCustomer(customerData);
-            } catch (error) {
-                console.error('Error fetching customer:', error.message);
-                setError(error.message);
-            }
-        };
-
-        const fetchService = async () => {
-            try {
-                const { data, error } = await supabase.from('Service').select('*');
-                if (error) throw new Error(error.message);
-                setServices(data);
-            } catch (error) {
-                console.error('Error fetching services:', error.message);
-                setError(error.message);
-            }
-        };
-
-        const fetchPackage = async () => {
-            try {
-                const { data, error } = await supabase.from('Package').select('*');
-                if (error) throw new Error(error.message);
-                setPackages(data);
-            } catch (error) {
-                console.error('Error fetching packages:', error.message);
-                setError(error.message);
-            }
-        };
-
-        const fetchLocation = async () => {
-            try {
-                const { data, error } = await supabase.from('Location').select('*');
-                if (error) throw new Error(error.message);
-                setLocations(data);
-            } catch (error) {
-                console.error('Error fetching locations:', error.message);
-                setError(error.message);
-            }
-        };
-
-        const fetchDevice = async () => {
-            try {
-                const { data, error } = await supabase.from('Device').select('*');
-                if (error) throw new Error(error.message);
-                setDevices(data);
-            } catch (error) {
-                console.error('Error fetching devices:', error.message);
-                setError(error.message);
-            }
-        };
-        const fetchDeviceType = async () => {
+  useEffect(() => {
+      const fetchCustomer = async () => {
           try {
-              const { data, error } = await supabase.from('Device Type').select('*');
+              const { data: customerData, error } = await supabase
+                  .from('Customer')
+                  .select('*')
+                  .eq('customer_id', customer_id)
+                  .single();
               if (error) throw new Error(error.message);
-              setDeviceTypes(data);
+              setCustomer(customerData as CustomerData);
           } catch (error) {
-              console.error('Error fetching device types:', error.message);
-              setError(error.message);
+              console.error('Error fetching customer:', (error as Error).message);
+              setError((error as Error).message);
           }
-        };
-        const fetchInterface = async () => {
-          try {
-            const { data: interfaceData, error: interfaceError } = await supabase.from('Interface').select('*');
-            if (interfaceError) throw new Error(interfaceError.message);
-    
-            const { data: portDeviceData, error: portDeviceError } = await supabase.from('PortDevice').select('*');
-            if (portDeviceError) throw new Error(portDeviceError.message);
-    
-            // Joining Interface data with PortDevice data based on interface_id
-            const combinedData = interfaceData.map(interfaceItem => {
-              const portDeviceItem = portDeviceData.find(pd => pd.interface_id === interfaceItem.interface_id);
-              return {
-                ...interfaceItem,
-                portDevice: portDeviceItem
-              };
-            });
-    
-            setInterfaces(combinedData);
-          } catch (error) {
-            console.error('Error fetching interfaces:', error.message);
-            setError(error.message);
+      };
+
+      const fetchRouters = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('Device')
+            .select('*')
+            .eq('device_type_id', 1);
+          if (error) throw error;
+          setRouters(data as DeviceData[]);
+        } catch (error) {
+          console.error('Error fetching routers:', (error as Error).message);
+          setError((error as Error).message);
+        }
+      };
+      
+      const fetchService = async () => {
+        try {
+          const { data, error } = await supabase.from('Service').select('*');
+          if (error) throw error;
+          setServices(data as ServiceData[]);
+        } catch (error) {
+          console.error('Error fetching services:', (error as Error).message);
+          setError((error as Error).message);
+        }
+      };
+      
+      const fetchPackage = async () => {
+        try {
+          const { data, error } = await supabase.from('Package').select('*');
+          if (error) throw error;
+          setPackages(data as PackageData[]);
+        } catch (error) {
+          console.error('Error fetching packages:', (error as Error).message);
+          setError((error as Error).message);
+        }
+      };
+      
+      const fetchLocation = async () => {
+        try {
+          const { data, error } = await supabase.from('Location').select('*');
+          if (error) throw error;
+          setLocations(data as LocationData[]);
+        } catch (error) {
+          console.error('Error fetching locations:', (error as Error).message);
+          setError((error as Error).message);
+        }
+      };
+      
+      const fetchDevice = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('Device')
+            .select('*')
+            .in('device_type_id', [2, 3]);
+          if (error) throw error;
+          setDevices(data as DeviceData[]);
+        } catch (error) {
+          console.error('Error fetching devices:', (error as Error).message);
+          setError((error as Error).message);
+        }
+      };
+      
+      const fetchDeviceType = async () => {
+        try {
+          const { data, error } = await supabase.from('Device Type').select('*');
+          if (error) throw error;
+          setDeviceTypes(data as DeviceTypeData[]);
+        } catch (error) {
+          console.error('Error fetching device types:', (error as Error).message);
+          setError((error as Error).message);
+        }
+      };
+      
+      const fetchInterface = async () => {
+        try {
+          const { data: interfaceData, error: interfaceError } = await supabase.from('Interface').select('*');
+          if (interfaceError) throw interfaceError;
+  
+          const { data: portDeviceData, error: portDeviceError } = await supabase.from('PortDevice').select('*');
+          if (portDeviceError) throw portDeviceError;
+  
+          const combinedData = (interfaceData as InterfaceData[]).map(interfaceItem => {
+            const portDeviceItem = (portDeviceData as PortDeviceData[]).find(pd => pd.interface_id === interfaceItem.interface_id);
+            return {
+              ...interfaceItem,
+              portDevice: portDeviceItem
+            };
+          });
+  
+          setInterfaces(combinedData);
+        } catch (error) {
+          console.error('Error fetching interfaces:', (error as Error).message);
+          setError((error as Error).message);
+        }
+      };
+  
+      const fetchOLT = async () => {
+        try {
+          const { data, error } = await supabase.from('OLT').select('*');
+          if (error) throw error;
+          setOLTs(data as OLTData[]);
+        } catch (error) {
+          console.error('Error fetching OLTs:', (error as Error).message);
+          setError((error as Error).message);
+        }
+      };
+      
+      const fetchUserType = async () => {
+        try {
+          const supabase = createClient();
+          const { data, error } = await supabase.auth.getSession();
+      
+          if (error) {
+            console.error('Error fetching session:', error.message);
+            return;
           }
-        };
-        const fetchOLT = async () => {
-            try {
-                const { data, error } = await supabase.from('OLT').select('*');
-                if (error) throw new Error(error.message);
-                setOLTs(data);
-            } catch (error) {
-                console.error('Error fetching OLTs:', error.message);
-                setError(error.message);
+      
+          const session = data.session;
+          setSession(session);
+      
+          if (session) {
+            const userId = session.user.id;
+            const { data: userData, error: userError } = await supabase
+              .from('userAccount')
+              .select('user_type')
+              .eq("id", userId)
+              .single();
+      
+            if (userError) throw userError;
+      
+            if (userData) {
+              setUserType((userData as UserData).user_type);
             }
-        };
-        const fetchUserType = async () => {
-            try {
-                const supabase = createClient();
-                const { data, error } = await supabase.auth.getSession(); // Get session data
-
-                if (error) {
-                    console.error('Error fetching session:', error.message);
-                    return;
-                }
-
-                const session = data.session;
-                setSession(session); // Set session state
-
-                if (session) {
-                    const userId = session.user.id; // Extract user ID from session
-                    const { data: userData, error: userError } = await supabase
-                        .from('userAccount')
-                        .select('user_type')
-                        .eq("id", userId)
-                        .single();
-
-                    if (userError) {
-                        throw userError;
-                    }
-
-                    if (userData) {
-                        setUserType(userData.user_type); // Set user type state
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching user type:', error.message);
-            }
-        };
+          }
+        } catch (error) {
+          console.error('Error fetching user type:', (error as Error).message);
+        }
+      };
 
         fetchCustomer();
+        // fetchRouterDeviceId(); // Fetch the router device ID for the customer
         fetchDevice();
         fetchLocation();
         fetchPackage();
@@ -202,52 +322,82 @@ export default function Page() {
         fetchUserType();
         fetchInterface();
         fetchDeviceType();
+        fetchRouters();
     }, [customer_id]);
+
+    const handleEditCustomer = async (e: React.FormEvent) => {
+      e.preventDefault();
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        let editorUuid: string | null = null;
+        if (sessionError) {
+          console.warn("Unable to fetch auth session:", sessionError.message);
+        } else if (session) {
+          editorUuid = session.user.id;
+        } else {
+          console.warn("No active session found");
+        }
     
-    const handleEditCustomer = async (e) => {
-        e.preventDefault();
-        try {
-            // Fetch the current customer data to capture the old values
-            const { data: currentCustomerData, error: fetchError } = await supabase
-                .from('Customer')
-                .select('*')
-                .eq('customer_id', customer_id)
-                .single();
+        const { data: currentCustomerData, error: fetchError } = await supabase
+          .from('Customer')
+          .select('*')
+          .eq('customer_id', customer_id)
+          .single();
+    
+        if (fetchError) throw fetchError;
+    
+        const fieldsToCheck = [
+          'customer_name', 'phone_number', 'cid', 'address', 'longtitude', 'langtitude',
+          'ONU_mac_address', 'slot', 'port', 'service_port', 'onu_id', 'camera_ip',
+          'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
+          'location_id', 'olt_id', 'isActive', 'interface_id', 'switch_port', 'port_type',
+          'ACL', 'VLan', 'description', 'frame', 'ont_id', 'capacity_bandwidth', 'status',
+          'subnet',
+        ];
+    
+        const historyRecords = fieldsToCheck.map(field => {
+          if (currentCustomerData[field] !== customer[field]) {
+            return {
+              customer_id: customer.customer_id,
+              field_changed: field,
+              old_value: currentCustomerData[field],
+              new_value: customer[field],
+              timestamp: new Date(),
+              editedBy: editorUuid
+            };
+          }
+          return null;
+        }).filter((record): record is NonNullable<typeof record> => record !== null);
+    
+        if (historyRecords.length > 0) {
+          const { error: historyError } = await supabase
+            .from('CustomerHistory')
+            .insert(historyRecords);
+          if (historyError) throw historyError;
+        }
+    
+        const statusTimestamp = new Date().toISOString();
+        let timestampUpdate: Record<string, string> = {};
+    
+        switch (customer.status_type) {
+          case 'ACTIVE':
+            timestampUpdate = { active_timestamp: statusTimestamp };
+            break;
+          case 'INACTIVE':
+            timestampUpdate = { inactive_timestamp: statusTimestamp };
+            break;
+          case 'REACTIVE':
+            timestampUpdate = { reactive_timestamp: statusTimestamp };
+            break;
+          case 'TERMINATE':
+            timestampUpdate = { terminate_timestamp: statusTimestamp };
+            break;
+          default:
+            break;
+        }
 
-            if (fetchError) throw new Error(fetchError.message);
 
-            // Create a list of fields to check for changes
-            const fieldsToCheck = [
-                'customer_name', 'phone_number', 'cid', 'address', 'longtitude', 'langtitude',
-                'ONU_mac_address', 'slot', 'port', 'service_port', 'onu_id', 'camera_ip',
-                'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
-                'location_id', 'olt_id', 'isActive', 'interface_id', 'switch_port', 'port_type',
-                'ACL', 'VLan', 'description','frame', 'ont_id',
-            ];
-
-            // Check for changes and prepare history records
-            const historyRecords = fieldsToCheck.map(field => {
-                if (currentCustomerData[field] !== customer[field]) {
-                    return {
-                        customer_id: customer.customer_id,
-                        field_changed: field,
-                        old_value: currentCustomerData[field],
-                        new_value: customer[field],
-                        timestamp: new Date()
-                    };
-                }
-                return null;
-            }).filter(record => record !== null); // Remove null values
-
-            // Insert the change records into CustomerHistory
-            if (historyRecords.length > 0) {
-                const { error: historyError } = await supabase
-                    .from('CustomerHistory')
-                    .insert(historyRecords);
-                if (historyError) throw new Error(historyError.message);
-            }
-
-            // Update the customer data in the Customer table
             const { error } = await supabase
                 .from('Customer')
                 .update({
@@ -272,51 +422,65 @@ export default function Page() {
                     VLan: customer.VLan,
                     frame: customer.frame,
                     ont_id: customer.ont_id,
+                    status_type: customer.status_type,
+                    subnet: customer.subnet,
                     description: customer.description,
+                    capacity_bandwidth: customer.capacity_bandwidth,
                     device_id: customer.device_id ? parseInt(customer.device_id) : null,
                     service_id: customer.service_id ? parseInt(customer.service_id) : null,
                     package_id: customer.package_id ? parseInt(customer.package_id) : null,
                     location_id: customer.location_id ? parseInt(customer.location_id) : null,
                     interface_id: customer.interface_id ? parseInt(customer.interface_id) : null,
                     olt_id: customer.olt_id ? parseInt(customer.olt_id) : null,
+                    ...timestampUpdate
+                
                 })
                 .eq('customer_id', customer_id);
             if (error) throw new Error(error.message);
+            
+          const { error: routerError } = await supabase
+            .from('customerrouter')
+            .upsert({
+                customer_id: customer_id,
+                router_device_id: customer.router_device_id ? parseInt(customer.router_device_id) : null
+            }, {
+                onConflict: 'customer_id'
+            });
+
+        if (routerError) throw new Error(routerError.message);
             router.push('/dashboard');
             setIsModalOpen(true);
             console.log('Customer updated successfully');
+          } catch (error) {
+            console.error('Error updating customer:', (error as Error).message);
+            setError((error as Error).message);
+        }
+    };
+
+    const handleDeviceChange = async (deviceId: string) => {
+        try {
+            const { data: device, error } = await supabase
+                .from('Device')
+                .select('device_type_id')
+                .eq('device_id', deviceId)
+                .single();
+
+            if (error) {
+                throw new Error(error.message);
+            }
+
+            setCustomer(prevCustomer => ({
+                ...prevCustomer,
+                device_id: deviceId,
+                device_type_id: device?.device_type_id?.toString() || ''
+            }));
         } catch (error) {
-            console.error('Error updating customer:', error.message);
-            setError(error.message);
+            console.error('Error fetching device details:', (error as Error).message);
         }
     };
-    const handleDeviceChange = async (deviceId) => {
-      try {
-        // Fetch device details based on deviceId from your 'Device' table
-        const { data: device, error } = await supabase
-          .from('Device')
-          .select('device_type_id')
-          .eq('device_id', deviceId)
-          .single(); // Assuming device_id uniquely identifies a device
 
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        setCustomer(prevCustomer => ({
-          ...prevCustomer,
-          device_id: deviceId,
-          device_type_id: device.device_type_id // Assuming device_type_id is fetched from Device table
-          // Update other fields as needed
-        }));
-      } catch (error) {
-        console.error('Error fetching device details:', error.message);
-      }
-    };
-
-
-  const filteredPackages = packages.filter((pkg) => pkg.service_id === parseInt(customer.service_id, 10));
-  const filteredInterfaces = interfaces.filter((inf) => inf.device_id === parseInt(customer.device_id, 10));
+    const filteredPackages = packages.filter((pkg) => pkg.service_id === parseInt(customer.service_id, 10));
+    const filteredInterfaces = interfaces.filter((inf) => inf.device_id === parseInt(customer.device_id, 10));
   return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">
@@ -431,19 +595,7 @@ export default function Page() {
                   ))}
                 </select>
               </div>
-              <div className="w-full md:w-1/2 px-2 mb-4">
-                <label htmlFor="status" className="block mb-2">Status:</label>
-                <select
-                  id="isActive"
-                  value={customer.isActive ? 'true' : 'false'}
-                  onChange={(e) => setCustomer({ ...customer, isActive: e.target.value === 'true' })}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Select Status...</option>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
-              </div>
+              
             </>
           )}
           {userType !== "customer_service" && (
@@ -490,6 +642,22 @@ export default function Page() {
                 </select>
               </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
+              <label htmlFor="router" className="block mb-2">Router:</label>
+                <select
+                    id="router"
+                    value={customer.router_device_id || ''}
+                    onChange={(e) => setCustomer({ ...customer, router_device_id: e.target.value })}
+                    className="w-full p-2 border rounded"
+                >
+                    <option value="">Select Router</option>
+                    {routers.map((router) => (
+                        <option key={router.device_id} value={router.device_id}>
+                            {router.device_name}
+                        </option>
+                    ))}
+                </select>
+              </div>
+              <div className="w-full md:w-1/2 px-2 mb-4">
                 <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
                 <select
                   id="deviceName"
@@ -519,7 +687,7 @@ export default function Page() {
                     <option value="">Select Interface...</option>
                     {filteredInterfaces.map((inf) => (
                       <option key={inf.interface_id} value={inf.interface_id}>
-                        Port {inf.portDevice.port_number}: {inf.interface_name}
+                        Port {inf.portDevice?.port_number ?? 'N/A'}: {inf.interface_name}
                       </option>
                     ))}
                   </select>
@@ -547,6 +715,56 @@ export default function Page() {
                   className="w-full p-2 border rounded"
                 />
               </div>
+              {customer.ip_address && (
+                <div className="w-full md:w-1/2 px-2 mb-4">
+                  <label htmlFor="subnet" className="block mb-2">Subnet:</label>
+                  <input
+                    type="text"
+                    id="subnet"
+                    placeholder="Enter subnet"
+                    value={customer.subnet}
+                    onChange={(e) => setCustomer({ ...customer, subnet: e.target.value })}
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+              )}
+              
+              <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="description" className="block mb-2">Description:</label>
+                    <input
+                      type="text"
+                      id="description"
+                      placeholder="Enter Description"
+                      value={customer.description}
+                      onChange={(e) => setCustomer({ ...customer, description: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="ACL" className="block mb-2">ACL:</label>
+                    <input
+                      type="text"
+                      id="ACL"
+                      placeholder="Enter ACL"
+                      value={customer.ACL}
+                      onChange={(e) => setCustomer({ ...customer, ACL: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="capacityBandwidth" className="block mb-2">Capacity Bandwidth:</label>
+                    <input
+                      type="text"
+                      id="capacityBandwidth"
+                      placeholder="Enter Capacity Bandwidth"
+                      value={customer.capacity_bandwidth}
+                      onChange={(e) => setCustomer({ ...customer, capacity_bandwidth: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
               {(customer.device_type_id === 1 || customer.device_type_id === 2) && (
                 <>
                   <div className="w-full md:w-1/2 px-2 mb-4">
@@ -569,30 +787,6 @@ export default function Page() {
                       placeholder="Enter Port Type"
                       value={customer.port_type}
                       onChange={(e) => setCustomer({ ...customer, port_type: e.target.value })}
-                      required
-                      className="w-full p-2 border rounded"
-                    />
-                  </div>
-                  <div className="w-full md:w-1/2 px-2 mb-4">
-                    <label htmlFor="description" className="block mb-2">Description:</label>
-                    <input
-                      type="text"
-                      id="description"
-                      placeholder="Enter Description"
-                      value={customer.description}
-                      onChange={(e) => setCustomer({ ...customer, description: e.target.value })}
-                      required
-                      className="w-full p-2 border rounded"
-                    />
-                  </div>
-                  <div className="w-full md:w-1/2 px-2 mb-4">
-                    <label htmlFor="ACL" className="block mb-2">ACL:</label>
-                    <input
-                      type="text"
-                      id="ACL"
-                      placeholder="Enter ACL"
-                      value={customer.ACL}
-                      onChange={(e) => setCustomer({ ...customer, ACL: e.target.value })}
                       required
                       className="w-full p-2 border rounded"
                     />
@@ -699,6 +893,22 @@ export default function Page() {
                 </div>
               </>
             )}
+            <div className="w-full md:w-1/2 px-2 mb-4">
+                <label htmlFor="statusType" className="block mb-2">Status Type:</label>
+                <select
+                  id="statusType"
+                  value={customer.status_type || ''}
+                  onChange={(e) => setCustomer({ ...customer, status_type: e.target.value })}
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="">Select Status...</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="REACTIVE">Reactive</option>
+                  <option value="TERMINATE">Terminate</option>
+                </select>
+              </div>
+
           </>
         )}
           <div className="w-full p-2 text-center">

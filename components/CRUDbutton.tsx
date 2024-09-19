@@ -11,7 +11,26 @@ export const CrudButton = async () => {
   } = await supabase.auth.getSession();
 
   if (!session) {
-    return <AuthButtons/>;
+    return <AuthButtons />;
+  }
+
+  let userType = null;
+  try {
+    const { data: userData, error: userError } = await supabase
+      .from('userAccount')
+      .select('user_type')
+      .eq("id", session.user.id)
+      .single();
+
+    if (userError) {
+      throw userError;
+    }
+
+    if (userData) {
+      userType = userData.user_type;
+    }
+  } catch (error) {
+    console.error('Error fetching user type:', error.message);
   }
 
   return (
@@ -20,7 +39,7 @@ export const CrudButton = async () => {
         href="/create"
         className="rounded-md border border-red-500 bg-red-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
       >
-        Create
+        {userType === 'technical' ? 'New Customer' : 'Create'}
       </Link>
       <Link
         href="/dashboard"

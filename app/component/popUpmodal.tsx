@@ -1,6 +1,13 @@
 import React from 'react';
 
-const PopUpModal = ({ isOpen, onClose, title, content }) => {
+interface PopUpModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  content: React.ReactNode;
+}
+
+const PopUpModal: React.FC<PopUpModalProps> = ({ isOpen, onClose, title, content }) => {
   if (!isOpen) return null;
 
   return (

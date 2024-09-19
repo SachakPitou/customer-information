@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
 import Dashboard from '../dashboard-content/page';
-import Layout from '../component/layout';
+
 
 
 // const ACTIVE = 'active';

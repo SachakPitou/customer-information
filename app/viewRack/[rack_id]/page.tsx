@@ -15,6 +15,7 @@ export default function ViewRack() {
     const [editedValue, setEditedValue] = useState('');
     const [editedPop, setEditedPop] = useState('');
     const [editedUps, setEditedUps] = useState('');
+    const [loading, setLoading] = useState(true);
     const router = useRouter();
     const { rack_id } = useParams();
 
@@ -96,6 +97,8 @@ export default function ViewRack() {
 
             } catch (error) {
                 console.error('Error fetching data:', error.message);
+            } finally {
+                setLoading(false);
             }
         }
     
@@ -218,7 +221,7 @@ export default function ViewRack() {
                                     </div>
                                 ) : (
                                     <div className="flex items-center">
-                                        <span>{rack.rack_name}</span>
+                                        <span>{rack?.rack_name}</span>
                                         <button
                                             className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
                                             onClick={() => handleEditField('rack_name')}
@@ -252,7 +255,7 @@ export default function ViewRack() {
                                     </div>
                                 ) : (
                                     <div className="flex items-center">
-                                        <span>{rack.location_name}</span>
+                                        <span>{rack?.location_name}</span>
                                         <button
                                             className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
                                             onClick={() => handleEditField('location_name')}
@@ -288,11 +291,11 @@ export default function ViewRack() {
                                     </div>
                                 ) : (
                                     <div className="flex items-center">
-                                        <span>{rack.pop_name}</span>
+                                        <span>{rack?.pop_name}</span>
                                         <button
                                             className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
                                             onClick={() => handleEditField('pop_name')}
-                                            disabled={!rack.location_id}  // Disable if no location is set
+                                            disabled={!rack?.location_id}  // Disable if no location is set
                                         >
                                             Edit
                                         </button>
@@ -323,7 +326,7 @@ export default function ViewRack() {
                                         </div>
                                     ) : (
                                         <div className="flex items-center">
-                                            <span>{rack.rack_type}</span>
+                                            <span>{rack?.rack_type}</span>
                                             <button
                                                 className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
                                                 onClick={() => handleEditField('rack_type')}
@@ -352,7 +355,7 @@ export default function ViewRack() {
                                         </div>
                                     ) : (
                                         <div className="flex items-center">
-                                            <span>{rack.rack_brand}</span>
+                                            <span>{rack?.rack_brand}</span>
                                             <button
                                                 className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
                                                 onClick={() => handleEditField('rack_brand')}
@@ -381,7 +384,7 @@ export default function ViewRack() {
                                         </div>
                                     ) : (
                                         <div className="flex items-center">
-                                            <span>{rack.dimension}</span>
+                                            <span>{rack?.dimension}</span>
                                             <button
                                                 className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
                                                 onClick={() => handleEditField('dimension')}
@@ -416,7 +419,7 @@ export default function ViewRack() {
                                         </div>
                                     ) : (
                                         <div className="flex items-center">
-                                            <span>{rack.ups_name}</span>
+                                            <span>{rack?.ups_name}</span>
                                             <button
                                                 className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
                                                 onClick={() => handleEditField('ups_name')}
@@ -446,7 +449,7 @@ export default function ViewRack() {
                         </tr>
                     </thead>
                     <tbody>
-                    {[...Array(rack.numberOfU)].map((_, index) => {
+                    {[...Array(rack?.numberOfU)].map((_, index) => {
                         const deviceName = deviceMap[index + 1] || 'Empty';
 
                         return (

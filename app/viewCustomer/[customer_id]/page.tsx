@@ -22,26 +22,39 @@ export default function viewCustomer() {
                     .eq('customer_id', customer_id);
 
                 if (customerError) throw customerError;
-                
+                const { data: customerRouterData, error: customerRouterError } = await supabase
+                    .from('customerrouter')
+                    .select('customer_id, router_device_id')
+                    .in('customer_id', customersData.map(c => c.customer_id));
+
+                if (customerRouterError) throw customerRouterError;
+
+                const routerDeviceIds = customerRouterData.map(cr => cr.router_device_id);
+
+                const { data: routerDevicesData, error: routerDevicesError } = await supabase
+                    .from('Device')
+                    .select('device_id, device_name')
+                    .in('device_id', routerDeviceIds);
+
+                if (routerDevicesError) throw routerDevicesError;
+
                 const packageIds = customersData.map((customer) => customer.package_id);
                 const deviceIds = customersData.map((customer) => customer.device_id);
                 const serviceIds = customersData.map((customer) => customer.service_id);
                 const locationIds = customersData.map((customer) => customer.location_id);
                 const interfaceIds = customersData.map((customer) => customer.interface_id);
                 const deviceTypeIds = customersData.map((customer) => customer.device_type_id);
-                // const oltIds = customersData.map((customer) => customer.olt_id);
 
                 const [packagesData, devicesData, servicesData, locationsData, interfacesData, deviceTypesData, portDevicesData] = await Promise.all([
                     supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
                     supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
                     supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
                     supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
-                    // supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
                     supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
                     supabase.from('Device Type').select('device_type_id, device_type').in('device_type_id', deviceTypeIds),
                     supabase.from('PortDevice').select('*').in('interface_id', interfaceIds),
                 ]);
-
+                const routerDeviceMap = Object.fromEntries(routerDevicesData.map(dev => [dev.device_id, dev.device_name]));
                 const packageMap = Object.fromEntries(packagesData.data.map(pkg => [pkg.package_id, pkg.package_name]));
                 const deviceMap = Object.fromEntries(devicesData.data.map(dev => [dev.device_id, dev.device_name]));
                 const serviceMap = Object.fromEntries(servicesData.data.map(srv => [srv.service_id, srv.service_name]));
@@ -54,20 +67,23 @@ export default function viewCustomer() {
                         port_number: portDevicesData.data.find(pd => pd.interface_id === inte.interface_id)?.port_number
                     }
                 ]));
-                // const oltMap = Object.fromEntries(oltsData.data.map(olt => [olt.olt_id, olt.olt_name]));
 
-                const customersWithDetails = customersData.map(customer => ({
-                    ...customer,
-                    package_name: packageMap[customer.package_id] || 'Unknown Package',
-                    device_name: deviceMap[customer.device_id] || 'Unknown Device',
-                    service_name: serviceMap[customer.service_id] || 'Unknown Service',
-                    location_name: locationMap[customer.location_id] || 'Unknown Location',
-                    interface_info: interfaceMap[customer.interface_id] 
-                    ? `Port Number ${interfaceMap[customer.interface_id].port_number} = ${interfaceMap[customer.interface_id].interface_name}` 
-                    : 'Unknown Interface',
-                    device_type: deviceTypeMap[customer.device_type_id] || 'Unknown Device Type',
-                    // olt_name: oltMap[customer.olt_id] || 'Unknown OLT',
-                }));
+                const customersWithDetails = customersData.map(customer => {
+                    const customerRouter = customerRouterData.find(cr => cr.customer_id === customer.customer_id);
+                    const routerDeviceId = customerRouter ? customerRouter.router_device_id : null;
+                    return {
+                        ...customer,
+                        package_name: packageMap[customer.package_id] || 'Unknown Package',
+                        device_name: deviceMap[customer.device_id] || 'Unknown Device',
+                        service_name: serviceMap[customer.service_id] || 'Unknown Service',
+                        location_name: locationMap[customer.location_id] || 'Unknown Location',
+                        interface_info: interfaceMap[customer.interface_id] 
+                            ? `Port Number ${interfaceMap[customer.interface_id].port_number} = ${interfaceMap[customer.interface_id].interface_name}` 
+                            : 'Unknown Interface',
+                        device_type: deviceTypeMap[customer.device_type_id] || 'Unknown Device Type',
+                        router_name: routerDeviceId ? routerDeviceMap[routerDeviceId] || 'Unknown Router' : 'No Router Assigned',
+                    };
+                });
 
                 setCustomers(customersWithDetails);
             } catch (error) {
@@ -273,6 +289,11 @@ export default function viewCustomer() {
                                 </div>
                                 <br />
                                 <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">Router Name</span>
+                                    <span>: {customer.router_name}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
                                     <span className="font-semibold mr-2 w-40">Device Name</span>
                                     <span>: {customer.device_name}</span>
                                 </div>
@@ -307,77 +328,82 @@ export default function viewCustomer() {
                                     <span>: {customer.VLan}</span>
                                 </div>
                                 <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">Description</span>
+                                    <span>: {customer.description}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">ACL</span>
+                                    <span>: {customer.ACL}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">IP Address</span>
+                                    <span>: {customer.ip_address}</span>
+                                </div>
+                                <br />
+                                <div className="flex mb-2">
+                                    <span className="font-semibold mr-2 w-40">Capacity Bandwidth</span>
+                                    <span>: {customer.capacity_bandwidth}</span>
+                                </div>
+                                <br />
                                 {customer.device_type_id === 1 || customer.device_type_id === 2 ? (
                                     <>
-                                    <div className="flex mb-2">
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Switch Port</span>
                                         <span>: {customer.switch_port}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Description</span>
-                                        <span>: {customer.description}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Port Type</span>
                                         <span>: {customer.port_type}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">ACL</span>
-                                        <span>: {customer.ACL}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">IP Address</span>
-                                        <span>: {customer.ip_address}</span>
-                                    </div>
-                                    <br />
+                                        </div>
+                                        <br />
                                     </>
-                                ) : customer.device_type_id === 3 ? (
+                                    ) : customer.device_type_id === 3 ? (
                                     <>
-                                    <div className="flex mb-2">
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Frame</span>
                                         <span>: {customer.frame}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Slot</span>
                                         <span>: {customer.slot}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Port</span>
                                         <span>: {customer.port}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Service Port</span>
                                         <span>: {customer.service_port}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Camera IP</span>
                                         <span>: {customer.camera_ip}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">ONU ID</span>
                                         <span>: {customer.onu_id}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">ONU MAC Address</span>
                                         <span>: {customer.ONU_mac_address}</span>
-                                    </div>
-                                    <br />
-                                    <div className="flex mb-2">
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">ONT ID</span>
                                         <span>: {customer.ont_id}</span>
-                                    </div>
+                                        </div>
                                     </>
-                                ) : null}
+                                    ) : null}
                                 </div>
                             </td>
                             <td className="px-6 py-4">

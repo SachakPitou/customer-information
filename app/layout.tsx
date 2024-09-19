@@ -1,7 +1,6 @@
-
 import { GeistSans } from 'geist/font/sans';
 import './globals.css';
-import { supabase } from './supabaseClient';
+import SupabaseProvider from './context/SupabaseProvider';
 
 export const metadata = {
   title: 'Customer Information List',
@@ -16,9 +15,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={GeistSans.className}>
       <body className="bg-background text-foreground">
-        <main className="min-h-screen">{children}</main>
+        <SupabaseProvider>
+          <main className="min-h-screen">{children}</main>
+        </SupabaseProvider>
       </body>
     </html>
-   
   );
 }

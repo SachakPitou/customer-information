@@ -4,30 +4,52 @@ import { supabase } from '../supabaseClient';
 import { useRouter } from 'next/navigation';
 import PopUpModal from '../component/popUpmodal';
 
+interface Device {
+  device_id: number;
+  // Add other device properties as needed
+}
+
+interface Location {
+  location_id: number;
+  location_name: string;
+}
+
+interface POP {
+  pop_id: number;
+  pop_name: string;
+  location_id: number;
+}
+
+interface UPS {
+  ups_id: number;
+  ups_name: string;
+}
+
 export default function CreateRack() {
   const router = useRouter();
   const [rackName, setRackName] = useState('');
   const [rackType, setRackType] = useState('');
   const [rackBrand, setRackBrand] = useState('');
   const [dimension, setDimension] = useState('');
-  const [numberOfUs, setNumberOfUs] = useState('');
-  const [devices, setDevices] = useState([]);
-  const [selectedDevicesId, setSelectedDevicesId] = useState(Array.from({ length: numberOfUs || 0 }, () => ''));
-  const [pops, setPops] = useState([]);
+  const [numberOfUs, setNumberOfUs] = useState<number>(0);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [selectedDevicesId, setSelectedDevicesId] = useState<string[]>([]);
+  const [pops, setPops] = useState<POP[]>([]);
   const [selectedPopId, setSelectedPopId] = useState('');
-  const [locations, setLocations] = useState([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState('');
-  const [UPSs, setUPSs] = useState([]);
+  const [UPSs, setUPSs] = useState<UPS[]>([]);
   const [selectedUPSId, setSelectedUPSId] = useState('');
-  const [insertedRackId, setInsertedRackId] = useState('');
-  const [error, setError] = useState(null);
-  const [rackImage, setRackImage] = useState(null);
+  const [insertedRackId, setInsertedRackId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [rackImage, setRackImage] = useState<File | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [assignedDevices, setAssignedDevices] = useState([]);
+  const [assignedDevices, setAssignedDevices] = useState<number[]>([]);
 
   const closeModal = () => {
     setIsModalOpen(false);
   };
+
   useEffect(() => {
     if (insertedRackId || error) {
       setIsModalOpen(true);
@@ -39,10 +61,10 @@ export default function CreateRack() {
       try {
         const { data, error } = await supabase.from('Device').select('*');
         if (error) throw new Error(error.message);
-        setDevices(data);
+        setDevices(data || []);
       } catch (error) {
-        console.error('Error fetching devices:', error.message);
-        setError(error.message);
+        console.error('Error fetching devices:', error);
+        setError(error instanceof Error ? error.message : String(error));
       }
     };
     fetchDevices();
@@ -53,10 +75,10 @@ export default function CreateRack() {
       try {
         const { data, error } = await supabase.from('Location').select('*');
         if (error) throw new Error(error.message);
-        setLocations(data);
+        setLocations(data || []);
       } catch (error) {
-        console.error('Error fetching locations:', error.message);
-        setError(error.message);
+        console.error('Error fetching locations:', error);
+        setError(error instanceof Error ? error.message : String(error));
       }
     };
     fetchLocations();
@@ -67,10 +89,10 @@ export default function CreateRack() {
       try {
         const { data, error } = await supabase.from('POP').select('*');
         if (error) throw new Error(error.message);
-        setPops(data);
+        setPops(data || []);
       } catch (error) {
-        console.error('Error fetching pops:', error.message);
-        setError(error.message);
+        console.error('Error fetching pops:', error);
+        setError(error instanceof Error ? error.message : String(error));
       }
     };
     fetchPOPs();
@@ -81,37 +103,16 @@ export default function CreateRack() {
       try {
         const { data, error } = await supabase.from('UPS').select('*');
         if (error) throw new Error(error.message);
-        setUPSs(data);
+        setUPSs(data || []);
       } catch (error) {
-        console.error('Error fetching upss:', error.message);
-        setError(error.message);
+        console.error('Error fetching UPSs:', error);
+        setError(error instanceof Error ? error.message : String(error));
       }
     };
     fetchUPSs();
   }, []);
 
-  // useEffect(() => {
-  //   const fetchAssignedDevices = async () => {
-  //     try {
-  //       const { data: assignedDevicesData, error: assignedDevicesError } = await supabase
-  //         .from('Rack Device')
-  //         .select('device_id')
-  //       if (assignedDevicesError) throw new Error(assignedDevicesError.message);
-
-  //       const assignedDeviceIds = assignedDevicesData.map(item => item.device_id);
-  //       // Filter out assigned devices from the list of all devices
-  //       const availableDevices = devices.filter(device => !assignedDeviceIds.includes(device.device_id));
-  //       setDevices(availableDevices);
-  //     } catch (error) {
-  //       console.error('Error fetching assigned devices:', error.message);
-  //       setError(error.message);
-  //     }
-  //   };
-  //   fetchAssignedDevices();
-  // }, [devices]); 
-
-  // Handle form submission to create a new rack
-  const handleAddRack = async (e) => {
+  const handleAddRack = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       const { data: maxRackIdData, error: maxRackIdError } = await supabase
@@ -123,7 +124,7 @@ export default function CreateRack() {
         throw new Error(maxRackIdError.message);
       }
 
-      const newRackId = maxRackIdData.length > 0 ? maxRackIdData[0].rack_id + 1 : 1;
+      const newRackId = maxRackIdData && maxRackIdData.length > 0 ? maxRackIdData[0].rack_id + 1 : 1;
 
       let imageUrl = null;
       if (rackImage) {
@@ -135,16 +136,17 @@ export default function CreateRack() {
             throw new Error(uploadError.message);
           }
 
-          const { data: urlData, error: urlError } = await supabase.storage.from('Rack Image').getPublicUrl(filePath);
+          // Get the public URL of the uploaded image
+          const { data: urlData } = await supabase.storage.from('Rack Image').getPublicUrl(filePath);
 
-          if (urlError) {
-            throw new Error(urlError.message);
+          if (!urlData) {
+            throw new Error('Failed to retrieve the image URL');
           }
 
           imageUrl = urlData.publicUrl;
         } catch (error) {
-          console.error('Error uploading image:', error.message);
-          setError(error.message);
+          console.error('Error uploading image:', error);
+          setError(error instanceof Error ? error.message : String(error));
           return;
         }
       }
@@ -185,17 +187,16 @@ export default function CreateRack() {
       setRackBrand('');
       setDimension('');
       setRackImage(null);
-      setSelectedDevicesId(Array.from({ length: numberOfUs || 0 }, () => ''));
+      setSelectedDevicesId(Array(numberOfUs).fill(''));
       setSelectedPopId('');
       setSelectedLocationId('');
       setSelectedUPSId('');
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : String(error));
     }
   };
 
-  // Handle device selection change for each U space
-  const handleDeviceSelectionChange = (index, deviceId) => {
+  const handleDeviceSelectionChange = (index: number, deviceId: string) => {
     if (!assignedDevices.includes(parseInt(deviceId))) {
       const updatedSelectedDevices = [...selectedDevicesId];
       updatedSelectedDevices[index] = deviceId;
@@ -203,9 +204,10 @@ export default function CreateRack() {
     }
   };
 
-  // Handle file upload for rack image
-  const handleImageUpload = (e) => {
-    setRackImage(e.target.files[0]);
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setRackImage(e.target.files[0]);
+    }
   };
 
   // Filter POPs based on selected location

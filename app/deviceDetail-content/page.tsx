@@ -5,21 +5,34 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
 
+interface Device {
+  device_id: string;
+  device_name: string;
+  device_type: string;
+  model: string;
+  ip_address: string;
+  ups_name: string;
+  power_source_type_1: string;
+  power_source_type_2: string;
+  location_name: string;
+  rack_name: string;
+  pop_name: string;
+  status: 'active' | 'inactive' | string;
+  deployedBy: string;
+}
 
-// const ACTIVE = 'active';
-// const INACTIVE = 'inactive';
 export default function DeviceDetail() {
-    const [devices, setDevices] = useState([]);
+    const [devices, setDevices] = useState<Device[]>([]);
     const [statusFilter, setStatusFilter] = useState('');
     const [showModal, setShowModal] = useState(false); 
-    const [deviceToDelete, setDeviceToDelete] = useState(null);
+    const [deviceToDelete, setDeviceToDelete] = useState<string | null>(null);
     const [searchValue, setSearchValue] = useState('');
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [searchField, setSearchField] = useState('all');
-    const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
-    const [locationFilter, setLocationFilter] = useState('');
-    const [powersourceDropdownOpen, setPowerSourceDropdownOpen] = useState(false);
-    const [powersourceFilter, setPowerSourceFilter] = useState('');
+    const [locationFilter, setLocationFilter] = useState<string>('');
+    const [locationDropdownOpen, setLocationDropdownOpen] = useState<boolean>(false);
+    const [powersourceFilter, setPowerSourceFilter] = useState<string>('');
+    const [powersourceDropdownOpen, setPowerSourceDropdownOpen] = useState<boolean>(false); 
     const [currentPage, setCurrentPage] = useState(1);
     const packagesPerPage = 15;
     
@@ -43,7 +56,12 @@ export default function DeviceDetail() {
             // Close the modal after successful deletion
             setShowModal(false);
         } catch (error) {
-            console.error('Error deleting customer:', error.message);
+            // Type-checking the unknown error
+            if (error instanceof Error) {
+                console.error('Error fetching devices:', error.message);
+            } else {
+                console.error('Unexpected error:', error);
+            }
         }
     };
     
@@ -58,11 +76,18 @@ export default function DeviceDetail() {
                 if (deviceError) throw deviceError;
     
                 const devicePromises = devicesData.map(async (device) => {
-                    const { data: powerSourceData } = await supabase
-                        .from('Power Source')
-                        .select('power_source_type')
-                        .eq('power_source_id', device.power_source_id)
-                        .single();
+                    const [powerSource1Data, powerSource2Data] = await Promise.all([
+                        supabase
+                            .from('Power Source')
+                            .select('power_source_type')
+                            .eq('power_source_id', device.power_source_id_1)
+                            .single(),
+                        supabase
+                            .from('Power Source')
+                            .select('power_source_type')
+                            .eq('power_source_id', device.power_source_id_2)
+                            .single()
+                    ]);
 
                     const { data: deviceTypeData } = await supabase
                         .from('Device Type')
@@ -113,7 +138,8 @@ export default function DeviceDetail() {
     
                     return {
                         ...device,
-                        power_source_type: powerSourceData?.power_source_type || 'Unknown Power Source',
+                        power_source_type_1: powerSource1Data?.data?.power_source_type || 'N/A',
+                        power_source_type_2: powerSource2Data?.data?.power_source_type || 'N/A',
                         location_name: locationData?.location_name || 'Unknown Location',
                         ups_name: upsData?.ups_name || 'Unknown UPS',
                         device_type: deviceTypeData?.device_type || 'Unknown Device Type',
@@ -125,120 +151,117 @@ export default function DeviceDetail() {
                 const devicesWithDetails = await Promise.all(devicePromises);
                 setDevices(devicesWithDetails);
             } catch (error) {
-                console.error('Error fetching devices:', error.message);
+                // Type-checking the unknown error
+                if (error instanceof Error) {
+                    console.error('Error fetching devices:', error.message);
+                } else {
+                    console.error('Unexpected error:', error);
+                }
             }
         };
     
         fetchDevices();
     }, [deviceToDelete, showModal]);
     
+    const filteredDevices = devices.filter((device) => {
+        const searchTerm = searchValue.toLowerCase();
     
+        const locationMatch =
+            locationFilter === '' || device.location_name.toLowerCase() === locationFilter.toLowerCase();
+    
+        const powerSourceMatch =
+            powersourceFilter === '' || 
+            device.power_source_type_1.toLowerCase() === powersourceFilter.toLowerCase() ||
+            device.power_source_type_2.toLowerCase() === powersourceFilter.toLowerCase();
 
-        console.log("Filtering devices...");
+        if (searchValue === '') {
+            return locationMatch && powerSourceMatch;
+        }
     
-        const filteredDevices = devices.filter((device) => {
-            const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
-        
-            // Location filter
-            const locationMatch =
-                locationFilter === '' || device.location_name.toLowerCase() === locationFilter.toLowerCase();
-        
-            const powerSourceMatch =
-                powersourceFilter === '' || device.power_source_type.toLowerCase() === powersourceFilter.toLowerCase();
-        
-            if (searchValue === '') {
-                return locationMatch && powerSourceMatch; // No search term, return all devices matching location and power source
-            }
-        
-            let isMatchingSearch = false; // Initialize the flag
-        
-            // Search filter
-            if (searchField === 'all') {
-                isMatchingSearch = (
-                    device.device_name.toLowerCase().includes(searchTerm) ||
-                    device.device_type.toLowerCase().includes(searchTerm) ||
-                    device.model.toLowerCase().includes(searchTerm) ||
-                    device.ip_address.toLowerCase().includes(searchTerm) ||
-                    device.ups_name.toLowerCase().includes(searchTerm)
-                );
-            } else if (searchField === 'device_name') {
-                isMatchingSearch = device.device_name.toLowerCase().includes(searchTerm);
-            } else if (searchField === 'model') {
-                const modelString = device.model?.toString() || '';
-                const lowerModelString = modelString.toLowerCase();
-                const lowerSearchTerm = searchTerm.toLowerCase();
-                isMatchingSearch = lowerModelString.includes(lowerSearchTerm);
-            } else if (searchField === 'device_type') {
-                isMatchingSearch = device.device_type.toLowerCase().includes(searchTerm);
-            } else if (searchField === 'ip_address') {
-                const ipAddressString = device.ip_address?.toString() || '';
-                isMatchingSearch = parseInt(ipAddressString) === parseInt(searchTerm);
-            } else if (searchField === 'ups') {
-                const upsString = device.ups_name?.toString() || '';
-                isMatchingSearch = parseInt(upsString) === parseInt(searchTerm);
-            }
-        
-            return locationMatch && powerSourceMatch && isMatchingSearch; // Return true if location and search match
-        });
-        
-        console.log("Filtered devices:", filteredDevices);
+        let isMatchingSearch = false;
+    
+        if (searchField === 'all') {
+            isMatchingSearch = (
+                device.device_name.toLowerCase().includes(searchTerm) ||
+                device.device_type.toLowerCase().includes(searchTerm) ||
+                device.model.toLowerCase().includes(searchTerm) ||
+                device.ip_address.toLowerCase().includes(searchTerm) ||
+                device.ups_name.toLowerCase().includes(searchTerm)
+            );
+        } else if (searchField === 'device_name') {
+            isMatchingSearch = device.device_name.toLowerCase().includes(searchTerm);
+        } else if (searchField === 'model') {
+            const modelString = device.model?.toString() || '';
+            const lowerModelString = modelString.toLowerCase();
+            isMatchingSearch = lowerModelString.includes(searchTerm);
+        } else if (searchField === 'device_type') {
+            isMatchingSearch = device.device_type.toLowerCase().includes(searchTerm);
+        } else if (searchField === 'ip_address') {
+            const ipAddressString = device.ip_address?.toString() || '';
+            isMatchingSearch = ipAddressString.includes(searchTerm);
+        } else if (searchField === 'ups') {
+            const upsString = device.ups_name?.toString() || '';
+            isMatchingSearch = upsString.toLowerCase().includes(searchTerm);
+        }
+    
+        return locationMatch && powerSourceMatch && isMatchingSearch;
+    });
     
     const handleSearch = () => {
-        // Log the search value
         console.log("Search value:", searchValue);
-        // Perform search logic if needed
-    };
-    const handleStatusFilterChange = (event) => {
-        setStatusFilter(event.target.value);
-        // Consider adding logic to trigger re-rendering or data fetching here
-      };
-    const handleSearchInputChange = (event) => {
-        setSearchValue(event.target.value); // Update the search input value
     };
 
-    const handleSearchInputKeyPress = (event: { key: string; }) => {
+    const handleStatusFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setStatusFilter(event.target.value);
+    };
+
+    const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchValue(event.target.value);
+    };
+
+    const handleSearchInputKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') {
-            handleSearch(); // Call the search function when Enter key is pressed
+            handleSearch();
         }
     };
+
     const toggleLocationDropdown = () => {
         setLocationDropdownOpen(!locationDropdownOpen);
-        // Close power source dropdown
         if (powersourceDropdownOpen) {
             setPowerSourceDropdownOpen(false);
         }
     };
     
-    const handleLocationFilterChange = (e) => {
+    const handleLocationFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLocationFilter(e.target.value);
     };
-    
+
     const togglePowerSourceDropdown = () => {
         setPowerSourceDropdownOpen(!powersourceDropdownOpen);
-        // Close location dropdown
         if (locationDropdownOpen) {
             setLocationDropdownOpen(false);
         }
     };
     
-    const handlePowerSourceFilterChange = (e) => {
+    const handlePowerSourceFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setPowerSourceFilter(e.target.value);
     };
+
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };
-    const handleSearchFieldChange = (event: { target: { value: React.SetStateAction<string>; }; }) => {
+
+    const handleSearchFieldChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setSearchField(event.target.value);
-      };
-    const handlePageChange = (pageNumber) => {
+    };
+
+    const handlePageChange = (pageNumber: number) => {
         setCurrentPage(pageNumber);
     };
 
-    // Calculate the packages to be displayed on the current page
     const totalPages = Math.ceil(filteredDevices.length / packagesPerPage);
     const startIndex = (currentPage - 1) * packagesPerPage;
     const displayedDevices = filteredDevices.slice(startIndex, startIndex + packagesPerPage);
-
 
     if (devices.length === 0) {
         return <div>Loading...</div>;
@@ -569,6 +592,9 @@ export default function DeviceDetail() {
                           
                         </th> */}
                         <th scope="col" className="px-6 py-3">
+                            No.
+                        </th>
+                        <th scope="col" className="px-6 py-3">
                             Name
                         </th>
                         <th scope="col" className="px-6 py-3">
@@ -590,10 +616,19 @@ export default function DeviceDetail() {
                             IP Management
                         </th>
                         <th scope="col" className="px-6 py-3">
-                            Power Source
+                            PWS 1
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            PWS 2
                         </th>
                         <th scope="col" className="px-6 py-3">
                             UPS  
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            Status
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            Deploy By
                         </th>
                         <th scope="col" className="px-6 py-3">
                           
@@ -607,7 +642,7 @@ export default function DeviceDetail() {
                     </tr>
                 </thead>
                 <tbody>
-                    {displayedDevices.map((device) => (
+                    {displayedDevices.map((device, index) => (
                         <tr key={device.device_id} className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
                             {/* <td className="w-4 p-4">
                                 <div className="flex items-center">
@@ -617,6 +652,7 @@ export default function DeviceDetail() {
                                     />
                                 </div>
                             </td> */}
+                            <td className="px-6 py-4">{index + 1}</td>
                             <td className="px-6 py-4">{device.device_name}</td>
                             {/* <td className="px-6 py-4">
                                 <button
@@ -634,8 +670,23 @@ export default function DeviceDetail() {
                             <td className="px-6 py-4">{device.rack_name}</td>
                             <td className="px-6 py-4">{device.model}</td>
                             <td className="px-6 py-4">{device.ip_address}</td>
-                            <td className="px-6 py-4">{device.power_source_type}</td>
+                            <td className="px-6 py-4">{device.power_source_type_1}</td>
+                            <td className="px-6 py-4">{device.power_source_type_2}</td>
                             <td className="px-6 py-4">{device.ups_name}</td>
+                            <td className="px-6 py-4">
+                                <span
+                                    className={`px-3 py-1 rounded-lg font-medium ${
+                                    device.status === 'active'
+                                        ? 'bg-green-500 text-white'
+                                        : device.status === 'inactive'
+                                        ? 'bg-red-500 text-white'
+                                        : 'bg-gray-400 text-white'
+                                    }`}
+                                >
+                                    {device.status}
+                                </span>
+                                </td>
+                            <td className="px-6 py-4">{device.deployedBy}</td>
                             <td className="px-6 py-4">
                                 <Link href={`/viewDevice/${device.device_id}`}>
                                     <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
