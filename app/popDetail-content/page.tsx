@@ -5,14 +5,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
 
+interface Pop {
+  image_url: string;
+  pop_id: number;
+  pop_name: string;
+  location_id: number;
+  location_name: string;
+}
 
-// const ACTIVE = 'active';
-// const INACTIVE = 'inactive';
 export default function PopDetail() {
-    const [pops, setPops] = useState([]);
+    const [pops, setPops] = useState<Pop[]>([]);
     const [statusFilter, setStatusFilter] = useState('');
-    const [showModal, setShowModal] = useState(false); 
-    const [popToDelete, setPopToDelete] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+    const [popToDelete, setPopToDelete] = useState<number | null>(null);
     const [searchValue, setSearchValue] = useState('');
     const [searchField, setSearchField] = useState('all');
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -20,38 +25,31 @@ export default function PopDetail() {
     const [currentPage, setCurrentPage] = useState(1);
     const popsPerPage = 15;
     
+    const router = useRouter();
+
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };
 
-    const handleLocationFilterChange = (event) => {
+    const handleLocationFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setLocationFilter(event.target.value);
     };
-
-    const router = useRouter();
 
     const handleDeletePop = async () => {
         try {
             if (!popToDelete) return;
 
-            // Delete the package from the database
             await supabase.from("POP")
                 .delete()
                 .eq("pop_id", popToDelete);
         
-            // Update the state to remove the deleted package
             setPops(prevPops => prevPops.filter(pop => pop.pop_id !== popToDelete));
-        
-            // Log success message
             console.log(`Pop with ID ${popToDelete} deleted successfully`);
-        
-            // Close the modal after successful deletion
             setShowModal(false);
         } catch (error) {
-            console.error('Error deleting pop:', error.message);
+            console.error('Error deleting pop:', (error as Error).message);
         }
     };
-    
 
     useEffect(() => {
         async function fetchPops() {
@@ -63,9 +61,8 @@ export default function PopDetail() {
                 if (error) {
                     throw error;
                 }
-                const locationIds = popsData.map(pop => pop.pop_id);
+                const locationIds = popsData.map(pop => pop.location_id);
 
-                // Fetch service names based on service_ids
                 const { data: locationsData, error: locationError } = await supabase
                     .from('Location')
                     .select('location_id, location_name')
@@ -75,94 +72,80 @@ export default function PopDetail() {
                     throw locationError;
                 }
 
-                // Map service_ids to service_names
-                const locationMap = {};
+                const locationMap: {[key: number]: string} = {};
                 locationsData.forEach(loc => {
                     locationMap[loc.location_id] = loc.location_name;
                 });
 
-                // Combine package data with service names
                 const popsWithLocations = popsData.map(pop => ({
                     ...pop,
                     location_name: locationMap[pop.location_id] || 'Unknown Pop',
                 }));
 
-                // Update the state with packages including service names
                 setPops(popsWithLocations);
 
             } catch (error) {
-                console.error('Error fetching data:', error.message);
+                console.error('Error fetching data:', (error as Error).message);
             }
         }
         fetchPops();
     }, [popToDelete, showModal]);
 
-        console.log("Filtering packages...");
-        const filteredPops = pops.filter((pop) => {
-            const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
-            
-            const locationMatch =
-            locationFilter === '' || pop.location_name.toLowerCase() === locationFilter.toLowerCase(); 
+    const filteredPops = pops.filter((pop) => {
+        const searchTerm = searchValue.toLowerCase();
+        
+        const locationMatch =
+        locationFilter === '' || pop.location_name.toLowerCase() === locationFilter.toLowerCase(); 
 
-            if (searchValue === '' && locationMatch ) {
-                return true; // No search term, return all packages
-            }
-        
-            let isMatchingSearch = false; // Initialize the flag
-        
-            // Search filter
-            if (searchField === 'all') {
-                isMatchingSearch = (
-                    pop.pop_name.toLowerCase().includes(searchTerm) ||
-                    pop.location_name.toLowerCase().includes(searchTerm)
-                );
-            } else if (searchField === 'pop_name') {
-                // Adjusted from 'device.device_name' to 'pkg.package_name'
-                isMatchingSearch =  (pop.pop_name.toLowerCase().includes(searchTerm));
-            } else if (searchField === 'location_name') {
-                // Adjusted from 'device.model' to 'pkg.model'
-                isMatchingSearch = (pop.location_name.toLowerCase().includes(searchTerm));
-            }
-        
-            return isMatchingSearch && locationMatch; // Return true if search matches
-        });
-        
-        console.log("Filtered pops:", filteredPops);
-        
-        const handleSearch = () => {
-            // Log the search value
-            console.log("Search value:", searchValue);
-            // Perform search logic if needed
-        };
-        
-        const handleSearchInputChange = (event) => {
-            setSearchValue(event.target.value); // Update the search input value
-        };
-        
-        const handleSearchInputKeyPress = (event) => {
-            if (event.key === 'Enter') {
-                handleSearch(); // Call the search function when Enter key is pressed
-            }
-        };
-        
-        const handleSearchFieldChange = (event) => {
-            setSearchField(event.target.value);
-        };
-
-        const handlePageChange = (pageNumber) => {
-            setCurrentPage(pageNumber);
-        };
-    
-        // Calculate the packages to be displayed on the current page
-        const totalPages = Math.ceil(filteredPops.length / popsPerPage);
-        const startIndex = (currentPage - 1) * popsPerPage;
-        const displayedPops = filteredPops.slice(startIndex, startIndex + popsPerPage);
-
-        
-        if (pops.length === 0) {
-            return <div>Loading...</div>;
+        if (searchValue === '' && locationMatch ) {
+            return true;
         }
-        
+    
+        let isMatchingSearch = false;
+    
+        if (searchField === 'all') {
+            isMatchingSearch = (
+                pop.pop_name.toLowerCase().includes(searchTerm) ||
+                pop.location_name.toLowerCase().includes(searchTerm)
+            );
+        } else if (searchField === 'pop_name') {
+            isMatchingSearch = pop.pop_name.toLowerCase().includes(searchTerm);
+        } else if (searchField === 'location_name') {
+            isMatchingSearch = pop.location_name.toLowerCase().includes(searchTerm);
+        }
+    
+        return isMatchingSearch && locationMatch;
+    });
+    
+    const handleSearch = () => {
+        console.log("Search value:", searchValue);
+    };
+    
+    const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchValue(event.target.value);
+    };
+    
+    const handleSearchInputKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            handleSearch();
+        }
+    };
+    
+    const handleSearchFieldChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setSearchField(event.target.value);
+    };
+
+    const handlePageChange = (pageNumber: number) => {
+        setCurrentPage(pageNumber);
+    };
+
+    const totalPages = Math.ceil(filteredPops.length / popsPerPage);
+    const startIndex = (currentPage - 1) * popsPerPage;
+    const displayedPops = filteredPops.slice(startIndex, startIndex + popsPerPage);
+    
+    if (pops.length === 0) {
+        return <div>Loading...</div>;
+    }
     return (
         <div className="relative w-full overflow-x-auto shadow-md">
             <div className="flex w-full items-center justify-between p-4 bg-white dark:bg-gray-900">

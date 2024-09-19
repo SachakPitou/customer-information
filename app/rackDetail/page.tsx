@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
-import RackDetail from '../rackDetail-content/page';
+// import RackDetail from '../rackDetail-content/page';
 
 
 // const ACTIVE = 'active';
@@ -14,7 +14,7 @@ export default function Page() {
     return (
         <div className="relative overflow-x-auto shadow-md flex">
             <SideBar/>
-            <RackDetail/>
+            {/* <RackDetail/> */}
         </div>
     );
 }

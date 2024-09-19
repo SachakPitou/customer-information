@@ -5,14 +5,23 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
 
+interface UPS {
+    ups_type: string;
+    ups_brand: string;
+    capacity: string;
+    vendor: string;
+    ups_id: number;
+    package_name: string;
+    service_name: string;
+    ups_name: string;
+    // Add other properties as needed
+}
 
-// const ACTIVE = 'active';
-// const INACTIVE = 'inactive';
 export default function UPSDetail() {
-    const [upss, setUPSs] = useState([]);
+    const [upss, setUPSs] = useState<UPS[]>([]);
     const [statusFilter, setStatusFilter] = useState('');
-    const [showModal, setShowModal] = useState(false); 
-    const [upsToDelete, setUPSToDelete] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+    const [upsToDelete, setUPSToDelete] = useState<number | null>(null);
     const [searchValue, setSearchValue] = useState('');
     const [searchField, setSearchField] = useState('all');
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -20,38 +29,31 @@ export default function UPSDetail() {
     const [currentPage, setCurrentPage] = useState(1);
     const upssPerPage = 15;
     
+    const router = useRouter();
+
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };
 
-    const handleServiceFilterChange = (event) => {
+    const handleServiceFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setServiceFilter(event.target.value);
     };
-
-    const router = useRouter();
 
     const handleDeleteUPS = async () => {
         try {
             if (!upsToDelete) return;
 
-            // Delete the package from the database
             await supabase.from("UPS")
                 .delete()
                 .eq("ups_id", upsToDelete);
         
-            // Update the state to remove the deleted package
             setUPSs(prevUPSs => prevUPSs.filter(ups => ups.ups_id !== upsToDelete));
-        
-            // Log success message
             console.log(`UPS with ID ${upsToDelete} deleted successfully`);
-        
-            // Close the modal after successful deletion
             setShowModal(false);
         } catch (error) {
-            console.error('Error deleting package:', error.message);
+            console.error('Error deleting UPS:', (error as Error).message);
         }
     };
-    
 
     useEffect(() => {
         async function fetchUPSs() {
@@ -63,81 +65,69 @@ export default function UPSDetail() {
                 if (error) {
                     throw error;
                 }
-                setUPSs(upssData);
-
+                setUPSs(upssData || []);
             } catch (error) {
-                console.error('Error fetching data:', error.message);
+                console.error('Error fetching data:', (error as Error).message);
             }
         }
         fetchUPSs();
     }, [upsToDelete, showModal]);
 
-        console.log("Filtering packages...");
-        const filteredUPSs = upss.filter((ups) => {
-            const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
-            
-            const serviceMatch =
+    const filteredUPSs = upss.filter((ups) => {
+        const searchTerm = searchValue.toLowerCase();
+        
+        const serviceMatch =
             serviceFilter === '' || ups.service_name.toLowerCase() === serviceFilter.toLowerCase(); 
 
-            if (searchValue === '' && serviceMatch ) {
-                return true; // No search term, return all packages
-            }
-        
-            let isMatchingSearch = false; // Initialize the flag
-        
-            // Search filter
-            if (searchField === 'all') {
-                isMatchingSearch = (
-                    ups.package_name.toLowerCase().includes(searchTerm) ||
-                    ups.service_name.toLowerCase().includes(searchTerm)
-                );
-            } else if (searchField === 'package_name') {
-                // Adjusted from 'device.device_name' to 'pkg.package_name'
-                isMatchingSearch = ups.package_name.toLowerCase().includes(searchTerm);
-            } else if (searchField === 'service_name') {
-                // Adjusted from 'device.model' to 'pkg.model'
-                const serviceNameString = ups.service_name?.toString() || '';
-                isMatchingSearch = parseInt(serviceNameString) === parseInt(searchTerm);
-            }
-        
-            return isMatchingSearch && serviceMatch; // Return true if search matches
-        });
-        
-        console.log("Filtered UPSs:", filteredUPSs);
-        
-        const handleSearch = () => {
-            // Log the search value
-            console.log("Search value:", searchValue);
-            // Perform search logic if needed
-        };
-        
-        const handleSearchInputChange = (event) => {
-            setSearchValue(event.target.value); // Update the search input value
-        };
-        
-        const handleSearchInputKeyPress = (event) => {
-            if (event.key === 'Enter') {
-                handleSearch(); // Call the search function when Enter key is pressed
-            }
-        };
-        
-        const handleSearchFieldChange = (event) => {
-            setSearchField(event.target.value);
-        };
-
-        const handlePageChange = (pageNumber) => {
-            setCurrentPage(pageNumber);
-        };
-    
-        // Calculate the packages to be displayed on the current page
-        const totalPages = Math.ceil(filteredUPSs.length / upssPerPage);
-        const startIndex = (currentPage - 1) * upssPerPage;
-        const displayedUPSs = filteredUPSs.slice(startIndex, startIndex + upssPerPage);
-
-        
-        if (upss.length === 0) {
-            return <div>Loading...</div>;
+        if (searchValue === '' && serviceMatch) {
+            return true;
         }
+    
+        let isMatchingSearch = false;
+    
+        if (searchField === 'all') {
+            isMatchingSearch = (
+                ups.package_name.toLowerCase().includes(searchTerm) ||
+                ups.service_name.toLowerCase().includes(searchTerm)
+            );
+        } else if (searchField === 'package_name') {
+            isMatchingSearch = ups.package_name.toLowerCase().includes(searchTerm);
+        } else if (searchField === 'service_name') {
+            isMatchingSearch = ups.service_name.toLowerCase().includes(searchTerm);
+        }
+    
+        return isMatchingSearch && serviceMatch;
+    });
+    
+    const handleSearch = () => {
+        console.log("Search value:", searchValue);
+    };
+    
+    const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchValue(event.target.value);
+    };
+    
+    const handleSearchInputKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            handleSearch();
+        }
+    };
+    
+    const handleSearchFieldChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setSearchField(event.target.value);
+    };
+
+    const handlePageChange = (pageNumber: number) => {
+        setCurrentPage(pageNumber);
+    };
+
+    const totalPages = Math.ceil(filteredUPSs.length / upssPerPage);
+    const startIndex = (currentPage - 1) * upssPerPage;
+    const displayedUPSs = filteredUPSs.slice(startIndex, startIndex + upssPerPage);
+    
+    if (upss.length === 0) {
+        return <div>Loading...</div>;
+    }
         
     return (
         <div className="relative w-full overflow-x-auto shadow-md">

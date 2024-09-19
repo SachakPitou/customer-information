@@ -30,8 +30,13 @@ export const CrudButton = async () => {
       userType = userData.user_type;
     }
   } catch (error) {
-    console.error('Error fetching user type:', error.message);
+    if (error instanceof Error) {
+      console.error('Error fetching user type:', error.message);
+    } else {
+      console.error('Unknown error:', error);
+    }
   }
+  
 
   return (
     <div className="mt-10 flex items-center justify-center gap-x-6">

@@ -3,9 +3,24 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 
+interface Customer {
+  customer_id: number;
+  customer_name: string;
+  cid: string;
+  phone_number: string;
+  activation_date: string;
+  address: string;
+  Package: {
+    package_name: string;
+  };
+  Service: {
+    service_name: string;
+  };
+}
+
 export default function PendingConfirmCustomer() {
-  const [pendingCustomers, setPendingCustomers] = useState([]);
-  const [error, setError] = useState(null);
+  const [pendingCustomers, setPendingCustomers] = useState<Customer[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -22,20 +37,20 @@ export default function PendingConfirmCustomer() {
 
         if (error) throw error;
 
-        setPendingCustomers(data);
+        setPendingCustomers(data || []);
       } catch (error) {
-        setError(error.message);
+        setError((error as Error).message);
       }
     };
 
     fetchPendingCustomers();
   }, []);
 
-  const handleEdit = (customerId) => {
+  const handleEdit = (customerId: number) => {
     router.push(`/editConfirmCustomer/${customerId}`);
   };
 
-  const handleConfirm = async (customerId) => {
+  const handleConfirm = async (customerId: number) => {
     try {
       const { error } = await supabase
         .from('Customer')
@@ -48,7 +63,7 @@ export default function PendingConfirmCustomer() {
       const updatedCustomers = pendingCustomers.filter(customer => customer.customer_id !== customerId);
       setPendingCustomers(updatedCustomers);
     } catch (error) {
-      setError(error.message);
+      setError((error as Error).message);
     }
   };
 

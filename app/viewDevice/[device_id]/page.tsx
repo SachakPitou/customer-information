@@ -4,15 +4,41 @@ import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 
+type Device = {
+    device_id: string;
+    device_name: string;
+    image_url: string;
+    device_type_id: number;
+};
+
+type DeviceType = {
+    device_type_id: number;
+    // Add other properties as needed
+};
+
+type Interface = {
+    interface_id?: string;
+    device_id: string; // Changed from number to string
+    interface_name: string;
+    port_number: number;
+    description?: string;
+    port_type?: string;
+    link_mode?: string;
+    capacity?: string;
+    link_protocol?: string;
+};
+
 export default function ViewDevice() {
-    const [device, setDevice] = useState(null);
-    const [deviceType, setDeviceType] = useState(null);
-    const [interfaces, setInterfaces] = useState([]);
-    const [error, setError] = useState(null);
+    const [device, setDevice] = useState<Device | null>(null);
+    const [deviceType, setDeviceType] = useState<DeviceType | null>(null);
+    const [interfaces, setInterfaces] = useState<Interface[]>([]);
+    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
-    const [deviceImage, setDeviceImage] = useState(null);
-    const [newDeviceImage, setNewDeviceImage] = useState(null);
-    const { device_id } = useParams();
+    const [deviceImage, setDeviceImage] = useState<string | null>(null);
+    const [newDeviceImage, setNewDeviceImage] = useState<File | null>(null);
+    const params = useParams();
+    const device_id = params.device_id as string;
+
 
     const fetchDeviceAndInterfaces = async () => {
         try {
@@ -70,8 +96,8 @@ export default function ViewDevice() {
 
             setInterfaces(interfacesWithPortNumbers);
         } catch (error) {
-            console.error('Error fetching data:', error.message);
-            setError(error.message);
+            console.error('Error fetching data:', error);
+            setError(error instanceof Error ? error.message : String(error));
         }
     };
 
@@ -79,7 +105,7 @@ export default function ViewDevice() {
         fetchDeviceAndInterfaces();
     }, [device_id]);
 
-    const handleInterfaceChange = (index, field, value) => {
+    const handleInterfaceChange = (index: number, field: keyof Interface, value: string) => {
         const newInterfaces = [...interfaces];
         if (field === 'interface_name') {
             // Only allow numbers
@@ -96,15 +122,17 @@ export default function ViewDevice() {
         }
         setInterfaces(newInterfaces);
     };
+
     const handleAddInterface = () => {
         const nextPortNumber = interfaces.length > 0 ? interfaces[interfaces.length - 1].port_number + 1 : 1;
-        let newInterface = {
+        let newInterface: Interface = {
             interface_name: '',
             port_number: nextPortNumber,
+            device_id: device_id,
         };
 
         // Add additional fields based on device type
-        if (deviceType.device_type_id === 3) { // OLT
+        if (deviceType && deviceType.device_type_id === 3) { // OLT
             newInterface = {
                 ...newInterface,
                 description: '',
@@ -112,7 +140,7 @@ export default function ViewDevice() {
                 link_mode: '',
                 capacity: '',
             };
-        } else if (deviceType.device_type_id === 1) { // Router
+        } else if (deviceType && deviceType.device_type_id === 1) { // Router
             newInterface = {
                 ...newInterface,
                 capacity: '',
@@ -123,7 +151,7 @@ export default function ViewDevice() {
         setInterfaces([...interfaces, newInterface]);
     };
 
-    const handleDeleteInterface = async (index) => {
+    const handleDeleteInterface = async (index: number) => {
         try {
             const ifaceToDelete = interfaces[index];
     
@@ -161,7 +189,7 @@ export default function ViewDevice() {
     
             // Update port numbers in the PortDevice table
             for (let iface of updatedInterfaces) {
-                if (iface.interface_id) {
+                if (iface.interface_id && device) {
                     const { error: portDeviceUpdateError } = await supabase
                         .from('PortDevice')
                         .update({ port_number: iface.port_number })
@@ -174,14 +202,18 @@ export default function ViewDevice() {
     
             setInterfaces(updatedInterfaces);
         } catch (error) {
-            console.error('Error deleting interface:', error.message);
+            console.error('Error deleting interface:', error);
             alert('Failed to delete interface. Check console for details.');
         }
     };
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        setNewDeviceImage(file);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setNewDeviceImage(file);
+        }
     };
+
     const handleSave = async () => {
         if (!device || !device.device_id) {
             alert('Device information is missing. Please refresh the page and try again.');
@@ -189,7 +221,6 @@ export default function ViewDevice() {
         }
     
         try {
-            for (let iface of interfaces) {
             let imageUrl = device.image_url;
 
             if (newDeviceImage) {
@@ -200,11 +231,11 @@ export default function ViewDevice() {
 
                 if (uploadError) throw uploadError;
 
-                const { data: urlData, error: urlError } = await supabase.storage
+                const { data: urlData } = await supabase.storage
                     .from('Device Image')
                     .getPublicUrl(filePath);
 
-                if (urlError) throw urlError;
+                if (!urlData) throw new Error('Failed to get public URL');
 
                 imageUrl = urlData.publicUrl;
             }
@@ -216,18 +247,20 @@ export default function ViewDevice() {
                 .eq('device_id', device.device_id);
 
             if (deviceUpdateError) throw deviceUpdateError;
-                const interfaceData = {
+
+            for (let iface of interfaces) {
+                const interfaceData: Partial<Interface> = {
                     device_id: device.device_id,
                     interface_name: iface.interface_name,
                 };
     
                 // Add fields based on device type
-                if (deviceType.device_type_id === 3) { // OLT
+                if (deviceType && deviceType.device_type_id === 3) { // OLT
                     interfaceData.description = iface.description;
                     interfaceData.port_type = iface.port_type;
                     interfaceData.link_mode = iface.link_mode;
                     interfaceData.capacity = iface.capacity;
-                } else if (deviceType.device_type_id === 1) { // Router
+                } else if (deviceType && deviceType.device_type_id === 1) { // Router
                     interfaceData.capacity = iface.capacity;
                     interfaceData.link_protocol = iface.link_protocol;
                 }
@@ -283,7 +316,7 @@ export default function ViewDevice() {
         }
     };
 
-    const renderInterfaceFields = (iface, index) => {
+    const renderInterfaceFields = (iface: Interface, index: number) => {
         const interfacePrefix = "Gigabit 0/0/";
         const renderInterfaceNameInput = () => (
             <label>
@@ -304,6 +337,8 @@ export default function ViewDevice() {
             </label>
         );
     
+        if (!deviceType) return null;
+
         switch (deviceType.device_type_id) {
             case 2: // Switch
                 return (
@@ -389,7 +424,6 @@ export default function ViewDevice() {
     if (!device || !deviceType) {
         return <div>Loading...</div>;
     }
-
     return (
         <div className="relative overflow-x-auto shadow-md">
             <div className="p-5 text-lg font-semibold text-left rtl:text-right text-gray-900 bg-white dark:text-white dark:bg-gray-800 flex items-center">

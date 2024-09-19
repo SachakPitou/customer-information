@@ -4,205 +4,261 @@ import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 
-export default function viewCustomer() {
-    const [customers, setCustomers] = useState([]);
-    const [editHistories, setEditHistories] = useState({});
-    const [editHistoryVisible, setEditHistoryVisible] = useState({});
+type Customer = {
+    customer_name: string;
+    cid: string;
+    phone_number: string;
+    address: string;
+    activation_date: string;
+    isActive: boolean;
+    longtitude: string;
+    langtitude: string;
+    VLan: number;
+    description: string;
+    ACL: number;
+    ip_address: number;
+    capacity_bandwidth: string;
+    switch_port: number;
+    port_type: number;
+    port: number;
+    service_port: number;
+    camera_ip: number;
+    onu_id: number;
+    ONU_mac_address: string;
+    ont_id: number;
+    customer_id: string;
+    package_id: string;
+    device_id: string;
+    service_id: string;
+    location_id: string;
+    interface_id: string;
+    device_type_id: number;
+    package_name: string;
+    device_name: string;
+    service_name: string;
+    location_name: string;
+    interface_info: string;
+    device_type: string;
+    router_name: string;
+    frame: number;
+    slot: number;
+  };
+  
+  type EditHistory = {
+    timestamp: any;
+    id: number;
+    customer_id: string;
+    field_changed: string;
+    old_value: string;
+    new_value: string;
+    change_date: string;
+    changeDescription: string;
+  };
+  
+export default function ViewCustomer() {
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [editHistories, setEditHistories] = useState<Record<string, EditHistory[]>>({});
+    const [editHistoryVisible, setEditHistoryVisible] = useState<Record<string, boolean>>({});
     const router = useRouter();
-    const { customer_id } = useParams();
+    const params = useParams();
+    const customer_id = params.customer_id as string;
 
     useEffect(() => {
         async function fetchCustomers() {
-            try {
-                if (!customer_id) return;
-
-                const { data: customersData, error: customerError } = await supabase
-                    .from('Customer')
-                    .select('*')
-                    .eq('customer_id', customer_id);
-
-                if (customerError) throw customerError;
-                const { data: customerRouterData, error: customerRouterError } = await supabase
-                    .from('customerrouter')
-                    .select('customer_id, router_device_id')
-                    .in('customer_id', customersData.map(c => c.customer_id));
-
-                if (customerRouterError) throw customerRouterError;
-
-                const routerDeviceIds = customerRouterData.map(cr => cr.router_device_id);
-
-                const { data: routerDevicesData, error: routerDevicesError } = await supabase
-                    .from('Device')
-                    .select('device_id, device_name')
-                    .in('device_id', routerDeviceIds);
-
-                if (routerDevicesError) throw routerDevicesError;
-
-                const packageIds = customersData.map((customer) => customer.package_id);
-                const deviceIds = customersData.map((customer) => customer.device_id);
-                const serviceIds = customersData.map((customer) => customer.service_id);
-                const locationIds = customersData.map((customer) => customer.location_id);
-                const interfaceIds = customersData.map((customer) => customer.interface_id);
-                const deviceTypeIds = customersData.map((customer) => customer.device_type_id);
-
-                const [packagesData, devicesData, servicesData, locationsData, interfacesData, deviceTypesData, portDevicesData] = await Promise.all([
-                    supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
-                    supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
-                    supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
-                    supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
-                    supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
-                    supabase.from('Device Type').select('device_type_id, device_type').in('device_type_id', deviceTypeIds),
-                    supabase.from('PortDevice').select('*').in('interface_id', interfaceIds),
-                ]);
-                const routerDeviceMap = Object.fromEntries(routerDevicesData.map(dev => [dev.device_id, dev.device_name]));
-                const packageMap = Object.fromEntries(packagesData.data.map(pkg => [pkg.package_id, pkg.package_name]));
-                const deviceMap = Object.fromEntries(devicesData.data.map(dev => [dev.device_id, dev.device_name]));
-                const serviceMap = Object.fromEntries(servicesData.data.map(srv => [srv.service_id, srv.service_name]));
-                const locationMap = Object.fromEntries(locationsData.data.map(loc => [loc.location_id, loc.location_name]));
-                const deviceTypeMap = Object.fromEntries(deviceTypesData.data.map(dvct => [dvct.device_type_id, dvct.device_type]));
-                const interfaceMap = Object.fromEntries(interfacesData.data.map(inte => [
-                    inte.interface_id, 
-                    {
-                        interface_name: inte.interface_name,
-                        port_number: portDevicesData.data.find(pd => pd.interface_id === inte.interface_id)?.port_number
-                    }
-                ]));
-
-                const customersWithDetails = customersData.map(customer => {
-                    const customerRouter = customerRouterData.find(cr => cr.customer_id === customer.customer_id);
-                    const routerDeviceId = customerRouter ? customerRouter.router_device_id : null;
-                    return {
-                        ...customer,
-                        package_name: packageMap[customer.package_id] || 'Unknown Package',
-                        device_name: deviceMap[customer.device_id] || 'Unknown Device',
-                        service_name: serviceMap[customer.service_id] || 'Unknown Service',
-                        location_name: locationMap[customer.location_id] || 'Unknown Location',
-                        interface_info: interfaceMap[customer.interface_id] 
-                            ? `Port Number ${interfaceMap[customer.interface_id].port_number} = ${interfaceMap[customer.interface_id].interface_name}` 
-                            : 'Unknown Interface',
-                        device_type: deviceTypeMap[customer.device_type_id] || 'Unknown Device Type',
-                        router_name: routerDeviceId ? routerDeviceMap[routerDeviceId] || 'Unknown Router' : 'No Router Assigned',
-                    };
-                });
-
-                setCustomers(customersWithDetails);
-            } catch (error) {
-                console.error('Error fetching data:', error.message);
-            }
-        }
-
-        fetchCustomers();
-    }, [customer_id]);
-
-    const handleFetchHistory = async (customerId) => {
-        try {
-            const { data: historyData, error: historyError } = await supabase
-                .from('CustomerHistory')
-                .select('*')
-                .eq('customer_id', customerId);
+          try {
+            if (!customer_id) return;
     
-            if (historyError) throw historyError;
+            const { data: customersData, error: customerError } = await supabase
+              .from('Customer')
+              .select('*')
+              .eq('customer_id', customer_id);
     
-            // Collect all the IDs that need to be fetched
-            const locationIds = historyData.flatMap(history => 
-                history.field_changed === 'location_id' ? [history.old_value, history.new_value] : []
-            );
-            const oltIds = historyData.flatMap(history => 
-                history.field_changed === 'olt_id' ? [history.old_value, history.new_value] : []
-            );
-            const deviceIds = historyData.flatMap(history => 
-                history.field_changed === 'device_id' ? [history.old_value, history.new_value] : []
-            );
-            const serviceIds = historyData.flatMap(history => 
-                history.field_changed === 'service_id' ? [history.old_value, history.new_value] : []
-            );
-            const packageIds = historyData.flatMap(history => 
-                history.field_changed === 'package_id' ? [history.old_value, history.new_value] : []
-            );
-            const interfaceIds = historyData.flatMap(history => 
-                history.field_changed === 'interface_id' ? [history.old_value, history.new_value] : []
-            );
+            if (customerError) throw customerError;
     
-            // Fetch details for all relevant entities
-            const [locationsData, oltsData, devicesData, servicesData, packagesData, interfacesData] = await Promise.all([
-                supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
-                supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
-                supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
-                supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
-                supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
-                supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
+            const { data: customerRouterData, error: customerRouterError } = await supabase
+              .from('customerrouter')
+              .select('customer_id, router_device_id')
+              .in('customer_id', customersData.map(c => c.customer_id));
+    
+            if (customerRouterError) throw customerRouterError;
+    
+            const routerDeviceIds = customerRouterData.map(cr => cr.router_device_id);
+    
+            const { data: routerDevicesData, error: routerDevicesError } = await supabase
+              .from('Device')
+              .select('device_id, device_name')
+              .in('device_id', routerDeviceIds);
+    
+            if (routerDevicesError) throw routerDevicesError;
+    
+            const packageIds = customersData.map((customer) => customer.package_id);
+            const deviceIds = customersData.map((customer) => customer.device_id);
+            const serviceIds = customersData.map((customer) => customer.service_id);
+            const locationIds = customersData.map((customer) => customer.location_id);
+            const interfaceIds = customersData.map((customer) => customer.interface_id);
+            const deviceTypeIds = customersData.map((customer) => customer.device_type_id);
+    
+            const [packagesData, devicesData, servicesData, locationsData, interfacesData, deviceTypesData, portDevicesData] = await Promise.all([
+              supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
+              supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
+              supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
+              supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
+              supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
+              supabase.from('Device Type').select('device_type_id, device_type').in('device_type_id', deviceTypeIds),
+              supabase.from('PortDevice').select('*').in('interface_id', interfaceIds),
             ]);
     
-            // Create maps for easy lookup
-            const locationMap = Object.fromEntries(locationsData.data.map(loc => [loc.location_id, loc.location_name]));
-            const oltMap = Object.fromEntries(oltsData.data.map(olt => [olt.olt_id, olt.olt_name]));
-            const deviceMap = Object.fromEntries(devicesData.data.map(dev => [dev.device_id, dev.device_name]));
-            const serviceMap = Object.fromEntries(servicesData.data.map(srv => [srv.service_id, srv.service_name]));
-            const packageMap = Object.fromEntries(packagesData.data.map(pkg => [pkg.package_id, pkg.package_name]));
-            const interfaceMap = Object.fromEntries(interfacesData.data.map(inte => [inte.interface_id, inte.interface_name]));
+            const routerDeviceMap = Object.fromEntries(routerDevicesData.map(dev => [dev.device_id, dev.device_name]));
+            const packageMap = Object.fromEntries(packagesData.data?.map(pkg => [pkg.package_id, pkg.package_name]) ?? []);
+            const deviceMap = Object.fromEntries(devicesData.data?.map(dev => [dev.device_id, dev.device_name]) ?? []);
+            const serviceMap = Object.fromEntries(servicesData.data?.map(srv => [srv.service_id, srv.service_name]) ?? []);
+            const locationMap = Object.fromEntries(locationsData.data?.map(loc => [loc.location_id, loc.location_name]) ?? []);
+            const deviceTypeMap = Object.fromEntries(deviceTypesData.data?.map(dvct => [dvct.device_type_id, dvct.device_type]) ?? []);
+            const interfaceMap = Object.fromEntries(interfacesData.data?.map(inte => [
+              inte.interface_id,
+              {
+                interface_name: inte.interface_name,
+                port_number: portDevicesData.data?.find(pd => pd.interface_id === inte.interface_id)?.port_number
+              }
+            ]) ?? []);
     
-            const historyWithDetails = historyData.map(history => {
-                let changeDescription;
-    
-                // Generate change descriptions based on the field changed
-                if (history.field_changed === 'location_id') {
-                    const oldLocationName = locationMap[history.old_value] || 'Unknown Location';
-                    const newLocationName = locationMap[history.new_value] || 'Unknown Location';
-                    changeDescription = `Location changed from "${oldLocationName}" to "${newLocationName}"`;
-                } else if (history.field_changed === 'olt_id') {
-                    const oldOltName = oltMap[history.old_value] || 'Unknown OLT';
-                    const newOltName = oltMap[history.new_value] || 'Unknown OLT';
-                    changeDescription = `OLT changed from "${oldOltName}" to "${newOltName}"`;
-                } else if (history.field_changed === 'device_id') {
-                    const oldDeviceName = deviceMap[history.old_value] || 'Unknown Device';
-                    const newDeviceName = deviceMap[history.new_value] || 'Unknown Device';
-                    changeDescription = `Device changed from "${oldDeviceName}" to "${newDeviceName}"`;
-                } else if (history.field_changed === 'service_id') {
-                    const oldServiceName = serviceMap[history.old_value] || 'Unknown Service';
-                    const newServiceName = serviceMap[history.new_value] || 'Unknown Service';
-                    changeDescription = `Service changed from "${oldServiceName}" to "${newServiceName}"`;
-                } else if (history.field_changed === 'package_id') {
-                    const oldPackageName = packageMap[history.old_value] || 'Unknown Package';
-                    const newPackageName = packageMap[history.new_value] || 'Unknown Package';
-                    changeDescription = `Package changed from "${oldPackageName}" to "${newPackageName}"`;
-                } else if (history.field_changed === 'interface_id') {
-                    const oldInterfaceName = interfaceMap[history.old_value] || 'Unknown Interface';
-                    const newInterfaceName = interfaceMap[history.new_value] || 'Unknown Interface';
-                    changeDescription = `Interface changed from "${oldInterfaceName}" to "${newInterfaceName}"`;
-                } else if (history.field_changed === 'isActive') {
-                    const oldStatusName = history.old_value === "true" ? "Active" : "Inactive";
-                    const newStatusName = history.new_value === "true" ? "Active" : "Inactive";
-                    changeDescription = `Status changed from "${oldStatusName}" to "${newStatusName}"`;
-                } else {
-                    changeDescription = `${history.field_changed} changed from "${history.old_value}" to "${history.new_value}"`;
-                }
-    
-                return {
-                    ...history,
-                    changeDescription,
-                };
+            const customersWithDetails = customersData.map(customer => {
+              const customerRouter = customerRouterData.find(cr => cr.customer_id === customer.customer_id);
+              const routerDeviceId = customerRouter ? customerRouter.router_device_id : null;
+              return {
+                ...customer,
+                package_name: packageMap[customer.package_id] || 'Unknown Package',
+                device_name: deviceMap[customer.device_id] || 'Unknown Device',
+                service_name: serviceMap[customer.service_id] || 'Unknown Service',
+                location_name: locationMap[customer.location_id] || 'Unknown Location',
+                interface_info: interfaceMap[customer.interface_id]
+                  ? `Port Number ${interfaceMap[customer.interface_id].port_number} = ${interfaceMap[customer.interface_id].interface_name}`
+                  : 'Unknown Interface',
+                device_type: deviceTypeMap[customer.device_type_id] || 'Unknown Device Type',
+                router_name: routerDeviceId ? routerDeviceMap[routerDeviceId] || 'Unknown Router' : 'No Router Assigned',
+              };
             });
     
-            setEditHistories((prevHistories) => ({
-                ...prevHistories,
-                [customerId]: historyWithDetails,
-            }));
-    
-            setEditHistoryVisible((prevVisible) => ({
-                ...prevVisible,
-                [customerId]: !prevVisible[customerId],
-            }));
-        } catch (error) {
-            console.error('Error fetching edit history:', error.message);
+            setCustomers(customersWithDetails);
+          } catch (error) {
+            console.error('Error fetching data:', (error as Error).message);
+          }
         }
-    };
     
+        fetchCustomers();
+      }, [customer_id, supabase]);
     
+      const handleFetchHistory = async (customerId: string) => {
+        try {
+          const { data: historyData, error: historyError } = await supabase
+            .from('CustomerHistory')
+            .select('*')
+            .eq('customer_id', customerId);
     
-
-    if (customers.length === 0) {
+          if (historyError) throw historyError;
+    
+          const locationIds = historyData.flatMap(history =>
+            history.field_changed === 'location_id' ? [history.old_value, history.new_value] : []
+          );
+          const oltIds = historyData.flatMap(history =>
+            history.field_changed === 'olt_id' ? [history.old_value, history.new_value] : []
+          );
+          const deviceIds = historyData.flatMap(history =>
+            history.field_changed === 'device_id' ? [history.old_value, history.new_value] : []
+          );
+          const serviceIds = historyData.flatMap(history =>
+            history.field_changed === 'service_id' ? [history.old_value, history.new_value] : []
+          );
+          const packageIds = historyData.flatMap(history =>
+            history.field_changed === 'package_id' ? [history.old_value, history.new_value] : []
+          );
+          const interfaceIds = historyData.flatMap(history =>
+            history.field_changed === 'interface_id' ? [history.old_value, history.new_value] : []
+          );
+    
+          const [locationsData, oltsData, devicesData, servicesData, packagesData, interfacesData] = await Promise.all([
+            supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
+            supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
+            supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
+            supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
+            supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
+            supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
+          ]);
+    
+          const locationMap = Object.fromEntries(locationsData.data?.map(loc => [loc.location_id, loc.location_name]) ?? []);
+          const oltMap = Object.fromEntries(oltsData.data?.map(olt => [olt.olt_id, olt.olt_name]) ?? []);
+          const deviceMap = Object.fromEntries(devicesData.data?.map(dev => [dev.device_id, dev.device_name]) ?? []);
+          const serviceMap = Object.fromEntries(servicesData.data?.map(srv => [srv.service_id, srv.service_name]) ?? []);
+          const packageMap = Object.fromEntries(packagesData.data?.map(pkg => [pkg.package_id, pkg.package_name]) ?? []);
+          const interfaceMap = Object.fromEntries(interfacesData.data?.map(inte => [inte.interface_id, inte.interface_name]) ?? []);
+    
+          const historyWithDetails = historyData.map(history => {
+            let changeDescription: string;
+    
+            switch (history.field_changed) {
+              case 'location_id':
+                const oldLocationName = locationMap[history.old_value] || 'Unknown Location';
+                const newLocationName = locationMap[history.new_value] || 'Unknown Location';
+                changeDescription = `Location changed from "${oldLocationName}" to "${newLocationName}"`;
+                break;
+              case 'olt_id':
+                const oldOltName = oltMap[history.old_value] || 'Unknown OLT';
+                const newOltName = oltMap[history.new_value] || 'Unknown OLT';
+                changeDescription = `OLT changed from "${oldOltName}" to "${newOltName}"`;
+                break;
+              case 'device_id':
+                const oldDeviceName = deviceMap[history.old_value] || 'Unknown Device';
+                const newDeviceName = deviceMap[history.new_value] || 'Unknown Device';
+                changeDescription = `Device changed from "${oldDeviceName}" to "${newDeviceName}"`;
+                break;
+              case 'service_id':
+                const oldServiceName = serviceMap[history.old_value] || 'Unknown Service';
+                const newServiceName = serviceMap[history.new_value] || 'Unknown Service';
+                changeDescription = `Service changed from "${oldServiceName}" to "${newServiceName}"`;
+                break;
+              case 'package_id':
+                const oldPackageName = packageMap[history.old_value] || 'Unknown Package';
+                const newPackageName = packageMap[history.new_value] || 'Unknown Package';
+                changeDescription = `Package changed from "${oldPackageName}" to "${newPackageName}"`;
+                break;
+              case 'interface_id':
+                const oldInterfaceName = interfaceMap[history.old_value] || 'Unknown Interface';
+                const newInterfaceName = interfaceMap[history.new_value] || 'Unknown Interface';
+                changeDescription = `Interface changed from "${oldInterfaceName}" to "${newInterfaceName}"`;
+                break;
+              case 'isActive':
+                const oldStatusName = history.old_value === "true" ? "Active" : "Inactive";
+                const newStatusName = history.new_value === "true" ? "Active" : "Inactive";
+                changeDescription = `Status changed from "${oldStatusName}" to "${newStatusName}"`;
+                break;
+              default:
+                changeDescription = `${history.field_changed} changed from "${history.old_value}" to "${history.new_value}"`;
+            }
+    
+            return {
+              ...history,
+              changeDescription,
+            };
+          });
+    
+          setEditHistories((prevHistories) => ({
+            ...prevHistories,
+            [customerId]: historyWithDetails,
+          }));
+    
+          setEditHistoryVisible((prevVisible) => ({
+            ...prevVisible,
+            [customerId]: !prevVisible[customerId],
+          }));
+        } catch (error) {
+          console.error('Error fetching edit history:', (error as Error).message);
+        }
+      };
+    
+      if (customers.length === 0) {
         return <div>Loading...</div>;
-    }
+      }
+    
 
     return (
         <div className="relative overflow-x-auto shadow-md">

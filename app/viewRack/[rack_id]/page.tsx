@@ -3,21 +3,60 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/app/supabaseClient';
 
+interface Rack {
+    rack_id: string;
+    rack_name: string;
+    location_id: number;
+    pop_id: number;
+    ups_id: number;
+    rack_type: string;
+    rack_brand: string;
+    dimension: string;
+    numberOfU: number;
+    location_name: string;
+    pop_name: string;
+    ups_name: string;
+}
+
+interface Device {
+    rack_device_id: number;
+    u_position: number;
+    device_id: number | null;
+    device_name: string;
+}
+
+interface Location {
+    location_id: number;
+    location_name: string;
+}
+
+interface POP {
+    pop_id: number;
+    pop_name: string;
+    location_id: number;
+}
+
+interface UPS {
+    ups_id: number;
+    ups_name: string;
+}
+
 export default function ViewRack() {
-    const [rack, setRack] = useState(null);
-    const [devices, setDevices] = useState([]);
-    const [allDevices, setAllDevices] = useState([]);
-    const [allLocations, setAllLocations] = useState([]);
-    const [allPops, setAllPops] = useState([]);
-    const [allUPSs, setAllUPSs] = useState([]);
-    const [filteredPops, setFilteredPops] = useState([]);
-    const [editingField, setEditingField] = useState(null);
-    const [editedValue, setEditedValue] = useState('');
-    const [editedPop, setEditedPop] = useState('');
-    const [editedUps, setEditedUps] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [rack, setRack] = useState<Rack | null>(null);
+    const [devices, setDevices] = useState<Device[]>([]);
+    const [allDevices, setAllDevices] = useState<Device[]>([]);
+    const [allLocations, setAllLocations] = useState<Location[]>([]);
+    const [allPops, setAllPops] = useState<POP[]>([]);
+    const [allUPSs, setAllUPSs] = useState<UPS[]>([]);
+    const [filteredPops, setFilteredPops] = useState<POP[]>([]);
+    const [editingField, setEditingField] = useState<string | null>(null);
+    const [editedValue, setEditedValue] = useState<string>('');
+    const [editedPop, setEditedPop] = useState<string>('');
+    const [editedUps, setEditedUps] = useState<string>('');
+    const [loading, setLoading] = useState<boolean>(true);
     const router = useRouter();
-    const { rack_id } = useParams();
+    const params = useParams();
+    const rack_id = params.rack_id as string;
 
     useEffect(() => {
         async function fetchRack() {
@@ -44,9 +83,9 @@ export default function ViewRack() {
     
                 setRack({
                     ...rackData,
-                    location_name: locationData.data.location_name || 'Unknown Location',
-                    pop_name: popData.data.pop_name || 'Unknown POP',
-                    ups_name: upsData.data.ups_name || 'Unknown UPS',
+                    location_name: locationData.data?.location_name || 'Unknown Location',
+                    pop_name: popData.data?.pop_name || 'Unknown POP',
+                    ups_name: upsData.data?.ups_name || 'Unknown UPS',
                 });
 
                 const { data: deviceLocationsData, error: devicesError } = await supabase
@@ -60,7 +99,7 @@ export default function ViewRack() {
                     .filter(device => device.device_id !== null)
                     .map(device => device.device_id);
     
-                let deviceMap = {};
+                let deviceMap: Record<number, string> = {};
     
                 if (validDeviceIds.length > 0) {
                     const { data: devicesData, error: devicesDataError } = await supabase
@@ -70,7 +109,7 @@ export default function ViewRack() {
     
                     if (devicesDataError) throw devicesDataError;
     
-                    deviceMap = devicesData.reduce((acc, device) => {
+                    deviceMap = devicesData.reduce((acc: Record<number, string>, device) => {
                         acc[device.device_id] = device.device_name;
                         return acc;
                     }, {});
@@ -90,13 +129,13 @@ export default function ViewRack() {
                     supabase.from('UPS').select('ups_id, ups_name'),
                 ]);
 
-                setAllDevices(allDevicesData.data);
-                setAllLocations(allLocationsData.data);
-                setAllPops(allPopsData.data);
-                setAllUPSs(allUPSsData.data);
+                setAllDevices(allDevicesData.data || []);
+                setAllLocations(allLocationsData.data || []);
+                setAllPops(allPopsData.data || []);
+                setAllUPSs(allUPSsData.data || []);
 
             } catch (error) {
-                console.error('Error fetching data:', error.message);
+                console.error('Error fetching data:', (error as Error).message);
             } finally {
                 setLoading(false);
             }
@@ -105,20 +144,20 @@ export default function ViewRack() {
         fetchRack();
     }, [rack_id]);
         
-    const handleEditField = (field) => {
+    const handleEditField = (field: string) => {
         setEditingField(field);
         if (field === 'location_name') {
-            setEditedValue(rack.location_id);
+            setEditedValue(rack?.location_id.toString() || '');
         } else if (field === 'pop_name') {
-            setEditedValue(rack.pop_id);
+            setEditedValue(rack?.pop_id.toString() || '');
         } else if (field === 'ups_name') {
-            setEditedUps(rack.ups_id);
+            setEditedUps(rack?.ups_id.toString() || '');
         } else {
-            setEditedValue(rack[field]);
+            setEditedValue(rack?.[field as keyof Rack]?.toString() || '');
         }
     };
 
-    const handleLocationChange = (selectedLocationId) => {
+    const handleLocationChange = (selectedLocationId: string) => {
         setEditedValue(selectedLocationId);
         const popsInLocation = allPops.filter(pop => pop.location_id === parseInt(selectedLocationId));
         setFilteredPops(popsInLocation);
@@ -127,17 +166,17 @@ export default function ViewRack() {
 
     const handleSaveField = async () => {
         try {
-            let updateData = {};
+            let updateData: Record<string, string | number> = {};
             if (editingField === 'location_name') {
-                updateData = { location_id: editedValue };
+                updateData = { location_id: parseInt(editedValue) };
                 if (editedPop) {
-                    updateData.pop_id = editedPop;
+                    updateData.pop_id = parseInt(editedPop);
                 }
             } else if (editingField === 'pop_name') {
-                updateData = { pop_id: editedPop };
+                updateData = { pop_id: parseInt(editedPop) };
             } else if (editingField === 'ups_name') {
-                updateData = { ups_id: editedUps };
-            } else {
+                updateData = { ups_id: parseInt(editedUps) };
+            } else if (editingField) {
                 updateData = { [editingField]: editedValue };
             }
     
@@ -155,28 +194,31 @@ export default function ViewRack() {
                 .single();
             if (rackError) throw rackError;
     
-            setRack({
-                ...rack,
-                ...updatedRackData,
-                location_name: allLocations.find(location => location.location_id === updatedRackData.location_id).location_name,
-                pop_name: allPops.find(pop => pop.pop_id === updatedRackData.pop_id).pop_name,
-                ups_name: allUPSs.find(ups => ups.ups_id === updatedRackData.ups_id).ups_name
-            });
+            if (rack && updatedRackData) {
+                setRack({
+                    ...rack,
+                    ...updatedRackData,
+                    location_name: allLocations.find(location => location.location_id === updatedRackData.location_id)?.location_name || 'Unknown Location',
+                    pop_name: allPops.find(pop => pop.pop_id === updatedRackData.pop_id)?.pop_name || 'Unknown POP',
+                    ups_name: allUPSs.find(ups => ups.ups_id === updatedRackData.ups_id)?.ups_name || 'Unknown UPS'
+                });
+            }
     
             setEditingField(null);
         } catch (error) {
-            console.error('Error updating rack information:', error.message);
+            console.error('Error updating rack information:', (error as Error).message);
         }
     };
 
     // Pre-process devices to create a map from u_position to device
-    const deviceMap = devices.reduce((acc, device) => {
+    const deviceMap = devices.reduce((acc: Record<number, string>, device) => {
         acc[device.u_position] = device.device_name;
         return acc;
     }, {});
 
-
-
+    if (loading) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <div className="relative overflow-x-auto shadow-md">

@@ -8,161 +8,153 @@ import SideBar from '../component/SideBar';
 
 // const ACTIVE = 'active';
 // const INACTIVE = 'inactive';
-export default function PackageDetail() {
-    const [packages, setPackages] = useState([]);
-    const [statusFilter, setStatusFilter] = useState('');
-    const [showModal, setShowModal] = useState(false); 
-    const [packageToDelete, setPackageToDelete] = useState(null);
-    const [searchValue, setSearchValue] = useState('');
-    const [searchField, setSearchField] = useState('all');
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [serviceFilter, setServiceFilter] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const packagesPerPage = 15;
-    
-    const toggleDropdown = () => {
-        setDropdownOpen(!dropdownOpen);
-    };
-
-    const handleServiceFilterChange = (event) => {
-        setServiceFilter(event.target.value);
-    };
-
-    const router = useRouter();
-
-    const handleDeletePackage = async () => {
-        try {
-            if (!packageToDelete) return;
-
-            // Delete the package from the database
-            await supabase.from("Package")
-                .delete()
-                .eq("package_id", packageToDelete);
-        
-            // Update the state to remove the deleted package
-            setPackages(prevPackages => prevPackages.filter(pkg => pkg.package_id !== packageToDelete));
-        
-            // Log success message
-            console.log(`Package with ID ${packageToDelete} deleted successfully`);
-        
-            // Close the modal after successful deletion
-            setShowModal(false);
-        } catch (error) {
-            console.error('Error deleting package:', error.message);
-        }
-    };
-    
-
-    useEffect(() => {
-        async function fetchPackages() {
-            try {
-                const { data: packagesData, error } = await supabase
-                    .from('Package')
-                    .select('*');
-        
-                if (error) {
-                    throw error;
-                }
-                const serviceIds = packagesData.map(pkg => pkg.service_id);
-
-                // Fetch service names based on service_ids
-                const { data: servicesData, error: serviceError } = await supabase
-                    .from('Service')
-                    .select('service_id, service_name')
-                    .in('service_id', serviceIds);
-
-                if (serviceError) {
-                    throw serviceError;
-                }
-
-                // Map service_ids to service_names
-                const serviceMap = {};
-                servicesData.forEach(svc => {
-                    serviceMap[svc.service_id] = svc.service_name;
-                });
-
-                // Combine package data with service names
-                const packagesWithServices = packagesData.map(pkg => ({
-                    ...pkg,
-                    service_name: serviceMap[pkg.service_id] || 'Unknown Package',
-                }));
-
-                // Update the state with packages including service names
-                setPackages(packagesWithServices);
-
-            } catch (error) {
-                console.error('Error fetching data:', error.message);
-            }
-        }
-        fetchPackages();
-    }, [packageToDelete, showModal]);
-
-        console.log("Filtering packages...");
-        const filteredPackages = packages.filter((pkg) => {
-            const searchTerm = searchValue.toLowerCase(); // Convert search term to lowercase
-            
-            const serviceMatch =
-            serviceFilter === '' || pkg.service_name.toLowerCase() === serviceFilter.toLowerCase(); 
-
-            if (searchValue === '' && serviceMatch ) {
-                return true; // No search term, return all packages
-            }
-        
-            let isMatchingSearch = false; // Initialize the flag
-        
-            // Search filter
-            if (searchField === 'all') {
-                isMatchingSearch = (
-                    pkg.package_name.toLowerCase().includes(searchTerm) ||
-                    pkg.service_name.toLowerCase().includes(searchTerm)
-                );
-            } else if (searchField === 'package_name') {
-                // Adjusted from 'device.device_name' to 'pkg.package_name'
-                isMatchingSearch = pkg.package_name.toLowerCase().includes(searchTerm);
-            } else if (searchField === 'service_name') {
-                // Adjusted from 'device.model' to 'pkg.model'
-                const serviceNameString = pkg.service_name?.toString() || '';
-                isMatchingSearch = parseInt(serviceNameString) === parseInt(searchTerm);
-            }
-        
-            return isMatchingSearch && serviceMatch; // Return true if search matches
-        });
-        
-        console.log("Filtered packages:", filteredPackages);
-        
-        const handleSearch = () => {
-            // Log the search value
-            console.log("Search value:", searchValue);
-            // Perform search logic if needed
-        };
-        
-        const handleSearchInputChange = (event) => {
-            setSearchValue(event.target.value); // Update the search input value
-        };
-        
-        const handleSearchInputKeyPress = (event) => {
-            if (event.key === 'Enter') {
-                handleSearch(); // Call the search function when Enter key is pressed
-            }
-        };
-        
-        const handleSearchFieldChange = (event) => {
-            setSearchField(event.target.value);
-        };
-
-        const handlePageChange = (pageNumber) => {
-            setCurrentPage(pageNumber);
-        };
-    
-        // Calculate the packages to be displayed on the current page
-        const totalPages = Math.ceil(filteredPackages.length / packagesPerPage);
-        const startIndex = (currentPage - 1) * packagesPerPage;
-        const displayedPackages = filteredPackages.slice(startIndex, startIndex + packagesPerPage);
-
-        
-        if (packages.length === 0) {
-            return <div>Loading...</div>;
-        }
+interface Package {
+    package_id: number;
+    package_name: string;
+    service_id: number;
+    service_name?: string;
+    // Add other properties as needed
+  }
+  
+  export default function PackageDetail() {
+      const [packages, setPackages] = useState<Package[]>([]);
+      const [statusFilter, setStatusFilter] = useState<string>('');
+      const [showModal, setShowModal] = useState<boolean>(false); 
+      const [packageToDelete, setPackageToDelete] = useState<number | null>(null);
+      const [searchValue, setSearchValue] = useState<string>('');
+      const [searchField, setSearchField] = useState<string>('all');
+      const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
+      const [serviceFilter, setServiceFilter] = useState<string>("");
+      const [currentPage, setCurrentPage] = useState<number>(1);
+      const packagesPerPage = 15;
+      
+      const toggleDropdown = () => {
+          setDropdownOpen(!dropdownOpen);
+      };
+  
+      const handleServiceFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+          setServiceFilter(event.target.value);
+      };
+  
+      const router = useRouter();
+  
+      const handleDeletePackage = async () => {
+          try {
+              if (!packageToDelete) return;
+  
+              await supabase.from("Package")
+                  .delete()
+                  .eq("package_id", packageToDelete);
+          
+              setPackages(prevPackages => prevPackages.filter(pkg => pkg.package_id !== packageToDelete));
+          
+              console.log(`Package with ID ${packageToDelete} deleted successfully`);
+          
+              setShowModal(false);
+          } catch (error) {
+              console.error('Error deleting package:', (error as Error).message);
+          }
+      };
+      
+      useEffect(() => {
+          async function fetchPackages() {
+              try {
+                  const { data: packagesData, error } = await supabase
+                      .from('Package')
+                      .select('*');
+          
+                  if (error) {
+                      throw error;
+                  }
+                  const serviceIds = packagesData?.map(pkg => pkg.service_id) || [];
+  
+                  const { data: servicesData, error: serviceError } = await supabase
+                      .from('Service')
+                      .select('service_id, service_name')
+                      .in('service_id', serviceIds);
+  
+                  if (serviceError) {
+                      throw serviceError;
+                  }
+  
+                  const serviceMap: {[key: number]: string} = {};
+                  servicesData?.forEach(svc => {
+                      serviceMap[svc.service_id] = svc.service_name;
+                  });
+  
+                  const packagesWithServices = packagesData?.map(pkg => ({
+                      ...pkg,
+                      service_name: serviceMap[pkg.service_id] || 'Unknown Package',
+                  })) || [];
+  
+                  setPackages(packagesWithServices);
+  
+              } catch (error) {
+                  console.error('Error fetching data:', (error as Error).message);
+              }
+          }
+          fetchPackages();
+      }, [packageToDelete, showModal]);
+  
+      console.log("Filtering packages...");
+      const filteredPackages = packages.filter((pkg) => {
+          const searchTerm = searchValue.toLowerCase();
+          
+          const serviceMatch =
+          serviceFilter === '' || pkg.service_name?.toLowerCase() === serviceFilter.toLowerCase(); 
+  
+          if (searchValue === '' && serviceMatch ) {
+              return true;
+          }
+      
+          let isMatchingSearch = false;
+      
+          if (searchField === 'all') {
+              isMatchingSearch = (
+                  pkg.package_name.toLowerCase().includes(searchTerm) ||
+                  pkg.service_name?.toLowerCase().includes(searchTerm) || false
+              );
+          } else if (searchField === 'package_name') {
+              isMatchingSearch = pkg.package_name.toLowerCase().includes(searchTerm);
+          } else if (searchField === 'service_name') {
+              const serviceNameString = pkg.service_name?.toString() || '';
+              isMatchingSearch = parseInt(serviceNameString) === parseInt(searchTerm);
+          }
+      
+          return isMatchingSearch && serviceMatch;
+      });
+      
+      console.log("Filtered packages:", filteredPackages);
+      
+      const handleSearch = () => {
+          console.log("Search value:", searchValue);
+      };
+      
+      const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+          setSearchValue(event.target.value);
+      };
+      
+      const handleSearchInputKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+          if (event.key === 'Enter') {
+              handleSearch();
+          }
+      };
+      
+      const handleSearchFieldChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+          setSearchField(event.target.value);
+      };
+  
+      const handlePageChange = (pageNumber: number) => {
+          setCurrentPage(pageNumber);
+      };
+  
+      const totalPages = Math.ceil(filteredPackages.length / packagesPerPage);
+      const startIndex = (currentPage - 1) * packagesPerPage;
+      const displayedPackages = filteredPackages.slice(startIndex, startIndex + packagesPerPage);
+  
+      if (packages.length === 0) {
+          return <div>Loading...</div>;
+      }
         
     return (
         <div className="relative w-full overflow-x-auto shadow-md">
