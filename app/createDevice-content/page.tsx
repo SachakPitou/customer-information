@@ -355,15 +355,16 @@ export default function CreateDevice() {
         const updatedPorts = [...portAttributes];
         if (field === 'interface_name') {
             // Check if the new interface name is unique
+            const fullInterfaceName = `${interfacePrefix}${value}`;
             const isUnique = !updatedPorts.some((port, i) => 
-                i !== index && port.interface_name === value
+                i !== index && `${interfacePrefix}${port.interface_name}` === fullInterfaceName
             );
             
             if (isUnique) {
                 updatedPorts[index][field as keyof PortAttribute] = value;
                 setInterfaceError('');
             } else {
-                setInterfaceError(`Interface name '${value}' is already in use`);
+                setInterfaceError(`Interface name '${fullInterfaceName}' is already in use`);
                 return; // Don't update if not unique
             }
         } else {
@@ -382,12 +383,12 @@ export default function CreateDevice() {
         setInterfacePrefix(value);
         
         // Update all ports with the new prefix
-        const updatedPorts = portAttributes.map(port => ({
-            ...port,
-            interface_name: value + (port.interface_name?.replace(interfacePrefix, '') || '')
-        }));
+        // const updatedPorts = portAttributes.map(port => ({
+        //     ...port,
+        //     interface_name: value + (port.interface_name?.replace(interfacePrefix, '') || '')
+        // }));
         
-        setPortAttributes(updatedPorts);
+        // setPortAttributes(updatedPorts);
     };
 
     const handleAddDevice = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -457,19 +458,25 @@ export default function CreateDevice() {
 
             const deviceId = deviceData[0].device_id;
 
-            const interfaces = portAttributes.map((port) => ({
+            const interfaces = portAttributes.map((port, index) => ({
                 device_id: parseInt(deviceId.toString()),
-                ...port,
+                interface_name: `${interfacePrefix}${port.interface_name || (index + 1)}`, // Full interface name
+                description: port.description,
+                port_type: port.port_type,
+                link_mode: port.link_mode,
+                capacity: port.capacity,
+                link_protocol: port.link_protocol,
             }));
-
+    
             const { data: interfaceData, error: interfaceError } = await supabase
                 .from('Interface')
                 .insert(interfaces)
                 .select();
-
+    
             if (interfaceError) {
                 throw new Error(interfaceError.message);
             }
+    
 
             const portDevices = portAttributes.map((port, index) => ({
                 port_number: index + 1,

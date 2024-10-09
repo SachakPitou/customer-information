@@ -36,6 +36,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const [selectedDeviceTypeId, setSelectedDeviceTypeId] = useState<string>('');
   const [frame, setFrame] = useState<string>('');
   const [ontId, setOntId] = useState<string>('');
+  const [saleName, setSaleName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [insertCustomerId, setInsertedCustomerId] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -192,6 +193,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
           VLan: vLan || null,
           frame: frame || null,
           ont_id: ontId || null,
+          sale_name: saleName || null,
           longtitude: longtitude || null,
           langtitude: langtitude || null,
           capacity_bandwidth: capacityBandwidth,
@@ -442,6 +444,34 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                     </div>
                   </>
                 )}
+                {selectedDeviceTypeId === '2' && ( // Assuming 3 is for OLT
+                  <>
+                    <div className="mb-4">
+                      <label className="block mb-2">ACL:</label>
+                      <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
+                    </div>
+                    {/* <div className="mb-4">
+                      <label className="block mb-2">VLan:</label>
+                      <input type="text" value={vLan} onChange={e => setVLan(e.target.value)} className="w-full p-2 border" />
+                    </div> */}
+                    <div className="mb-4">
+                      <label className="block mb-2">Service Port:</label>
+                      <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="w-full p-2 border" />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block mb-2">Camera IP:</label>
+                      <input type="text" value={cameraIP} onChange={e => setCameraIP(e.target.value)} className="w-full p-2 border" />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block mb-2">Switch Port:</label>
+                      <input type="text" value={switchPort} onChange={e => setSwitchPort(e.target.value)} className="w-full p-2 border" />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block mb-2">Port Type:</label>
+                      <input type="text" value={portType} onChange={e => setPortType(e.target.value)} className="w-full p-2 border" />
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="w-full lg:w-1/2 p-2">
@@ -465,6 +495,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                 <div className="mb-4">
                   <label className="block mb-2">Langtitude:</label>
                   <input type="text" value={langtitude} onChange={e => setLangtitudes(e.target.value)} className="w-full p-2 border" />
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="saleName" className="block mb-2">Sale Name:</label>
+                  <input type="text" value={saleName} onChange={e => setSaleName(e.target.value)} className="w-full p-2 border" />
                 </div>
                 {selectedDeviceTypeId === '2' && (
                 <div className="mb-4">

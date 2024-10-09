@@ -8,6 +8,7 @@ import PopUpModal from '@/app/component/popUpmodal';
 import { useSupabase } from '@/app/context/SupabaseProvider';
 import { Session } from '@supabase/supabase-js';
 
+type CustomerStatus = 'ACTIVE' | 'INACTIVE' | 'REACTIVE' | 'TERMINATE' | '';
 interface CustomerData {
   customer_id: string;
   customer_name: string;
@@ -41,11 +42,21 @@ interface CustomerData {
   switch_port: string;
   router_device_id: string;
   capacity_bandwidth: string;
-  status_type: string;
   subnet: string;
+  status_type: CustomerStatus;
+  active_timestamp: string | null;
+  inactive_timestamp: string | null;
+  reactive_timestamp: string | null;
+  terminate_timestamp: string | null;
   [key: string]: any;
 }
-
+type StatusHistory = {
+  id: number;
+  customer_id: string;
+  status_type: string;
+  start_date: string;
+  end_date: string;
+};
 interface ServiceData {
   service_id: number;
   service_name: string;
@@ -139,8 +150,13 @@ export default function Page() {
     switch_port: '',
     router_device_id: '',
     capacity_bandwidth: '',
-    status_type: '',
     subnet: '',
+    status_type: '',
+    sale_name: '',
+    active_timestamp: null,
+    inactive_timestamp: null,
+    reactive_timestamp: null,
+    terminate_timestamp: null,
   });
   const [services, setServices] = useState<ServiceData[]>([]);
   const [packages, setPackages] = useState<PackageData[]>([]);
@@ -153,6 +169,12 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const { customer_id } = useParams<{ customer_id: string }>();
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [statusTimestamp, setStatusTimestamp] = useState('');
+  const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([]);
+  const [statusDates, setStatusDates] = useState({ 
+    start_date: '', 
+    end_date: '',
+  });
   const closeModal = () => {
       setIsModalOpen(false);
       console.log('Modal Closed');
@@ -168,6 +190,7 @@ export default function Page() {
                   .single();
               if (error) throw new Error(error.message);
               setCustomer(customerData as CustomerData);
+              updateStatusTimestamp(customerData.status_type, customerData);
           } catch (error) {
               console.error('Error fetching customer:', (error as Error).message);
               setError((error as Error).message);
@@ -279,7 +302,31 @@ export default function Page() {
           setError((error as Error).message);
         }
       };
+      const fetchStatusHistory = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('statushistory')
+            .select('*')
+            .eq('customer_id', customer_id)
+            .order('start_date', { ascending: false })
+          
+          if (error) throw error;
       
+          setStatusHistory(data || []);
+      
+          // Set the most recent status dates
+          if (data && data.length > 0) {
+            const mostRecentStatus = data[0];
+            setStatusDates({
+              start_date: mostRecentStatus.start_date || '',
+              end_date: mostRecentStatus.end_date || '',
+            });
+          }
+      
+        } catch (error) {
+          console.error('Error fetching status history:', error instanceof Error ? error.message : String(error));
+        }
+      };
       const fetchUserType = async () => {
         try {
           const supabase = createClient();
@@ -323,8 +370,63 @@ export default function Page() {
         fetchInterface();
         fetchDeviceType();
         fetchRouters();
+        fetchStatusHistory();
     }, [customer_id]);
 
+    const updateStatusTimestamp = (status: CustomerStatus, customerData: CustomerData) => {
+      const timestampField = `${status.toLowerCase()}_timestamp` as keyof CustomerData;
+      const timestamp = customerData[timestampField] || '';
+      setStatusTimestamp(typeof timestamp === 'string' ? timestamp.slice(0, 16) : '');
+    };
+  
+    const handleStatusTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const newStatusType = e.target.value as CustomerStatus;
+      setCustomer(prevCustomer => {
+        const updatedCustomer = { ...prevCustomer, status_type: newStatusType };
+        updateStatusTimestamp(newStatusType, updatedCustomer);
+        return updatedCustomer;
+      });
+    
+      // Find the most recent status history for the new status type
+      const relevantHistory = statusHistory.find(item => item.status_type === newStatusType);
+      if (relevantHistory) {
+        setStatusDates({
+          start_date: relevantHistory.start_date,
+          end_date: relevantHistory.end_date || new Date().toISOString().split('T')[0] // Set to current date if null
+        });
+      } else {
+        // If no history found, set start date to today and end date to a future date (e.g., one year from now)
+        const today = new Date();
+        const oneYearFromNow = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+        setStatusDates({
+          start_date: today.toISOString().split('T')[0],
+          end_date: oneYearFromNow.toISOString().split('T')[0]
+        });
+      }
+    };
+    
+    const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newStartDate = e.target.value;
+      setStatusDates(prevDates => ({ ...prevDates, start_date: newStartDate }));
+    };
+    
+    const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newEndDate = e.target.value;
+      setStatusDates(prevDates => ({ ...prevDates, end_date: newEndDate }));
+    };
+
+    const handleNoEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.checked) {
+        setStatusDates(prevDates => ({ ...prevDates, end_date: '' }));
+      } else {
+        const today = new Date().toISOString().split('T')[0];
+        setStatusDates(prevDates => ({ ...prevDates, end_date: today }));
+      }
+    };
+    const formatDate = (dateString: string | null): string => {
+      if (!dateString) return 'N/A';
+      return new Date(dateString).toLocaleString();
+    };
     const handleEditCustomer = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
@@ -352,8 +454,8 @@ export default function Page() {
           'ONU_mac_address', 'slot', 'port', 'service_port', 'onu_id', 'camera_ip',
           'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
           'location_id', 'olt_id', 'isActive', 'interface_id', 'switch_port', 'port_type',
-          'ACL', 'VLan', 'description', 'frame', 'ont_id', 'capacity_bandwidth', 'status',
-          'subnet',
+          'ACL', 'VLan', 'description', 'frame', 'ont_id', 'capacity_bandwidth', 'status_type',
+          'subnet', 'sale_name',
         ];
     
         const historyRecords = fieldsToCheck.map(field => {
@@ -377,24 +479,84 @@ export default function Page() {
           if (historyError) throw historyError;
         }
     
-        const statusTimestamp = new Date().toISOString();
-        let timestampUpdate: Record<string, string> = {};
-    
-        switch (customer.status_type) {
-          case 'ACTIVE':
-            timestampUpdate = { active_timestamp: statusTimestamp };
-            break;
-          case 'INACTIVE':
-            timestampUpdate = { inactive_timestamp: statusTimestamp };
-            break;
-          case 'REACTIVE':
-            timestampUpdate = { reactive_timestamp: statusTimestamp };
-            break;
-          case 'TERMINATE':
-            timestampUpdate = { terminate_timestamp: statusTimestamp };
-            break;
-          default:
-            break;
+        // Handle status change
+        const { data: existingStatusHistory, error: fetchStatusError } = await supabase
+          .from('statushistory')
+          .select('*')
+          .eq('customer_id', customer_id)
+          .order('start_date', { ascending: false })
+          .limit(1);
+
+        if (fetchStatusError) {
+          console.error("Error fetching existing status history:", fetchStatusError);
+          throw fetchStatusError;
+        }
+
+        console.log("Existing status history:", existingStatusHistory);
+
+        if (existingStatusHistory && existingStatusHistory.length > 0) {
+          const currentStatusHistory = existingStatusHistory[0];
+          
+          if (currentStatusHistory.status_type !== customer.status_type ||
+              currentStatusHistory.start_date !== statusDates.start_date ||
+              currentStatusHistory.end_date !== statusDates.end_date) {
+            
+            console.log("Status or dates have changed. Creating new record");
+            
+            // Create a new record
+            const newStatusHistory: any = {
+              customer_id: customer_id,
+              status_type: customer.status_type,
+              start_date: statusDates.start_date || null,
+            };
+
+            if (statusDates.end_date) {
+              newStatusHistory.end_date = statusDates.end_date;
+            }
+
+            console.log("New status history data:", newStatusHistory);
+
+            const { data: insertedData, error: insertStatusError } = await supabase
+              .from('statushistory')
+              .insert([newStatusHistory])
+              .select();
+
+            if (insertStatusError) {
+              console.error("Error inserting new status history:", insertStatusError);
+              throw insertStatusError;
+            }
+
+            console.log("Inserted status history data:", insertedData);
+          } else {
+            console.log("No changes in status history. Skipping update.");
+          }
+        } else {
+          // No existing status history, insert a new record
+          console.log("No existing status history. Inserting new record");
+          
+          const newStatusHistory: any = {
+            customer_id: customer_id,
+            status_type: customer.status_type,
+            start_date: statusDates.start_date || null,
+          };
+
+          if (statusDates.end_date) {
+            newStatusHistory.end_date = statusDates.end_date;
+          }
+
+          console.log("New status history data:", newStatusHistory);
+
+          const { data: insertedData, error: insertStatusError } = await supabase
+            .from('statushistory')
+            .insert([newStatusHistory])
+            .select();
+
+          if (insertStatusError) {
+            console.error("Error inserting new status history:", insertStatusError);
+            throw insertStatusError;
+          }
+
+          console.log("Inserted status history data:", insertedData);
         }
 
 
@@ -425,15 +587,18 @@ export default function Page() {
                     status_type: customer.status_type,
                     subnet: customer.subnet,
                     description: customer.description,
+                    active_timestamp: customer.active_timestamp,
+                    inactive_timestamp: customer.inactive_timestamp,
+                    reactive_timestamp: customer.reactive_timestamp,
+                    terminate_timestamp: customer.terminate_timestamp,
                     capacity_bandwidth: customer.capacity_bandwidth,
+                    sale_name: customer.sale_name,
                     device_id: customer.device_id ? parseInt(customer.device_id) : null,
                     service_id: customer.service_id ? parseInt(customer.service_id) : null,
                     package_id: customer.package_id ? parseInt(customer.package_id) : null,
                     location_id: customer.location_id ? parseInt(customer.location_id) : null,
                     interface_id: customer.interface_id ? parseInt(customer.interface_id) : null,
                     olt_id: customer.olt_id ? parseInt(customer.olt_id) : null,
-                    ...timestampUpdate
-                
                 })
                 .eq('customer_id', customer_id);
             if (error) throw new Error(error.message);
@@ -791,6 +956,18 @@ export default function Page() {
                       className="w-full p-2 border rounded"
                     />
                   </div>
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="saleName" className="block mb-2">Sale Name:</label>
+                    <input
+                      type="text"
+                      id="saleName"
+                      placeholder="Enter Sale Name"
+                      value={customer.sale_name}
+                      onChange={(e) => setCustomer({ ...customer, sale_name: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
                 </>
               )}
               {customer.device_type_id === 3 && (
@@ -894,23 +1071,63 @@ export default function Page() {
               </>
             )}
             <div className="w-full md:w-1/2 px-2 mb-4">
-                <label htmlFor="statusType" className="block mb-2">Status Type:</label>
-                <select
-                  id="statusType"
-                  value={customer.status_type || ''}
-                  onChange={(e) => setCustomer({ ...customer, status_type: e.target.value })}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Select Status...</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="REACTIVE">Reactive</option>
-                  <option value="TERMINATE">Terminate</option>
-                </select>
-              </div>
-
-          </>
-        )}
+            <label htmlFor="statusType" className="block mb-2">Status Type:</label>
+            <select
+              id="statusType"
+              value={customer.status_type || ''}
+              onChange={handleStatusTypeChange}
+              className="w-full p-2 border rounded"
+            >
+              <option value="">Select Status...</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="REACTIVE">Reactive</option>
+              <option value="TERMINATE">Terminate</option>
+            </select>
+            </div>
+            {customer.status_type && (
+              <>
+                <label htmlFor="statusStartDate" className="block">
+                  Status Start Date:
+                </label>
+                <input
+                  type="datetime-local"
+                  id="statusStartDate"
+                  value={statusDates.start_date || ''}
+                  onChange={handleStartDateChange}
+                  required
+                  className="font-raleway-black w-full p-2 border mb-3"
+                />
+                <label htmlFor="statusEndDate" className="block">
+                  Status End Date:
+                </label>
+                <input
+                  type="datetime-local"
+                  id="statusEndDate"
+                  value={statusDates.end_date || ''}
+                  onChange={handleEndDateChange}
+                  className="font-raleway-black w-full p-2 border mb-3"
+                />
+                <div className="flex items-center mb-3">
+                  <input
+                    type="checkbox"
+                    id="noEndDate"
+                    checked={!statusDates.end_date}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setStatusDates(prevDates => ({ ...prevDates, end_date: '' }));
+                      } else {
+                        setStatusDates(prevDates => ({ ...prevDates, end_date: new Date().toISOString().split('T')[0] }));
+                      }
+                    }}
+                    className="mr-2"
+                  />
+                  <label htmlFor="noEndDate">No End Date</label>
+                </div>
+              </>
+            )}
+            </>
+          )}
           <div className="w-full p-2 text-center">
             <button
               type="submit"

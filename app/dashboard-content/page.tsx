@@ -4,19 +4,12 @@ import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import SideBar from '../component/SideBar';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import StatusChangeFilter from '../component/statusChangeFilter';
-import { ArrowLeft, Home, Download, Search, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-// import { Calendar } from '@/components/ui/calendar';
-import { format } from "date-fns";
 
 interface Customer {
+    ONU_mac_address: string;
     customer_id: string;
     customer_name: string;
     phone_number: string;
@@ -42,6 +35,15 @@ interface Customer {
     device_id: string;
     olt_id: string;
     interface_id: string;
+    ACL: string; 
+    switch_port: string;
+    port_type: string;
+    frame: number,
+    statusHistory: Array<{
+        status_type: string;
+        start_date: string;
+        end_date: string | null;
+    }>;
 }
 
 interface StatusChangeFilter {
@@ -98,50 +100,86 @@ export default function Dashboard() {
     };
 
     const downloadExcel = () => {
-        const filteredByDate = filteredCustomers.filter(customer => {
-            const statusTimestamp = getStatusTimestamp(customer);
-            return (!startDate || (statusTimestamp && statusTimestamp >= startDate)) && 
-                   (!endDate || (statusTimestamp && statusTimestamp <= endDate));
+        const excelData = filteredCustomers.map(customer => {
+            let relevantStatus = null;
+            
+            // Check if statusHistory exists and is an array
+            if (Array.isArray(customer.statusHistory) && customer.statusHistory.length > 0) {
+                // Always sort the status history to get the latest status first
+                const sortedStatusHistory = customer.statusHistory
+                    .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+    
+                if (statusChangeFilter.startDate && statusChangeFilter.endDate) {
+                    const filterStartDate = new Date(statusChangeFilter.startDate);
+                    const filterEndDate = new Date(statusChangeFilter.endDate);
+                    filterStartDate.setHours(0, 0, 0, 0);
+                    filterEndDate.setHours(23, 59, 59, 999);
+    
+                    // Find the most recent status within the filter date range
+                    relevantStatus = sortedStatusHistory.find(status => {
+                        const statusStartDate = new Date(status.start_date);
+                        const statusEndDate = status.end_date ? new Date(status.end_date) : new Date();
+                        return (statusStartDate <= filterEndDate && statusEndDate >= filterStartDate);
+                    });
+                }
+    
+                // If no relevant status found within the date range or no date filter applied, use the latest status
+                if (!relevantStatus) {
+                    relevantStatus = sortedStatusHistory[0];
+                }
+            }
+    
+            // If no relevant status found in history, use the current status
+            if (!relevantStatus) {
+                relevantStatus = {
+                    status_type: customer.status_type || 'Unknown',
+                    start_date: customer.active_timestamp || '',
+                    end_date: null
+                };
+            }
+    
+            return {
+                'No.': customer.rowNumber,
+                'Name': customer.customer_name,
+                'Phone Number': customer.phone_number,
+                'CID': customer.cid,
+                'Internet Package': customer.package_name,
+                'Slot': customer.slot,
+                'Port': customer.port,
+                'Frame': customer.frame,
+                'Service Port': customer.service_port,
+                'ONU ID': customer.onu_id,
+                'ACL': customer.ACL,
+                'Switch Port': customer.switch_port,
+                'Port Type': customer.port_type,
+                'ONU MAC Address': customer.ONU_mac_address,
+                'IP Address': customer.ip_address,
+                'Interface': customer.interface_name,
+                'Device': customer.device_name,
+                'Status': relevantStatus.status_type,
+                'Status Start Date': relevantStatus.start_date,
+                'Status End Date': relevantStatus.end_date ? relevantStatus.end_date : 'Current',
+            };
         });
-
+    
         // Create a new workbook
         const workbook = XLSX.utils.book_new();
-        
-        // Convert the filteredCustomers data to a format suitable for Excel
-        const excelData = filteredByDate.map(customer => ({
-            'No.': customer.rowNumber,
-            'Name': customer.customer_name,
-            'Status': customer.status_type,
-            'Phone Number': customer.phone_number,
-            'CID': customer.cid,
-            'Internet Package': customer.package_name,
-            'Slot': customer.slot,
-            'Port': customer.port,
-            'Service Port': customer.service_port,
-            'ONU ID': customer.onu_id,
-            'IP Address': customer.ip_address,
-            'Interface': customer.interface_name,
-            'OLT': customer.olt_name,
-            'Device': customer.device_name,
-            'Is Active': customer.status_type,
-        }));
-
+    
         // Create a worksheet
         const worksheet = XLSX.utils.json_to_sheet(excelData);
-
+    
         // Add the worksheet to the workbook
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
-
+    
         // Generate Excel file buffer
         const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-
+    
         // Create a Blob from the buffer
         const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-
+    
         // Save the file
         saveAs(data, 'customer_dashboard.xlsx');
     };
-
     const toggleRow = (customerId: string) => {
         setExpandedRows((prevState) => ({
             ...prevState,
@@ -405,36 +443,22 @@ export default function Dashboard() {
                 if (customerError) throw customerError;
     
                 const customerPromises = customersData.map(async (customer: Customer, index: number) => {
-                    const { data: packageData } = await supabase
-                        .from('Package')
-                        .select('package_name')
-                        .eq('package_id', customer.package_id)
-                        .single();
+                    const [
+                        { data: packageData },
+                        { data: deviceData },
+                        { data: oltData },
+                        { data: interfaceData },
+                        { data: statusData },
+                        { data: statusHistoryData }
+                    ] = await Promise.all([
+                        supabase.from('Package').select('package_name').eq('package_id', customer.package_id).single(),
+                        supabase.from('Device').select('device_name').eq('device_id', customer.device_id).single(),
+                        supabase.from('OLT').select('olt_name').eq('olt_id', customer.olt_id).single(),
+                        supabase.from('Interface').select('interface_name').eq('interface_id', customer.interface_id).single(),
+                        supabase.from('Customer').select('*').eq('status', 'Completed').eq('customer_id', customer.customer_id).single(),
+                        supabase.from('statushistory').select('*').eq('customer_id', customer.customer_id)
+                    ]);
     
-                    const { data: deviceData } = await supabase
-                        .from('Device')
-                        .select('device_name')
-                        .eq('device_id', customer.device_id)
-                        .single();
-    
-                    const { data: oltData } = await supabase
-                        .from('OLT')
-                        .select('olt_name')
-                        .eq('olt_id', customer.olt_id)
-                        .single();
-
-                    const { data: interfaceData } = await supabase
-                        .from('Interface')
-                        .select('interface_name')
-                        .eq('interface_id', customer.interface_id)
-                        .single();
-                    
-                    const { data: statusData } = await supabase
-                        .from('Customer')
-                        .select('*')
-                        .eq('status', 'Completed')
-                        .eq('customer_id', customer.customer_id)
-                        .single();
                     return {
                         ...customer,
                         rowNumber: index + 1,
@@ -442,7 +466,8 @@ export default function Dashboard() {
                         device_name: deviceData?.device_name || 'Unknown Device',
                         interface_name: interfaceData?.interface_name || 'Unknown Interface',
                         olt_name: oltData?.olt_name || 'Unknown OLT',
-                        status: statusData?.status
+                        status: statusData?.status,
+                        statusHistory: statusHistoryData || []
                     };
                 });
     
@@ -494,52 +519,70 @@ export default function Dashboard() {
     console.log("Filtering customers...");
     
     const filteredCustomers = customers.filter((customer) => {
+        console.log('Processing customer:', customer.customer_name, 'ID:', customer.customer_id);
+        console.log('Customer statusHistory:', customer.statusHistory);
+    
+        // First, check if the customer status is "Completed"
+        if (customer.status !== "Completed") {
+            console.log('Customer status not Completed:', customer.status);
+            return false; // Immediately exclude customers who are not "Completed"
+        }
+    
         const searchTerm = searchValue.toLowerCase();
-        const statusCustomer = customer.status === "Completed";
-        
-        let statusChangeFilterPass: boolean = true; // Initialize as boolean
+        let statusChangeFilterPass = true;
+    
+        // Date range and status type filter logic
         if (statusChangeFilter.startDate && statusChangeFilter.endDate) {
-            const startDate = new Date(statusChangeFilter.startDate);
-            startDate.setHours(0, 0, 0, 0);  // Set to beginning of the day
+            console.log('Applying date filter:', statusChangeFilter.startDate, 'to', statusChangeFilter.endDate);
+            
+            const filterStartDate = new Date(statusChangeFilter.startDate);
+            const filterEndDate = new Date(statusChangeFilter.endDate);
     
-            const endDate = new Date(statusChangeFilter.endDate);
-            endDate.setHours(23, 59, 59, 999);  // Set to end of the day
+            filterStartDate.setHours(0, 0, 0, 0);  // Set to beginning of the day
+            filterEndDate.setHours(23, 59, 59, 999);  // Set to end of the day
     
-            let relevantTimestamp: Date | null = null;
+            if (Array.isArray(customer.statusHistory) && customer.statusHistory.length > 0) {
+                console.log('Status history found. Entries:', customer.statusHistory.length);
+                
+                // Find the status that was active during the filter date range
+                const relevantStatus = customer.statusHistory.find(status => {
+                    const statusStartDate = new Date(status.start_date);
+                    const statusEndDate = status.end_date ? new Date(status.end_date) : new Date();
     
-            switch (statusChangeFilter.statusType) {
-                case 'ACTIVE':
-                    relevantTimestamp = customer.active_timestamp ? new Date(customer.active_timestamp) : null;
-                    break;
-                case 'INACTIVE':
-                    relevantTimestamp = customer.inactive_timestamp ? new Date(customer.inactive_timestamp) : null;
-                    break;
-                case 'REACTIVE':
-                    relevantTimestamp = customer.reactive_timestamp ? new Date(customer.reactive_timestamp) : null;
-                    break;
-                case 'TERMINATE':
-                    relevantTimestamp = customer.terminate_timestamp ? new Date(customer.terminate_timestamp) : null;
-                    break;
-                default:
-                    // For 'ALL', check all timestamps
-                    relevantTimestamp = new Date(Math.max(
-                        new Date(customer.active_timestamp || 0).getTime(),
-                        new Date(customer.inactive_timestamp || 0).getTime(),
-                        new Date(customer.reactive_timestamp || 0).getTime(),
-                        new Date(customer.terminate_timestamp || 0).getTime()
-                    ));
+                    return (statusStartDate <= filterEndDate && statusEndDate >= filterStartDate);
+                });
+    
+                console.log('Relevant status:', relevantStatus);
+    
+                if (relevantStatus) {
+                    if (statusChangeFilter.statusType !== 'ALL') {
+                        statusChangeFilterPass = relevantStatus.status_type === statusChangeFilter.statusType;
+                    }
+                } else {
+                    statusChangeFilterPass = false;
+                }
+            } else {
+                console.log('No status history found for customer');
+                statusChangeFilterPass = false;
             }
-    
-            statusChangeFilterPass = relevantTimestamp
-                ? (relevantTimestamp >= startDate && relevantTimestamp <= endDate)
-                : false;
+        } else if (statusChangeFilter.statusType !== 'ALL') {
+            // If no date range is specified, use the latest status
+            const latestStatus = customer.statusHistory.length > 0 
+                ? customer.statusHistory[customer.statusHistory.length - 1].status_type 
+                : customer.status_type;
+            
+            statusChangeFilterPass = latestStatus === statusChangeFilter.statusType;
         }
     
+        console.log('Status filter pass:', statusChangeFilterPass);
+    
+        // If no search value and the customer passes the status filter, include them
         if (searchValue === '' && statusChangeFilterPass) {
-            return statusCustomer;
+            console.log('Customer passes the filter:', customer.customer_name);
+            return true;
         }
     
-        let isMatchingSearch: boolean = false; // Initialize as boolean
+        let isMatchingSearch = false;
     
         // Search filter (existing logic)
         if (searchField === 'all') {
@@ -547,17 +590,13 @@ export default function Dashboard() {
                 (customer.customer_name?.toLowerCase().includes(searchTerm) || false) ||
                 (customer.phone_number?.toLowerCase().includes(searchTerm) || false) ||
                 (customer.cid?.toLowerCase().includes(searchTerm) || false) ||
-                (customer.package_name?.toLowerCase().includes(searchTerm) || false) ||
-                (customer.service_port?.toString().toLowerCase().includes(searchTerm) || false)
+                (customer.package_name?.toLowerCase().includes(searchTerm) || false) 
             );
         } else if (searchField === 'name') {
             isMatchingSearch = customer.customer_name?.toLowerCase().includes(searchTerm) || false;
         } else if (searchField === 'phone_number') {
             const phoneNumberString = customer.phone_number?.toString() || '';
-            isMatchingSearch = parseInt(phoneNumberString) === parseInt(searchTerm);
-        } else if (searchField === 'service_port') {
-            const servicePortString = customer.service_port?.toString() || '';
-            isMatchingSearch = parseInt(servicePortString) === parseInt(searchTerm);
+            isMatchingSearch = phoneNumberString.includes(searchTerm);
         } else if (searchField === 'cid') {
             const cidString = customer.cid?.toString().toLowerCase() || '';
             isMatchingSearch = cidString.startsWith(searchTerm.toLowerCase());
@@ -566,9 +605,10 @@ export default function Dashboard() {
             isMatchingSearch = internetPackageString.startsWith(searchTerm.toLowerCase());
         }
     
-        return isMatchingSearch && statusCustomer && statusChangeFilterPass;
-    });
+        console.log('Search filter match:', isMatchingSearch);
     
+        return isMatchingSearch && statusChangeFilterPass;
+    });
     
     console.log("Filtered customers:", filteredCustomers);
         

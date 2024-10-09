@@ -3,14 +3,19 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
-
+import { format, parseISO } from 'date-fns';
+type CustomerStatus = 'ACTIVE' | 'INACTIVE' | 'REACTIVE' | 'TERMINATE' | '';
 type Customer = {
     customer_name: string;
     cid: string;
     phone_number: string;
     address: string;
     activation_date: string;
-    isActive: boolean;
+    status_type: CustomerStatus;
+    active_timestamp: string | null;
+    inactive_timestamp: string | null;
+    reactive_timestamp: string | null;
+    terminate_timestamp: string | null;
     longtitude: string;
     langtitude: string;
     VLan: number;
@@ -42,6 +47,9 @@ type Customer = {
     router_name: string;
     frame: number;
     slot: number;
+    start_date: string | null;
+    end_date: string | null;
+    sale_name: string;
   };
   
   type EditHistory = {
@@ -62,6 +70,15 @@ export default function ViewCustomer() {
     const router = useRouter();
     const params = useParams();
     const customer_id = params.customer_id as string;
+    
+    const formatDate = (date: string | null): string => {
+      if (!date) return 'N/A';
+      try {
+        return format(parseISO(date), 'MMM dd, yyyy');
+      } catch {
+        return 'Invalid Date';
+      }
+    };
 
     useEffect(() => {
         async function fetchCustomers() {
@@ -98,7 +115,7 @@ export default function ViewCustomer() {
             const interfaceIds = customersData.map((customer) => customer.interface_id);
             const deviceTypeIds = customersData.map((customer) => customer.device_type_id);
     
-            const [packagesData, devicesData, servicesData, locationsData, interfacesData, deviceTypesData, portDevicesData] = await Promise.all([
+            const [packagesData, devicesData, servicesData, locationsData, interfacesData, deviceTypesData, portDevicesData, statusHistoryData] = await Promise.all([
               supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
               supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
               supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
@@ -106,6 +123,7 @@ export default function ViewCustomer() {
               supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
               supabase.from('Device Type').select('device_type_id, device_type').in('device_type_id', deviceTypeIds),
               supabase.from('PortDevice').select('*').in('interface_id', interfaceIds),
+              supabase.from('statushistory').select('customer_id, start_date, end_date').in('customer_id', customersData.map(c => c.customer_id))
             ]);
     
             const routerDeviceMap = Object.fromEntries(routerDevicesData.map(dev => [dev.device_id, dev.device_name]));
@@ -121,10 +139,13 @@ export default function ViewCustomer() {
                 port_number: portDevicesData.data?.find(pd => pd.interface_id === inte.interface_id)?.port_number
               }
             ]) ?? []);
-    
+            const statusHistoryMap = Object.fromEntries(
+              statusHistoryData.data?.map(sh => [sh.customer_id, { start_date: sh.start_date, end_date: sh.end_date }]) ?? []
+            );
             const customersWithDetails = customersData.map(customer => {
               const customerRouter = customerRouterData.find(cr => cr.customer_id === customer.customer_id);
               const routerDeviceId = customerRouter ? customerRouter.router_device_id : null;
+              const statusHistory = statusHistoryMap[customer.customer_id] || { start_date: null, end_date: null };
               return {
                 ...customer,
                 package_name: packageMap[customer.package_id] || 'Unknown Package',
@@ -136,6 +157,8 @@ export default function ViewCustomer() {
                   : 'Unknown Interface',
                 device_type: deviceTypeMap[customer.device_type_id] || 'Unknown Device Type',
                 router_name: routerDeviceId ? routerDeviceMap[routerDeviceId] || 'Unknown Router' : 'No Router Assigned',
+                start_date: statusHistory.start_date,
+                end_date: statusHistory.end_date,
               };
             });
     
@@ -332,9 +355,25 @@ export default function ViewCustomer() {
                                         <span>: {customer.activation_date}</span>
                                     </div>
                                     <br />
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-600">Start Date</p>
+                                        <p className="text-base text-gray-800">{formatDate(customer.start_date)}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-600">End Date</p>
+                                        <p className="text-base text-gray-800">{formatDate(customer.end_date)}</p>
+                                      </div>
+                                    </div>
+                                    <br />
                                     <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Status</span>
-                                        <span>: {customer.isActive ? 'Active' : 'Inactive'}</span>
+                                        <span>: {customer.status_type}</span>
+                                    </div>
+                                    <br />
+                                    <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">Sale Name</span>
+                                        <span>: {customer.sale_name}</span>
                                     </div>
                                 </div>
                             </td>

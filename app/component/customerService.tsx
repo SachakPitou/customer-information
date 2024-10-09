@@ -1,10 +1,9 @@
-"use client";
+"use client"
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import React, { useState, useEffect } from 'react';
 import PopUpModal from './popUpmodal';
-import { PostgrestError } from '@supabase/supabase-js';
 
 interface CustomerData {
   customer_id: string;
@@ -18,6 +17,7 @@ interface CustomerData {
   location_id: number;
   status_type: string | null;
   status: string;
+  sale_name: string;
   active_timestamp?: string;
   inactive_timestamp?: string;
   reactive_timestamp?: string;
@@ -40,31 +40,13 @@ interface Location {
   location_name: string;
 }
 
-type Database = {
-  public: {
-    Tables: {
-      Service: {
-        Row: Service;
-      },
-      Package: {
-        Row: Package;
-      },
-      Location: {
-        Row: Location;
-      },
-      Customer: {
-        Row: CustomerData;
-      };
-    };
-  };
-};
-
 export default function CustomerServiceForm() {
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [CID, setCID] = useState('');
   const [Address, setAddress] = useState('');
   const [activationDate, setActivationDate] = useState('');
+  const [salesName, setsalesName] = useState('');
   const [services, setServices] = useState<Service[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -76,7 +58,14 @@ export default function CustomerServiceForm() {
   const [insertCustomerId, setInsertedCustomerId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusType, setStatusType] = useState<string | null>(null);
-  const [statusTimestamp, setStatusTimestamp] = useState<string | undefined>(undefined);
+  const [statusTimestamp, setStatusTimestamp] = useState<string>('');
+  const [statusStartDate, setStatusStartDate] = useState('');
+  const [statusEndDate, setStatusEndDate] = useState('');
+  const [statusHistory, setStatusHistory] = useState<Array<{
+    status_type: string;
+    start_date: string;
+    end_date: string;
+  }>>([]);
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -91,103 +80,125 @@ export default function CustomerServiceForm() {
   const handleStatusTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatusType = e.target.value;
     setStatusType(newStatusType);
-    setStatusTimestamp(new Date().toISOString());
+    setStatusStartDate('');
+    setStatusEndDate('');
+  };
+  const handleRemoveStatus = (index: number) => {
+    setStatusHistory(statusHistory.filter((_, i) => i !== index));
+  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const customerId = uuidv4();
+      const customerData: Partial<CustomerData> = {
+        customer_id: customerId,
+        customer_name: customerName,
+        phone_number: phoneNumber,
+        cid: CID,
+        address: Address,
+        activation_date: activationDate,
+        service_id: parseInt(selectedServiceId),
+        package_id: parseInt(selectedPackageId),
+        location_id: parseInt(selectedLocationId),
+        status_type: statusType,
+        sale_name: salesName,
+        status: 'Pending Technical Review',
+      };
+
+      // Add timestamp fields only if they have a value
+      if (statusType === 'ACTIVE' && statusTimestamp) customerData.active_timestamp = statusTimestamp;
+      if (statusType === 'INACTIVE' && statusTimestamp) customerData.inactive_timestamp = statusTimestamp;
+      if (statusType === 'REACTIVE' && statusTimestamp) customerData.reactive_timestamp = statusTimestamp;
+      if (statusType === 'TERMINATE' && statusTimestamp) customerData.terminate_timestamp = statusTimestamp;
+
+      // Insert into Customer table
+      const { data: customerInsertData, error: customerInsertError } = await supabase
+        .from('Customer')
+        .insert([customerData]);
+
+      if (customerInsertError) throw new Error(customerInsertError.message);
+
+      // Insert into StatusHistory table only if both status_type and start_date are provided
+      if (statusType && statusStartDate) {
+        const statusHistoryData = {
+          customer_id: customerId,
+          status_type: statusType,
+          start_date: statusStartDate,
+          end_date: statusEndDate || null
+        };
+
+        const { data: statusHistoryInsertData, error: statusHistoryInsertError } = await supabase
+          .from('statushistory')
+          .insert([statusHistoryData]);
+
+        if (statusHistoryInsertError) throw new Error(statusHistoryInsertError.message);
+      }
+
+      setInsertedCustomerId(customerId);
+      router.push(`/dashboard`);
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("An unknown error occurred.");
+      }
+    }
   };
 
-
-// Ensure CustomerData type matches the Supabase schema
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    const customerId = uuidv4();
-    const customerData: CustomerData = {
-      customer_id: customerId,
-      customer_name: customerName,
-      phone_number: phoneNumber,
-      cid: CID,
-      address: Address,
-      activation_date: activationDate,
-      service_id: parseInt(selectedServiceId),
-      package_id: parseInt(selectedPackageId),
-      location_id: parseInt(selectedLocationId),
-      status_type: statusType,
-      status: 'Pending Technical Review',
-      active_timestamp: statusType === 'ACTIVE' ? statusTimestamp : undefined,
-      inactive_timestamp: statusType === 'INACTIVE' ? statusTimestamp : undefined,
-      reactive_timestamp: statusType === 'REACTIVE' ? statusTimestamp : undefined,
-      terminate_timestamp: statusType === 'TERMINATE' ? statusTimestamp : undefined,
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('Service')
+          .select('*');
+        if (error) throw new Error(error.message);
+        setServices(data as Service[] || []);
+      } catch (error) {
+        if (error instanceof Error) {
+          setError(error.message);
+        } else {
+          setError("An unknown error occurred.");
+        }
+      }
     };
 
-    const { data, error: insertError } = await supabase
-      .from('Customer')
-      .insert([customerData]);
-
-    if (insertError) throw new Error(insertError.message);
-    setInsertedCustomerId(customerId);
-    router.push(`/dashboard`);
-  } catch (error) {
-    if (error instanceof Error) {
-      setError(error.message);
-    } else {
-      setError("An unknown error occurred.");
-    }
-  }
-};
-
-  
-useEffect(() => {
-  const fetchService = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('Service')
-        .select('*');
-      if (error) throw new Error(error.message);
-      setServices(data as Service[] || []);
-    } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("An unknown error occurred.");
+    const fetchPackage = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('Package')
+          .select('*');
+        if (error) throw new Error(error.message);
+        setPackages(data as Package[] || []);
+      } catch (error) {
+        if (error instanceof Error) {
+          setError(error.message);
+        } else {
+          setError("An unknown error occurred.");
+        }
       }
-    }
-  };
+    };
 
-  const fetchPackage = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('Package')
-        .select('*');
-      if (error) throw new Error(error.message);
-      setPackages(data as Package[] || []);
-    } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("An unknown error occurred.");
+    const fetchLocation = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('Location')
+          .select('*');
+        if (error) throw new Error(error.message);
+        setLocations(data as Location[] || []);
+      } catch (error) {
+        if (error instanceof Error) {
+          setError(error.message);
+        } else {
+          setError("An unknown error occurred.");
+        }
       }
-    }
-  };
+    };
 
-  const fetchLocation = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('Location')
-        .select('*');
-      if (error) throw new Error(error.message);
-      setLocations(data as Location[] || []);
-    } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("An unknown error occurred.");
-      }
-    }
-  };
-
-  fetchService();
-  fetchPackage();
-  fetchLocation();
+    fetchService();
+    fetchPackage();
+    fetchLocation();
   }, []);
+
   const filteredPackagesByService = packages.filter(pkg => pkg.service_id === parseInt(selectedServiceId));
 
   return (
@@ -300,27 +311,60 @@ useEffect(() => {
               required
               className="font-raleway-black w-full p-2 border mb-2"
             />
-            <label htmlFor="statusType" className="block">
-              Status Type:
-            </label>
-            <select
-              id="statusType"
-              value={statusType || ''}
-              onChange={handleStatusTypeChange}
-              required
-              className="font-raleway-black w-full p-2 border mb-3"
-            >
-              <option value="">Select Status Type...</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-              <option value="REACTIVE">Reactive</option>
-              <option value="TERMINATE">Terminate</option>
-            </select>
-            {statusTimestamp && (
-              <p className="text-sm text-gray-600">
-                Status last updated: {new Date(statusTimestamp).toLocaleString()}
-              </p>
-            )}
+            <label htmlFor="statusType" className="block mb-1">
+                Status Type:
+              </label>
+              <select
+                id="statusType"
+                value={statusType || ''}
+                onChange={handleStatusTypeChange}
+                required
+                className="font-raleway-black w-full p-2 border mb-2"
+              >
+                <option value="">Select Status Type...</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="REACTIVE">Reactive</option>
+                <option value="TERMINATE">Terminate</option>
+              </select>
+              {statusType && (
+                <>
+                  <div>
+                    <label htmlFor="statusStartDate" className="block mb-1">
+                      Start Date:
+                    </label>
+                    <input
+                      type="datetime-local"
+                      id="statusStartDate"
+                      value={statusStartDate}
+                      onChange={(e) => setStatusStartDate(e.target.value)}
+                      required
+                      className="font-raleway-black w-full p-2 border mb-2"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="statusEndDate" className="block mb-1">
+                      End Date (optional):
+                    </label>
+                    <input
+                      type="datetime-local"
+                      id="statusEndDate"
+                      value={statusEndDate}
+                      onChange={(e) => setStatusEndDate(e.target.value)}
+                      className="font-raleway-black w-full p-2 border mb-2"
+                    />
+                  </div>
+                </>
+              )}
+              {/* <div>
+                <label className="block">Sale Name:</label>
+                <input
+                  type="text"
+                  value={salesName}
+                  onChange={(e) => setsalesName(e.target.value)}
+                  className="block w-full border rounded p-2 mb-2"
+                />
+            </div> */}
           </div>
           <div className="w-full p-2 text-center">
             <button

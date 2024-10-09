@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 
 // Define types for your data structures
 type Customer = {
+  status_type: string | null;
   customer_id: string;
   customer_name: string;
   phone_number: string;
@@ -18,8 +19,18 @@ type Customer = {
   package_id: string;
   location_id: string;
   status: string;
+  active_timestamp?: string;
+  inactive_timestamp?: string;
+  reactive_timestamp?: string;
+  terminate_timestamp?: string;
 };
-
+type StatusHistory = {
+  id: number;
+  customer_id: string;
+  status_type: string;
+  start_date: string;
+  end_date: string | null;
+};
 type Service = {
   service_id: string;
   service_name: string;
@@ -55,10 +66,17 @@ export default function CustomerServiceInfoForm({ customerId }: CustomerServiceI
     package_id: '',
     location_id: '',
     status: '',
+    status_type: '',
+    active_timestamp: '',
+    inactive_timestamp: '',
+    reactive_timestamp: '',
+    terminate_timestamp: '',
+
   });
   const [services, setServices] = useState<Service[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([]);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -111,15 +129,41 @@ export default function CustomerServiceInfoForm({ customerId }: CustomerServiceI
         console.error('Error fetching customer data:', error instanceof Error ? error.message : String(error));
       }
     };
+    const fetchStatusHistory = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('statushistory')
+          .select('*')
+          .eq('customer_id', customerId)
+          .order('start_date', { ascending: false });
 
+        if (error) throw error;
+
+        setStatusHistory(data || []);
+      } catch (error) {
+        console.error('Error fetching status history:', error instanceof Error ? error.message : String(error));
+      }
+    };
     if (customerId) {
       fetchCustomer();
       fetchPackage();
       fetchService();
       fetchLocation();
+      fetchStatusHistory();
     }
   }, [customerId]);
+  const getCurrentStatusDates = () => {
+    const currentStatus = statusHistory.find(status => status.status_type === customer.status_type);
+    return currentStatus ? {
+      start_date: currentStatus.start_date,
+      end_date: currentStatus.end_date
+    } : null;
+  };
 
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     router.push(`${customerId}/technical/`);
@@ -241,23 +285,40 @@ export default function CustomerServiceInfoForm({ customerId }: CustomerServiceI
             </label>
             <select
               id="status"
-              value={customer.isActive ? 'true' : 'false'}
+              value={customer.status_type || ''}
               disabled
               className="font-raleway-black w-full p-2 border mb-3"
             >
               <option value="">Select Status...</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="REACTIVE">Reactive</option>
+              <option value="TERMINATE">Terminate</option>
             </select>
-            <label htmlFor="activationDate" className="block">Activation Date:</label>
-            <input
-              type="date"
-              id="activationDate"
-              value={customer.activation_date}
-              readOnly={true}
-              required
-              className="font-raleway-black w-full p-2 border mb-2"
-            />
+            {customer.status_type && (
+              <>
+                <label htmlFor="statusStartDate" className="block">
+                  Status Start Date:
+                </label>
+                <input
+                  type="text"
+                  id="statusStartDate"
+                  value={formatDate(getCurrentStatusDates()?.start_date || null)}
+                  disabled
+                  className="font-raleway-black w-full p-2 border mb-3"
+                />
+                <label htmlFor="statusEndDate" className="block">
+                  Status End Date:
+                </label>
+                <input
+                  type="text"
+                  id="statusEndDate"
+                  value={getCurrentStatusDates()?.end_date ? formatDate(getCurrentStatusDates()?.end_date || null) : 'Current'}
+                  disabled
+                  className="font-raleway-black w-full p-2 border mb-3"
+                />
+              </>
+            )}
           </div>
           <div className="w-full p-2 text-center">
             <button
