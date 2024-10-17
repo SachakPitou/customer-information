@@ -424,6 +424,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                   <label className="block mb-2">Longtitude:</label>
                   <input type="text" value={longtitude} onChange={e => setLongtitudes(e.target.value)} className="w-full p-2 border" />
                 </div>
+                <div className="mb-4">
+                  <label className="block mb-2">ACL:</label>
+                  <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
+                </div>
                 {selectedDeviceTypeId === '3' && ( // Assuming 3 is for OLT
                   <>
                     <div className="mb-4">
@@ -442,14 +446,19 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                       <label className="block mb-2">ONT ID:</label>
                       <input type="text" value={ontId} onChange={e => setOntId(e.target.value)} className="w-full p-2 border" />
                     </div>
+                    <div className="mb-4">
+                      <label className="block mb-2">ONU ID:</label>
+                      <input type="text" value={onuID} onChange={e => setOnuID(e.target.value)} className="w-full p-2 border" />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block mb-2">ONU MAC ADDRESS:</label>
+                      <input type="text" value={onuMacAddress} onChange={e => setOnuMacAddress(e.target.value)} className="w-full p-2 border" />
+                    </div>
                   </>
                 )}
                 {selectedDeviceTypeId === '2' && ( // Assuming 3 is for OLT
                   <>
-                    <div className="mb-4">
-                      <label className="block mb-2">ACL:</label>
-                      <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
-                    </div>
+                    
                     {/* <div className="mb-4">
                       <label className="block mb-2">VLan:</label>
                       <input type="text" value={vLan} onChange={e => setVLan(e.target.value)} className="w-full p-2 border" />

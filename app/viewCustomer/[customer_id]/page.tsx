@@ -455,6 +455,16 @@ export default function ViewCustomer() {
                                         <span>: {customer.port_type}</span>
                                         </div>
                                         <br />
+                                        <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">Service Port</span>
+                                        <span>: {customer.service_port}</span>
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">Camera IP</span>
+                                        <span>: {customer.camera_ip}</span>
+                                        </div>
+                                        <br />
                                     </>
                                     ) : customer.device_type_id === 3 ? (
                                     <>
@@ -471,16 +481,6 @@ export default function ViewCustomer() {
                                         <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">Port</span>
                                         <span>: {customer.port}</span>
-                                        </div>
-                                        <br />
-                                        <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Service Port</span>
-                                        <span>: {customer.service_port}</span>
-                                        </div>
-                                        <br />
-                                        <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Camera IP</span>
-                                        <span>: {customer.camera_ip}</span>
                                         </div>
                                         <br />
                                         <div className="flex mb-2">

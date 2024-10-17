@@ -623,27 +623,48 @@ export default function Page() {
     };
 
     const handleDeviceChange = async (deviceId: string) => {
-        try {
-            const { data: device, error } = await supabase
-                .from('Device')
-                .select('device_type_id')
-                .eq('device_id', deviceId)
-                .single();
-
-            if (error) {
-                throw new Error(error.message);
-            }
-
-            setCustomer(prevCustomer => ({
-                ...prevCustomer,
-                device_id: deviceId,
-                device_type_id: device?.device_type_id?.toString() || ''
-            }));
-        } catch (error) {
-            console.error('Error fetching device details:', (error as Error).message);
-        }
+      try {
+        // Fetch device type
+        const { data: device, error: deviceError } = await supabase
+          .from('Device')
+          .select('device_type_id')
+          .eq('device_id', deviceId)
+          .single();
+    
+        if (deviceError) throw deviceError;
+    
+        // Fetch the current customer data
+        const { data: customerData, error: customerError } = await supabase
+          .from('Customer')
+          .select('*')
+          .eq('customer_id', customer.customer_id)
+          .single();
+    
+        if (customerError) throw customerError;
+    
+        // Update customer state
+        setCustomer(prevCustomer => ({
+          ...prevCustomer,
+          ...customerData,
+          device_id: deviceId,
+          device_type_id: device?.device_type_id,
+          // Only reset device-specific fields if they're not present in customerData
+          switch_port: customerData.switch_port || '',
+          port_type: customerData.port_type || '',
+          service_port: customerData.service_port || '',
+          camera_ip: customerData.camera_ip || '',
+          port: customerData.port || '',
+          slot: customerData.slot || '',
+          frame: customerData.frame || '',
+          ONU_mac_address: customerData.ONU_mac_address || '',
+          onu_id: customerData.onu_id || '',
+          ont_id: customerData.ont_id || '',
+        }));
+    
+      } catch (error) {
+        console.error('Error updating device details:', (error as Error).message);
+      }
     };
-
     const filteredPackages = packages.filter((pkg) => pkg.service_id === parseInt(customer.service_id, 10));
     const filteredInterfaces = interfaces.filter((inf) => inf.device_id === parseInt(customer.device_id, 10));
   return (
@@ -930,6 +951,18 @@ export default function Page() {
                       className="w-full p-2 border rounded"
                     />
                   </div>
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="saleName" className="block mb-2">Sale Name:</label>
+                    <input
+                      type="text"
+                      id="saleName"
+                      placeholder="Enter Sale Name"
+                      value={customer.sale_name}
+                      onChange={(e) => setCustomer({ ...customer, sale_name: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
               {(customer.device_type_id === 1 || customer.device_type_id === 2) && (
                 <>
                   <div className="w-full md:w-1/2 px-2 mb-4">
@@ -952,46 +985,6 @@ export default function Page() {
                       placeholder="Enter Port Type"
                       value={customer.port_type}
                       onChange={(e) => setCustomer({ ...customer, port_type: e.target.value })}
-                      required
-                      className="w-full p-2 border rounded"
-                    />
-                  </div>
-                  <div className="w-full md:w-1/2 px-2 mb-4">
-                    <label htmlFor="saleName" className="block mb-2">Sale Name:</label>
-                    <input
-                      type="text"
-                      id="saleName"
-                      placeholder="Enter Sale Name"
-                      value={customer.sale_name}
-                      onChange={(e) => setCustomer({ ...customer, sale_name: e.target.value })}
-                      required
-                      className="w-full p-2 border rounded"
-                    />
-                  </div>
-                </>
-              )}
-              {customer.device_type_id === 3 && (
-                <>
-                  <div className="w-full md:w-1/2 px-2 mb-4">
-                    <label htmlFor="port" className="block mb-2">Port:</label>
-                    <input
-                      type="text"
-                      id="port"
-                      placeholder="Enter Port"
-                      value={customer.port}
-                      onChange={(e) => setCustomer({ ...customer, port: e.target.value })}
-                      required
-                      className="w-full p-2 border rounded"
-                    />
-                  </div>
-                  <div className="w-full md:w-1/2 px-2 mb-4">
-                    <label htmlFor="slot" className="block mb-2">Slot:</label>
-                    <input
-                      type="text"
-                      id="slot"
-                      placeholder="Enter Slot"
-                      value={customer.slot}
-                      onChange={(e) => setCustomer({ ...customer, slot: e.target.value })}
                       required
                       className="w-full p-2 border rounded"
                     />
@@ -1020,6 +1013,36 @@ export default function Page() {
                       className="w-full p-2 border rounded"
                     />
                   </div>
+                  
+                </>
+              )}
+              {customer.device_type_id === 3 && (
+                <>
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="port" className="block mb-2">Port:</label>
+                    <input
+                      type="text"
+                      id="port"
+                      placeholder="Enter Port"
+                      value={customer.port}
+                      onChange={(e) => setCustomer({ ...customer, port: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="slot" className="block mb-2">Slot:</label>
+                    <input
+                      type="text"
+                      id="slot"
+                      placeholder="Enter Slot"
+                      value={customer.slot}
+                      onChange={(e) => setCustomer({ ...customer, slot: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                  
                   <div className="w-full md:w-1/2 px-2 mb-4">
                     <label htmlFor="frame" className="block mb-2">Frame:</label>
                     <input
@@ -1070,6 +1093,7 @@ export default function Page() {
                 </div>
               </>
             )}
+            <br />
             <div className="w-full md:w-1/2 px-2 mb-4">
             <label htmlFor="statusType" className="block mb-2">Status Type:</label>
             <select
@@ -1087,6 +1111,8 @@ export default function Page() {
             </div>
             {customer.status_type && (
               <>
+                <br />
+                <div className='w-full md:w-1/2 px-2 mb-4'>
                 <label htmlFor="statusStartDate" className="block">
                   Status Start Date:
                 </label>
@@ -1098,6 +1124,8 @@ export default function Page() {
                   required
                   className="font-raleway-black w-full p-2 border mb-3"
                 />
+                </div>
+                <div className='w-full md:w-1/2 px-2 mb-4'>
                 <label htmlFor="statusEndDate" className="block">
                   Status End Date:
                 </label>
@@ -1108,6 +1136,7 @@ export default function Page() {
                   onChange={handleEndDateChange}
                   className="font-raleway-black w-full p-2 border mb-3"
                 />
+                </div>
                 <div className="flex items-center mb-3">
                   <input
                     type="checkbox"
