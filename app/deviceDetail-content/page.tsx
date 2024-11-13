@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
+import FilterDropdowns from '../component/filterdropdown';
 
 interface Device {
   device_id: string;
@@ -162,22 +163,39 @@ export default function DeviceDetail() {
     
         fetchDevices();
     }, [deviceToDelete, showModal]);
-    
+    const [filters, setFilters] = useState({
+        location: "",
+        powerSource: "",
+        rack: "",
+        pop: "",
+        status: "",
+    });
     const filteredDevices = devices.filter((device) => {
         const searchTerm = searchValue.toLowerCase();
     
-        const locationMatch =
-            locationFilter === '' || device.location_name.toLowerCase() === locationFilter.toLowerCase();
+        // Filter matches
+        const locationMatch = !filters.location || 
+            device.location_name.toLowerCase() === filters.location.toLowerCase();
     
-        const powerSourceMatch =
-            powersourceFilter === '' || 
-            device.power_source_type_1.toLowerCase() === powersourceFilter.toLowerCase() ||
-            device.power_source_type_2.toLowerCase() === powersourceFilter.toLowerCase();
-
+        const powerSourceMatch = !filters.powerSource || 
+            device.power_source_type_1.toLowerCase() === filters.powerSource.toLowerCase() ||
+            device.power_source_type_2.toLowerCase() === filters.powerSource.toLowerCase();
+    
+        const rackMatch = !filters.rack || 
+            device.rack_name.toLowerCase() === filters.rack.toLowerCase();
+    
+        const popMatch = !filters.pop || 
+            device.pop_name.toLowerCase() === filters.pop.toLowerCase();
+            
+        const statusMatch = !filters.status || 
+            device.status.toLowerCase() === filters.status.toLowerCase();
+    
+        // If no search value, return just the filter matches
         if (searchValue === '') {
-            return locationMatch && powerSourceMatch;
+            return locationMatch && powerSourceMatch && rackMatch && popMatch && statusMatch;
         }
     
+        // Search field matching logic
         let isMatchingSearch = false;
     
         if (searchField === 'all') {
@@ -204,17 +222,13 @@ export default function DeviceDetail() {
             isMatchingSearch = upsString.toLowerCase().includes(searchTerm);
         }
     
-        return locationMatch && powerSourceMatch && isMatchingSearch;
+        // Return true only if all conditions are met
+        return locationMatch && powerSourceMatch && rackMatch && popMatch && statusMatch && isMatchingSearch;
     });
     
     const handleSearch = () => {
         console.log("Search value:", searchValue);
     };
-
-    const handleStatusFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        setStatusFilter(event.target.value);
-    };
-
     const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchValue(event.target.value);
     };
@@ -224,33 +238,6 @@ export default function DeviceDetail() {
             handleSearch();
         }
     };
-
-    const toggleLocationDropdown = () => {
-        setLocationDropdownOpen(!locationDropdownOpen);
-        if (powersourceDropdownOpen) {
-            setPowerSourceDropdownOpen(false);
-        }
-    };
-    
-    const handleLocationFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setLocationFilter(e.target.value);
-    };
-
-    const togglePowerSourceDropdown = () => {
-        setPowerSourceDropdownOpen(!powersourceDropdownOpen);
-        if (locationDropdownOpen) {
-            setLocationDropdownOpen(false);
-        }
-    };
-    
-    const handlePowerSourceFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setPowerSourceFilter(e.target.value);
-    };
-
-    const toggleDropdown = () => {
-        setDropdownOpen(!dropdownOpen);
-    };
-
     const handleSearchFieldChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setSearchField(event.target.value);
     };
@@ -258,7 +245,7 @@ export default function DeviceDetail() {
     const handlePageChange = (pageNumber: number) => {
         setCurrentPage(pageNumber);
     };
-
+    
     const totalPages = Math.ceil(filteredDevices.length / packagesPerPage);
     const startIndex = (currentPage - 1) * packagesPerPage;
     const displayedDevices = filteredDevices.slice(startIndex, startIndex + packagesPerPage);
@@ -281,272 +268,14 @@ export default function DeviceDetail() {
                     </svg>
                 </button>
             </div>
-                {/* <div className='relative flex items-center'>
-                
-                </div> */}
                 <div className="relative flex items-center mr-5">
                 <div className='mr-5'>
-                        <button
-                            id="locationDropdownButton"
-                            data-dropdown-toggle="locationDropdown"
-                            className="inline-flex items-center text-gray-500 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-lg text-sm px-3 py-1.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700"
-                            type="button"
-                            onClick={toggleLocationDropdown}
-                        >
-                            Location
-                            <svg
-                                className="w-2.5 h-2.5 ms-2.5"
-                                aria-hidden="true"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 10 6"
-                            >
-                                <path
-                                    stroke="currentColor"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="m1 1 4 4 4-4"
-                                />
-                            </svg>
-                        </button>
-                        {locationDropdownOpen && (
-                            <div
-                                id="locationDropdown"
-                                className="z-10 absolute top-full left-0 mt-1 w-48 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600"
-                                data-popper-reference-hidden=""
-                                data-popper-escaped=""
-                                data-popper-placement="top"
-                            >
-                                <ul
-                                    className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
-                                    aria-labelledby="locationDropdownButton"
-                                >
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value=""
-                                                name="location-filter"
-                                                checked={locationFilter === ""}
-                                                onChange={handleLocationFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="location-radio-example-1"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                All
-                                            </label>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value="Poipet"
-                                                name="location-filter"
-                                                checked={locationFilter === "Poipet"}
-                                                onChange={handleLocationFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="location-radio-example-2"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                Poipet
-                                            </label>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value="Phnom Penh"
-                                                name="location-filter"
-                                                checked={locationFilter === "Phnom Penh"}
-                                                onChange={handleLocationFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="location-radio-example-3"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                Phnom Penh
-                                            </label>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value="Pailin"
-                                                name="location-filter"
-                                                checked={locationFilter === "Pailin"}
-                                                onChange={handleLocationFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="location-radio-example-4"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                Pailin
-                                            </label>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value="Bavet"
-                                                name="location-filter"
-                                                checked={locationFilter === "Bavet"}
-                                                onChange={handleLocationFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="location-radio-example-5"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                Bavet
-                                            </label>
-                                        </div>
-                                    </li>
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                    <div className='mr-5'>
-                        <button
-                            id="powerSourceDropdownButton"
-                            data-dropdown-toggle="powerSourceDropdown"
-                            className="inline-flex items-center text-gray-500 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 font-medium rounded-lg text-sm px-3 py-1.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700"
-                            type="button"
-                            onClick={togglePowerSourceDropdown}
-                        >
-                            Power Source
-                            <svg
-                                className="w-2.5 h-2.5 ms-2.5"
-                                aria-hidden="true"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 10 6"
-                            >
-                                <path
-                                    stroke="currentColor"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="m1 1 4 4 4-4"
-                                />
-                            </svg>
-                        </button>
-                        {powersourceDropdownOpen && (
-                            <div
-                                id="powerSourceDropdown"
-                                className="z-10 absolute top-full left-0 mt-1 w-48 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600"
-                                data-popper-reference-hidden=""
-                                data-popper-escaped=""
-                                data-popper-placement="top"
-                            >
-                                <ul
-                                    className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
-                                    aria-labelledby="powerSourceDropdownButton"
-                                >
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value=""
-                                                name="power-source-filter"
-                                                checked={powersourceFilter === ""}
-                                                onChange={handlePowerSourceFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="power-source-radio-example-1"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                All
-                                            </label>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value="APC-01"
-                                                name="power-source-filter"
-                                                checked={powersourceFilter === "APC-01"}
-                                                onChange={handlePowerSourceFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="power-source-radio-example-2"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                APC-01
-                                            </label>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value="APC-02"
-                                                name="power-source-filter"
-                                                checked={powersourceFilter === "APC-02"}
-                                                onChange={handlePowerSourceFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="power-source-radio-example-3"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                APC-02
-                                            </label>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value="APC-03"
-                                                name="power-source-filter"
-                                                checked={powersourceFilter === "APC-03"}
-                                                onChange={handlePowerSourceFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="power-source-radio-example-4"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                APC-03
-                                            </label>
-                                        </div>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                            <input
-                                                type="radio"
-                                                value="EMERSON"
-                                                name="power-source-filter"
-                                                checked={powersourceFilter === "EMERSON"}
-                                                onChange={handlePowerSourceFilterChange}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                            />
-                                            <label
-                                                htmlFor="power-source-radio-example-5"
-                                                className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                            >
-                                                EMERSON
-                                            </label>
-                                        </div>
-                                    </li>
-                                </ul>
-                            </div>
-                        )}
-                    </div>
+                    <FilterDropdowns 
+                        devices={devices} 
+                        filters={filters} 
+                        setFilters={setFilters} 
+                    />
+                </div>
 
                     <select 
                         value={searchField} 
@@ -557,7 +286,7 @@ export default function DeviceDetail() {
                         <option value="device_name">Device Name</option>
                         <option value="model">Model</option>
                         <option value="device_type">Device Type</option>
-                        <option value="ip_address">IP Address</option>
+                        <option value="ip_address">IP Management</option>
                         <option value="ups">UPS</option>
                     </select>
                     <label htmlFor="table-search" className="sr-only">Search</label> 
@@ -578,19 +307,10 @@ export default function DeviceDetail() {
                         />
                     </div>
                 </div>
-                {/* <button 
-                    onClick={handleSearch}
-                    className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:bg-blue-700"
-                >
-                    Search
-                </button> */}
             </div>
             <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                 <thead className="title-dashboard text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-300 dark:text-gray-700">
                     <tr>
-                        {/* <th scope="col" className="p-4">
-                          
-                        </th> */}
                         <th scope="col" className="px-6 py-3">
                             No.
                         </th>
@@ -644,26 +364,8 @@ export default function DeviceDetail() {
                 <tbody>
                     {displayedDevices.map((device, index) => (
                         <tr key={device.device_id} className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
-                            {/* <td className="w-4 p-4">
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                    />
-                                </div>
-                            </td> */}
-                            <td className="px-6 py-4">{index + 1}</td>
+                            <td className="px-6 py-4">{startIndex + index + 1}</td>
                             <td className="px-6 py-4">{device.device_name}</td>
-                            {/* <td className="px-6 py-4">
-                                <button
-                                    onClick={() => toggleUserStatus(customer)}
-                                    className={`text-sm font-medium rounded-lg px-3 py-1 ${
-                                        customer.isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                                    }`}
-                                >
-                                    {customer.isActive ? 'Active' : 'Inactive'}
-                                </button>
-                            </td> */}
                             <td className="px-6 py-4">{device.device_type}</td>
                             <td className="px-6 py-4">{device.location_name}</td>
                             <td className="px-6 py-4">{device.pop_name}</td>
@@ -685,7 +387,7 @@ export default function DeviceDetail() {
                                 >
                                     {device.status}
                                 </span>
-                                </td>
+                            </td>
                             <td className="px-6 py-4">{device.deployedBy}</td>
                             <td className="px-6 py-4">
                                 <Link href={`/viewDevice/${device.device_id}`}>
@@ -700,9 +402,10 @@ export default function DeviceDetail() {
                             <td className="px-6 py-4">
                                 <Link href={`/editDevice/${device.device_id}`}>
                                     <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                        <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                        <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                         </svg>
-                                        {/* Optionally, you can add a title attribute for accessibility */}
                                     </div>
                                 </Link>
                             </td>
@@ -716,7 +419,7 @@ export default function DeviceDetail() {
                                     type="button"
                                 >
                                     <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"/>
+                                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"/>
                                     </svg>
                                 </button>
                             </td>
@@ -733,7 +436,7 @@ export default function DeviceDetail() {
                         <button
                             key={i + 1}
                             onClick={() => handlePageChange(i + 1)}
-                            className={`px-3 py-1 border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'} hover:bg-blue-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
+                            className={`px-3 py-1 border ${currentPage === i + 1 ? 'bg-red-500 text-white' : 'bg-white text-gray-700'} hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
                         >
                             {i + 1}
                         </button>

@@ -171,6 +171,7 @@ export default function Page() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [statusTimestamp, setStatusTimestamp] = useState('');
   const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [statusDates, setStatusDates] = useState({ 
     start_date: '', 
     end_date: '',
@@ -181,6 +182,40 @@ export default function Page() {
   };
 
   useEffect(() => {
+    const fetchCustomerRouter = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch customer router data from CustomerRouter table
+        const { data: customerRouter, error } = await supabase
+          .from('customerrouter')
+          .select('router_device_id')
+          .eq('customer_id', customer_id)
+          .single();
+    
+        if (error) {
+          // Only throw if it's not a "no rows returned" error
+          if (error.code !== 'PGRST116') {
+            throw error;
+          }
+        }
+    
+        // Update the customer state, maintaining null if no router is assigned
+        setCustomer(prev => ({
+          ...prev,
+          router_device_id: customerRouter?.router_device_id 
+        }));
+    
+      } catch (error) {
+        console.error('Error fetching customer router:', error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (customer_id) {
+      fetchCustomerRouter();
+    }
       const fetchCustomer = async () => {
           try {
               const { data: customerData, error } = await supabase
@@ -372,7 +407,20 @@ export default function Page() {
         fetchRouters();
         fetchStatusHistory();
     }, [customer_id]);
-
+    const handleRouterChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const newRouterId = e.target.value;
+      
+      try {
+        // Update the customer state
+        setCustomer(prev => ({
+          ...prev,
+          router_device_id: newRouterId
+        }));
+  
+      } catch (error) {
+        console.error('Error updating customer router:', error instanceof Error ? error.message : String(error));
+      }
+    };
     const updateStatusTimestamp = (status: CustomerStatus, customerData: CustomerData) => {
       const timestampField = `${status.toLowerCase()}_timestamp` as keyof CustomerData;
       const timestamp = customerData[timestampField] || '';
@@ -592,6 +640,7 @@ export default function Page() {
                     reactive_timestamp: customer.reactive_timestamp,
                     terminate_timestamp: customer.terminate_timestamp,
                     capacity_bandwidth: customer.capacity_bandwidth,
+                    
                     sale_name: customer.sale_name,
                     device_id: customer.device_id ? parseInt(customer.device_id) : null,
                     service_id: customer.service_id ? parseInt(customer.service_id) : null,
@@ -607,7 +656,7 @@ export default function Page() {
             .from('customerrouter')
             .upsert({
                 customer_id: customer_id,
-                router_device_id: customer.router_device_id ? parseInt(customer.router_device_id) : null
+                router_device_id: customer.router_device_id
             }, {
                 onConflict: 'customer_id'
             });
@@ -649,6 +698,7 @@ export default function Page() {
           device_id: deviceId,
           device_type_id: device?.device_type_id,
           // Only reset device-specific fields if they're not present in customerData
+          router_device_id: customerData.router_device_id || '',
           switch_port: customerData.switch_port || '',
           port_type: customerData.port_type || '',
           service_port: customerData.service_port || '',
@@ -667,6 +717,7 @@ export default function Page() {
     };
     const filteredPackages = packages.filter((pkg) => pkg.service_id === parseInt(customer.service_id, 10));
     const filteredInterfaces = interfaces.filter((inf) => inf.device_id === parseInt(customer.device_id, 10));
+    
   return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">
@@ -828,21 +879,23 @@ export default function Page() {
                 </select>
               </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
-              <label htmlFor="router" className="block mb-2">Router:</label>
-                <select
-                    id="router"
-                    value={customer.router_device_id || ''}
-                    onChange={(e) => setCustomer({ ...customer, router_device_id: e.target.value })}
-                    className="w-full p-2 border rounded"
-                >
-                    <option value="">Select Router</option>
-                    {routers.map((router) => (
-                        <option key={router.device_id} value={router.device_id}>
-                            {router.device_name}
-                        </option>
-                    ))}
-                </select>
-              </div>
+              <label htmlFor="router" className="block mb-2">
+                Router:
+              </label>
+              <select
+                id="router"
+                value={customer.router_device_id} 
+                onChange={handleRouterChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Select Router</option>
+                {routers.map((router) => (
+                  <option key={router.device_id} value={router.device_id}>
+                    {router.device_name}
+                  </option>
+                ))}
+              </select>
+            </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
                 <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
                 <select

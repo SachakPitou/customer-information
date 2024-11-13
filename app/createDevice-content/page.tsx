@@ -136,19 +136,25 @@ export default function CreateDevice() {
     };
 
     const setupPortAttributes = (deviceTypeId: string, portCount: number) => {
-        const selectedDeviceType = deviceTypes.find(type => type.device_type_id === parseInt(deviceTypeId));
+        const selectedDeviceType = deviceTypes.find(
+            type => type.device_type_id === Number(deviceTypeId)
+        );
+        
         if (!selectedDeviceType) return;
     
-        portCount = Math.max(1, portCount || 1); // Ensure portCount is at least 1
+        // Ensure portCount is at least 1
+        portCount = Math.max(1, portCount || 1);
     
         let attributes: PortAttribute[] = [];
-        switch(selectedDeviceType.device_type.toLowerCase()) {
-            case 'switch':
+        
+        switch(selectedDeviceType.device_type_id) {
+            case 2:  // Swtich
                 attributes = Array(portCount).fill(null).map(() => ({
                     interface_name: null,
                 }));
                 break;
-            case 'olt':
+                
+            case 3:  // OLT
                 attributes = Array(portCount).fill(null).map(() => ({
                     interface_name: null,
                     description: null,
@@ -157,21 +163,182 @@ export default function CreateDevice() {
                     capacity: null,
                 }));
                 break;
-            case 'router':
+                
+            case 1:  // Router
                 attributes = Array(portCount).fill(null).map(() => ({
                     interface_name: null,
                     capacity: null,
                     link_protocol: null,
                 }));
                 break;
+                
             default:
                 attributes = Array(portCount).fill(null).map(() => ({
                     interface_name: null,
                 }));
         }
+        
         setPortAttributes(attributes);
     };
+    const handlePortChange = (index: number, field: string, value: string) => {
+        const updatedPorts = [...portAttributes];
+        if (field === 'interface_name') {
+            // Check if the new interface name is unique
+            const fullInterfaceName = `${interfacePrefix}${value}`;
+            const isUnique = !updatedPorts.some((port, i) => 
+                i !== index && `${interfacePrefix}${port.interface_name}` === fullInterfaceName
+            );
+            
+            if (isUnique) {
+                updatedPorts[index][field as keyof PortAttribute] = value;
+                setInterfaceError('');
+            } else {
+                setInterfaceError(`Interface name '${fullInterfaceName}' is already in use`);
+                return; // Don't update if not unique
+            }
+        } else {
+            updatedPorts[index][field as keyof PortAttribute] = value === '' ? null : value;
+        }
+        setPortAttributes(updatedPorts);
+    };
 
+    const handlePowerSourceChange = (index: number, value: string) => {
+        const newSelectedPowerSourceIds = [...selectedPowerSourceIds];
+        newSelectedPowerSourceIds[index] = value;
+        setSelectedPowerSourceIds(newSelectedPowerSourceIds);
+    };
+    
+    const handleInterfacePrefixChange = (value: React.SetStateAction<string>) => {
+        setInterfacePrefix(value);
+        // Update all existing interface names with new prefix
+        const updatedPorts = portAttributes.map(port => ({
+          ...port,
+          interface_name: port.interface_name ? 
+            value + port.interface_name.replace(interfacePrefix, '') : 
+            null
+        }));
+        setPortAttributes(updatedPorts);
+    };
+    // Add this function in your component
+    const renderPortAttributes = (port: PortAttribute, index: number) => {
+        const renderAdditionalFields = () => {
+            switch (Number(selectedDeviceTypeId)) {
+                case 3: // OLT
+                    return (
+                        <>
+                            <div className="mt-4">
+                                <label htmlFor={`description${index}`} className="block mb-2 font-semibold">Description:</label>
+                                <input
+                                    type="text"
+                                    id={`description${index}`}
+                                    value={port.description || ''}
+                                    onChange={(e) => handlePortChange(index, 'description', e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                />
+                            </div>
+                            <div className="mt-4">
+                                <label htmlFor={`port_type${index}`} className="block mb-2 font-semibold">Port Type:</label>
+                                <select
+                                    id={`port_type${index}`}
+                                    value={port.port_type || ''}
+                                    onChange={(e) => handlePortChange(index, 'port_type', e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                >
+                                    <option value="">Select Port Type</option>
+                                    <option value="uplink">Uplink</option>
+                                    <option value="downlink">Downlink</option>
+                                </select>
+                            </div>
+                            <div className="mt-4">
+                                <label htmlFor={`link_mode${index}`} className="block mb-2 font-semibold">Link Mode:</label>
+                                <input
+                                    type="text"
+                                    id={`link_mode${index}`}
+                                    value={port.link_mode || ''}
+                                    onChange={(e) => handlePortChange(index, 'link_mode', e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                />
+                            </div>
+                            <div className="mt-4">
+                                <label htmlFor={`capacity${index}`} className="block mb-2 font-semibold">Capacity:</label>
+                                <input
+                                    type="text"
+                                    id={`capacity${index}`}
+                                    value={port.capacity || ''}
+                                    onChange={(e) => handlePortChange(index, 'capacity', e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                />
+                            </div>
+                        </>
+                    );
+                
+                case 1: // Router
+                    return (
+                        <>
+                            <div className="mt-4">
+                                <label htmlFor={`capacity${index}`} className="block mb-2 font-semibold">Capacity:</label>
+                                <input
+                                    type="text"
+                                    id={`capacity${index}`}
+                                    value={port.capacity || ''}
+                                    onChange={(e) => handlePortChange(index, 'capacity', e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                />
+                            </div>
+                            <div className="mt-4">
+                                <label htmlFor={`link_protocol${index}`} className="block mb-2 font-semibold">Link Protocol:</label>
+                                <input
+                                    type="text"
+                                    id={`link_protocol${index}`}
+                                    value={port.link_protocol || ''}
+                                    onChange={(e) => handlePortChange(index, 'link_protocol', e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                />
+                            </div>
+                        </>
+                    );
+                
+                default: // Switch or default case
+                    return null;
+            }
+        };
+
+        return (
+            <div key={index} className="border p-4 rounded">
+                <h3 className="font-bold mb-2">Port {index + 1}</h3>
+                
+                {/* Interface Name Field (Common to all types) */}
+                <div>
+                    <label 
+                        htmlFor={`interface_name${index}`} 
+                        className="block mb-2 font-semibold"
+                    >
+                        Interface Name:
+                    </label>
+                    <div className="flex">
+                        <input
+                            type="text"
+                            id={`interface_name${index}`}
+                            value={interfacePrefix}
+                            className="w-1/2 p-2 border rounded-l bg-gray-100"
+                            readOnly
+                        />
+                        <input
+                            type="text"
+                            value={port.interface_name?.replace(interfacePrefix, '') || ''}
+                            onChange={(e) => handlePortChange(index, 'interface_name', e.target.value)}
+                            placeholder="Enter number"
+                            className="w-1/2 p-2 border rounded-r"
+                        />
+                    </div>
+                    {interfaceError && <p className="text-red-500 text-sm mt-1">{interfaceError}</p>}
+                </div>
+
+                {/* Additional Fields Based on Device Type */}
+                {renderAdditionalFields()}
+            </div>
+        );
+    };
     useEffect(() => {
         const fetchUserType = async () => {
             try {
@@ -351,46 +518,7 @@ export default function CreateDevice() {
         }
     }, [selectedDeviceTypeId, numberOfPorts]);
 
-    const handlePortChange = (index: number, field: string, value: string) => {
-        const updatedPorts = [...portAttributes];
-        if (field === 'interface_name') {
-            // Check if the new interface name is unique
-            const fullInterfaceName = `${interfacePrefix}${value}`;
-            const isUnique = !updatedPorts.some((port, i) => 
-                i !== index && `${interfacePrefix}${port.interface_name}` === fullInterfaceName
-            );
-            
-            if (isUnique) {
-                updatedPorts[index][field as keyof PortAttribute] = value;
-                setInterfaceError('');
-            } else {
-                setInterfaceError(`Interface name '${fullInterfaceName}' is already in use`);
-                return; // Don't update if not unique
-            }
-        } else {
-            updatedPorts[index][field as keyof PortAttribute] = value === '' ? null : value;
-        }
-        setPortAttributes(updatedPorts);
-    };
-
-    const handlePowerSourceChange = (index: number, value: string) => {
-        const newSelectedPowerSourceIds = [...selectedPowerSourceIds];
-        newSelectedPowerSourceIds[index] = value;
-        setSelectedPowerSourceIds(newSelectedPowerSourceIds);
-    };
     
-    const handleInterfacePrefixChange = (value: string) => {
-        setInterfacePrefix(value);
-        
-        // Update all ports with the new prefix
-        // const updatedPorts = portAttributes.map(port => ({
-        //     ...port,
-        //     interface_name: value + (port.interface_name?.replace(interfacePrefix, '') || '')
-        // }));
-        
-        // setPortAttributes(updatedPorts);
-    };
-
     const handleAddDevice = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         try {
@@ -832,49 +960,21 @@ export default function CreateDevice() {
                         </div>
                     </div>
                     <div className="col-span-1 md:col-span-2 space-y-4">
-                        {portAttributes.map((port, index) => (
-                            <div key={index} className="border p-4 rounded">
-                                <h3 className="font-bold mb-2">Port {index + 1}</h3>
-                                <div className="mb-4">
-                                    <label htmlFor="interfaceType" className="block mb-2 font-semibold">
-                                        Interface Type for All Ports:
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="interfaceType"
-                                        value={interfacePrefix}
-                                        onChange={(e) => handleInterfacePrefixChange(e.target.value)}
-                                        placeholder="Enter interface type (e.g., Gigabit 0/0/)"
-                                        className="w-full p-2 border rounded"
-                                    />
-                                </div>
-                                <div>
-                                    <label 
-                                        htmlFor={`interface_name${index}`} 
-                                        className="block mb-2 font-semibold"
-                                    >
-                                        Interface Name:
-                                    </label>
-                                    <div className="flex">
-                                        <input
-                                            type="text"
-                                            id={`interface_name${index}`}
-                                            value={interfacePrefix}
-                                            className="w-1/2 p-2 border rounded-l bg-gray-100"
-                                            readOnly
-                                        />
-                                        <input
-                                            type="text"
-                                            value={port.interface_name?.replace(interfacePrefix, '') || ''}
-                                            onChange={(e) => handlePortChange(index, 'interface_name', e.target.value)}
-                                            placeholder="Enter number"
-                                            className="w-1/2 p-2 border rounded-r"
-                                        />
-                                    </div>
-                                    {interfaceError && <p className="text-red-500 text-sm mt-1">{interfaceError}</p>}
-                                </div>
+                            <div className="mb-4">
+                                <label htmlFor="interfaceType" className="block mb-2 font-semibold">
+                                    Interface Type for All Ports:
+                                </label>
+                                <input
+                                    type="text"
+                                    id="interfaceType"
+                                    value={interfacePrefix}
+                                    onChange={(e) => handleInterfacePrefixChange(e.target.value)}
+                                    placeholder="Enter interface type (e.g., Gigabit 0/0/)"
+                                    className="w-full p-2 border rounded"
+                                />
                             </div>
-                        ))}
+                            
+                            {portAttributes.map((port, index) => renderPortAttributes(port, index))}
                     </div>
                     <div className="col-span-1 md:col-span-2 text-center">
                         <button

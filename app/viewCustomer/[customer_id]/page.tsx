@@ -16,8 +16,8 @@ type Customer = {
     inactive_timestamp: string | null;
     reactive_timestamp: string | null;
     terminate_timestamp: string | null;
-    longtitude: string;
-    langtitude: string;
+    longtitude: number;
+    langtitude: number;
     VLan: number;
     description: string;
     ACL: number;
