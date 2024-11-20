@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
+import LoadingSpinner from '@/app/component/LoadingSpinner';
 
 type Device = {
     device_id: string;
@@ -444,7 +445,7 @@ export default function ViewDevice() {
     }
 
     if (!device || !deviceType) {
-        return <div>Loading...</div>;
+        return <LoadingSpinner />;
     }
     return (
         <div className="relative overflow-x-auto shadow-md">

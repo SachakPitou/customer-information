@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
+import LoadingSpinner from '../component/LoadingSpinner';
 
 interface UPS {
     ups_type: string;
@@ -114,7 +115,7 @@ export default function UPSDetail() {
     const displayedUPSs = filteredUPSs.slice(startIndex, startIndex + upssPerPage);
     
     if (upss.length === 0) {
-        return <div>Loading...</div>;
+        return <LoadingSpinner />;
     }
         
     return (

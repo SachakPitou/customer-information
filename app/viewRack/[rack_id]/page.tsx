@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/app/supabaseClient';
+import LoadingSpinner from '@/app/component/LoadingSpinner';
 
 interface Rack {
     rack_id: string;
@@ -223,7 +224,7 @@ export default function ViewRack() {
     }, {});
 
     if (loading) {
-        return <div>Loading...</div>;
+        return <LoadingSpinner />;
     }
 
     return (

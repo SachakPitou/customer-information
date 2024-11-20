@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
+import LoadingSpinner from '@/app/component/LoadingSpinner';
 
 type Rack = {
     rack_id: string;
@@ -68,7 +69,7 @@ export default function ViewPOP() {
     };
 
     if (racks.length === 0) {
-        return <div>Loading...</div>;
+        return <LoadingSpinner />;
     }
 
     return (

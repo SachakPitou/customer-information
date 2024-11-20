@@ -15,8 +15,8 @@ interface CustomerData {
   phone_number: string;
   cid: string;
   address: string;
-  longtitude: string;
-  langtitude: string;
+  longtitude: string | null;
+  langtitude: string | null;
   ONU_mac_address: string;
   slot: string;
   port: string;
@@ -33,8 +33,8 @@ interface CustomerData {
   device_type_id: number;
   olt_id: string;
   isActive: boolean;
-  description: string;
-  ACL: string;
+  description: string| null;
+  ACL: string | null;
   VLan: string;
   frame: string;
   ont_id: string;
@@ -123,8 +123,8 @@ export default function Page() {
     phone_number: '',
     cid: '',
     address: '',
-    longtitude: '',
-    langtitude: '',
+    longtitude: null,
+    langtitude: null,
     ONU_mac_address: '',
     slot: '',
     port: '',
@@ -615,8 +615,8 @@ export default function Page() {
                     phone_number: customer.phone_number,
                     cid: customer.cid,
                     address: customer.address,
-                    longtitude: customer.longtitude,
-                    langtitude: customer.langtitude,
+                    longtitude: customer.longtitude ? parseFloat(customer.longtitude) : null,
+                    langtitude: customer.langtitude ? parseFloat(customer.langtitude) : null,
                     ONU_mac_address: customer.ONU_mac_address,
                     slot: customer.slot,
                     port: customer.port,
@@ -628,19 +628,18 @@ export default function Page() {
                     activation_date: customer.activation_date,
                     switch_port: customer.switch_port,
                     port_type: customer.port_type,
-                    ACL: customer.ACL,
+                    ACL: customer.ACL ? String(customer.ACL) : null,
                     VLan: customer.VLan,
                     frame: customer.frame,
                     ont_id: customer.ont_id,
                     status_type: customer.status_type,
                     subnet: customer.subnet,
-                    description: customer.description,
+                    description: customer.description ? String(customer.description) : null,
                     active_timestamp: customer.active_timestamp,
                     inactive_timestamp: customer.inactive_timestamp,
                     reactive_timestamp: customer.reactive_timestamp,
                     terminate_timestamp: customer.terminate_timestamp,
-                    capacity_bandwidth: customer.capacity_bandwidth,
-                    
+                    capacity_bandwidth: customer.capacity_bandwidth,                    
                     sale_name: customer.sale_name,
                     device_id: customer.device_id ? parseInt(customer.device_id) : null,
                     service_id: customer.service_id ? parseInt(customer.service_id) : null,
@@ -843,9 +842,8 @@ export default function Page() {
                   type="text"
                   id="langtitudes"
                   placeholder="Enter Langtitude"
-                  value={customer.langtitude}
+                  value={customer.langtitude || ''}
                   onChange={(e) => setCustomer({ ...customer, langtitude: e.target.value })}
-                  required
                   className="w-full p-2 border rounded"
                 />
               </div>
@@ -855,9 +853,8 @@ export default function Page() {
                   type="text"
                   id="longtitudes"
                   placeholder="Enter Longtitude"
-                  value={customer.longtitude}
+                  value={customer.longtitude || ''}
                   onChange={(e) => setCustomer({ ...customer, longtitude: e.target.value })}
-                  required
                   className="w-full p-2 border rounded"
                 />
               </div>
@@ -974,9 +971,8 @@ export default function Page() {
                       type="text"
                       id="description"
                       placeholder="Enter Description"
-                      value={customer.description}
+                      value={customer.description || ''}
                       onChange={(e) => setCustomer({ ...customer, description: e.target.value })}
-                      required
                       className="w-full p-2 border rounded"
                     />
                   </div>
@@ -986,9 +982,8 @@ export default function Page() {
                       type="text"
                       id="ACL"
                       placeholder="Enter ACL"
-                      value={customer.ACL}
+                      value={customer.ACL || ''}
                       onChange={(e) => setCustomer({ ...customer, ACL: e.target.value })}
-                      required
                       className="w-full p-2 border rounded"
                     />
                   </div>
@@ -1240,3 +1235,4 @@ export default function Page() {
   </div>
 );
 }
+

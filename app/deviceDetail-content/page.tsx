@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
 import FilterDropdowns from '../component/filterdropdown';
+import LoadingSpinner from '../component/LoadingSpinner';
 
 interface Device {
   device_id: string;
@@ -251,7 +252,7 @@ export default function DeviceDetail() {
     const displayedDevices = filteredDevices.slice(startIndex, startIndex + packagesPerPage);
 
     if (devices.length === 0) {
-        return <div>Loading...</div>;
+        return <LoadingSpinner />;
     }
     return (
         <div className="relative w-full overflow-x-auto shadow-md">

@@ -7,6 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import StatusChangeFilter from '../component/statusChangeFilter';
+import LoadingSpinner from '../component/LoadingSpinner';
 
 interface Customer {
     ONU_mac_address: string;
@@ -651,7 +652,7 @@ export default function Dashboard() {
     const displayedCustomers = filteredCustomers.slice(startIndex, startIndex + packagesPerPage);
 
     if (customers.length === 0) {
-        return <div>Loading...</div>;
+        return <LoadingSpinner />;
     }
     
     return (

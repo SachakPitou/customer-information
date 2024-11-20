@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
+import LoadingSpinner from '../component/LoadingSpinner';
 
 interface Pop {
   image_url: string;
@@ -144,7 +145,7 @@ export default function PopDetail() {
     const displayedPops = filteredPops.slice(startIndex, startIndex + popsPerPage);
     
     if (pops.length === 0) {
-        return <div>Loading...</div>;
+        return <LoadingSpinner />;
     }
     return (
         <div className="relative w-full overflow-x-auto shadow-md">

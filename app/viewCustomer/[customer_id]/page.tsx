@@ -4,6 +4,7 @@ import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
+import LoadingSpinner from '@/app/component/LoadingSpinner';
 type CustomerStatus = 'ACTIVE' | 'INACTIVE' | 'REACTIVE' | 'TERMINATE' | '';
 type Customer = {
     customer_name: string;
@@ -279,7 +280,7 @@ export default function ViewCustomer() {
       };
     
       if (customers.length === 0) {
-        return <div>Loading...</div>;
+        return <LoadingSpinner />;
       }
     
 
