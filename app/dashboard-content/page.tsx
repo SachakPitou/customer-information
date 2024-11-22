@@ -39,6 +39,8 @@ interface Customer {
     ACL: string; 
     switch_port: string;
     port_type: string;
+    ont_id: string;
+    serial_number: string;
     frame: number,
     statusHistory: Array<{
         status_type: string;
@@ -150,10 +152,12 @@ export default function Dashboard() {
                 'Frame': customer.frame,
                 'Service Port': customer.service_port,
                 'ONU ID': customer.onu_id,
+                'ONT ID': customer.ont_id,
                 'ACL': customer.ACL,
                 'Switch Port': customer.switch_port,
                 'Port Type': customer.port_type,
                 'ONU MAC Address': customer.ONU_mac_address,
+                'Serial Number': customer.serial_number,
                 'IP Address': customer.ip_address,
                 'Interface': customer.interface_name,
                 'Device': customer.device_name,

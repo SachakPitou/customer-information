@@ -94,7 +94,7 @@ export default function SideBar() {
 
     console.log('User type state:', userType);
     console.log('Session state:', session);
-
+    
     return (
         <div>
             <div
