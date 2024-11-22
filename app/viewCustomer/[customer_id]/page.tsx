@@ -48,6 +48,7 @@ type Customer = {
     router_name: string;
     frame: number;
     slot: number;
+    serial_number: string;
     start_date: string | null;
     end_date: string | null;
     sale_name: string;
@@ -497,6 +498,11 @@ export default function ViewCustomer() {
                                         <div className="flex mb-2">
                                         <span className="font-semibold mr-2 w-40">ONT ID</span>
                                         <span>: {customer.ont_id}</span>
+                                        </div>
+                                        <br />
+                                        <div className="flex mb-2">
+                                        <span className="font-semibold mr-2 w-40">SERIAL NUMBER</span>
+                                        <span>: {customer.serial_number}</span>
                                         </div>
                                     </>
                                     ) : null}

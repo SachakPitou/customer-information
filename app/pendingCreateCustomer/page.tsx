@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
+import LoadingSpinner from '../component/LoadingSpinner';
 
 interface Customer {
   customer_id: number;
@@ -66,7 +67,9 @@ export default function PendingConfirmCustomer() {
       setError((error as Error).message);
     }
   };
-
+  if (pendingCustomers.length === 0 && !error) {
+    return <LoadingSpinner />;
+  }
   return (
     <div className="relative overflow-x-auto shadow-md">
       <div className="font-raleway-black w-full max-w-4xl p-5">

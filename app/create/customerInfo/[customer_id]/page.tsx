@@ -1,6 +1,7 @@
 "use client";
 import { useParams } from 'next/navigation';
 import CustomerServiceInfoForm from '@/app/component/customerServiceInfo';
+import LoadingSpinner from '@/app/component/LoadingSpinner';
 
 export default function CustomerInfoPage() {
   // Ensure the customer_id is typed correctly
@@ -9,6 +10,6 @@ export default function CustomerInfoPage() {
   return customer_id ? (
     <CustomerServiceInfoForm customerId={customer_id} />
   ) : (
-    <div>Loading...</div>
+    <div><LoadingSpinner /></div>
   );
 }

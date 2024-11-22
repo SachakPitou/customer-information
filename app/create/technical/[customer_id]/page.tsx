@@ -1,6 +1,7 @@
 "use client";
 import { useParams } from 'next/navigation';
 import TechnicalForm from '@/app/component/technicalForm';
+import LoadingSpinner from '@/app/component/LoadingSpinner';
 
 export default function TechnicalPage() {
   // Ensure the customer_id is typed correctly
@@ -9,6 +10,6 @@ export default function TechnicalPage() {
   return customer_id ? (
     <TechnicalForm customerId={customer_id} />
   ) : (
-    <div>Loading...</div>
+    <LoadingSpinner />
   );
 }

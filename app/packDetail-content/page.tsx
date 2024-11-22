@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SideBar from '../component/SideBar';
+import LoadingSpinner from '../component/LoadingSpinner';
 
 
 // const ACTIVE = 'active';
@@ -153,7 +154,7 @@ interface Package {
       const displayedPackages = filteredPackages.slice(startIndex, startIndex + packagesPerPage);
   
       if (packages.length === 0) {
-          return <div>Loading...</div>;
+        return <LoadingSpinner />;
       }
         
     return (

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import PopUpModal from './popUpmodal';
+import LoadingSpinner from './LoadingSpinner';
 
 interface TechnicalFormProps {
   customerId: string;
@@ -21,6 +22,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const [description, setDescription] = useState<string>('');
   const [longtitude, setLongtitudes] = useState<string>('');
   const [langtitude, setLangtitudes] = useState<string>('');
+  const [serialNumber, setSerialNumber] = useState<string>('');
   const [capacityBandwidth, setCapacityBandwidth] = useState<string>('');
   const [portType, setPortType] = useState<string>('');
   const [ACL, setACL] = useState<string>('');
@@ -193,6 +195,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
           VLan: vLan || null,
           frame: frame || null,
           ont_id: ontId || null,
+          serial_number: serialNumber || null,
           sale_name: saleName || null,
           longtitude: longtitude || null,
           langtitude: langtitude || null,
@@ -233,7 +236,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const filteredInterfaces = interfaces.filter((inf) => inf.device_id === parseInt(selectedDeviceId, 10));
 
   if (!customerData && customerId) {
-    return <div>Loading...</div>;
+    return <LoadingSpinner />;
   }
 
   return (
@@ -424,10 +427,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                   <label className="block mb-2">Longtitude:</label>
                   <input type="text" value={longtitude} onChange={e => setLongtitudes(e.target.value)} className="w-full p-2 border" />
                 </div>
-                <div className="mb-4">
+                {/* <div className="mb-4">
                   <label className="block mb-2">ACL:</label>
                   <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
-                </div>
+                </div> */}
                 {selectedDeviceTypeId === '3' && ( // Assuming 3 is for OLT
                   <>
                     <div className="mb-4">
@@ -454,6 +457,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                       <label className="block mb-2">ONU MAC ADDRESS:</label>
                       <input type="text" value={onuMacAddress} onChange={e => setOnuMacAddress(e.target.value)} className="w-full p-2 border" />
                     </div>
+                    <div className="mb-4">
+                      <label className="block mb-2">SERIAL NUMBER:</label>
+                      <input type="text" value={serialNumber} onChange={e => setOnuMacAddress(e.target.value)} className="w-full p-2 border" />
+                    </div>
                   </>
                 )}
                 {selectedDeviceTypeId === '2' && ( // Assuming 3 is for OLT
@@ -463,6 +470,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                       <label className="block mb-2">VLan:</label>
                       <input type="text" value={vLan} onChange={e => setVLan(e.target.value)} className="w-full p-2 border" />
                     </div> */}
+                    <div className="mb-4">
+                      <label className="block mb-2">ACL:</label>
+                      <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
+                    </div>
                     <div className="mb-4">
                       <label className="block mb-2">Service Port:</label>
                       <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="w-full p-2 border" />

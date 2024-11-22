@@ -40,6 +40,7 @@ interface CustomerData {
   ont_id: string;
   port_type: string;
   switch_port: string;
+  serial_number: string;
   router_device_id: string;
   capacity_bandwidth: string;
   subnet: string;
@@ -152,6 +153,7 @@ export default function Page() {
     capacity_bandwidth: '',
     subnet: '',
     status_type: '',
+    serial_number: '',
     sale_name: '',
     active_timestamp: null,
     inactive_timestamp: null,
@@ -503,7 +505,7 @@ export default function Page() {
           'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
           'location_id', 'olt_id', 'isActive', 'interface_id', 'switch_port', 'port_type',
           'ACL', 'VLan', 'description', 'frame', 'ont_id', 'capacity_bandwidth', 'status_type',
-          'subnet', 'sale_name',
+          'subnet', 'sale_name', 'serial number',
         ];
     
         const historyRecords = fieldsToCheck.map(field => {
@@ -613,6 +615,8 @@ export default function Page() {
                 .update({
                     customer_name: customer.customer_name,
                     phone_number: customer.phone_number,
+                    // device_id: customer.device_id ? parseInt(customer.device_id) : null,
+                    device_type_id: customer.device_type_id,
                     cid: customer.cid,
                     address: customer.address,
                     longtitude: customer.longtitude ? parseFloat(customer.longtitude) : null,
@@ -632,6 +636,7 @@ export default function Page() {
                     VLan: customer.VLan,
                     frame: customer.frame,
                     ont_id: customer.ont_id,
+                    serial_number: customer.serial_number,
                     status_type: customer.status_type,
                     subnet: customer.subnet,
                     description: customer.description ? String(customer.description) : null,
@@ -708,6 +713,7 @@ export default function Page() {
           ONU_mac_address: customerData.ONU_mac_address || '',
           onu_id: customerData.onu_id || '',
           ont_id: customerData.ont_id || '',
+          serial_number: customerData.serial_number || '',
         }));
     
       } catch (error) {
@@ -976,17 +982,7 @@ export default function Page() {
                       className="w-full p-2 border rounded"
                     />
                   </div>
-                  <div className="w-full md:w-1/2 px-2 mb-4">
-                    <label htmlFor="ACL" className="block mb-2">ACL:</label>
-                    <input
-                      type="text"
-                      id="ACL"
-                      placeholder="Enter ACL"
-                      value={customer.ACL || ''}
-                      onChange={(e) => setCustomer({ ...customer, ACL: e.target.value })}
-                      className="w-full p-2 border rounded"
-                    />
-                  </div>
+                  
                   <div className="w-full md:w-1/2 px-2 mb-4">
                     <label htmlFor="capacityBandwidth" className="block mb-2">Capacity Bandwidth:</label>
                     <input
@@ -1061,7 +1057,17 @@ export default function Page() {
                       className="w-full p-2 border rounded"
                     />
                   </div>
-                  
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="ACL" className="block mb-2">ACL:</label>
+                    <input
+                      type="text"
+                      id="ACL"
+                      placeholder="Enter ACL"
+                      value={customer.ACL || ''}
+                      onChange={(e) => setCustomer({ ...customer, ACL: e.target.value })}
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
                 </>
               )}
               {customer.device_type_id === 3 && (
@@ -1135,6 +1141,18 @@ export default function Page() {
                     placeholder="Enter ONT ID"
                     value={customer.ont_id}
                     onChange={(e) => setCustomer({ ...customer, ont_id: e.target.value })}
+                    required
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div className="w-full md:w-1/2 px-2 mb-4">
+                  <label htmlFor="ontId" className="block mb-2">SERIAL NUMBER:</label>
+                  <input
+                    type="text"
+                    id="serialNumber"
+                    placeholder="Enter Serial Number"
+                    value={customer.serial_number}
+                    onChange={(e) => setCustomer({ ...customer, serial_number: e.target.value })}
                     required
                     className="w-full p-2 border rounded"
                   />
