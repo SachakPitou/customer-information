@@ -459,7 +459,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                     </div>
                     <div className="mb-4">
                       <label className="block mb-2">SERIAL NUMBER:</label>
-                      <input type="text" value={serialNumber} onChange={e => setOnuMacAddress(e.target.value)} className="w-full p-2 border" />
+                      <input type="text" value={serialNumber} onChange={e => setSerialNumber(e.target.value)} className="w-full p-2 border" />
                     </div>
                   </>
                 )}
