@@ -68,7 +68,7 @@ export default function PendingRequests() {
               <td className="px-6 py-4">
                 <button 
                   onClick={() => router.push(`/create/customerInfo/${customer.customer_id}`)}
-                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                 >
                   Add Customer
                 </button>

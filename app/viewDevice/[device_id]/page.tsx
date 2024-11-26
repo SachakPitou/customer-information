@@ -4,6 +4,7 @@ import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import LoadingSpinner from '@/app/component/LoadingSpinner';
+import PopUpModal from '@/app/component/popUpmodal';
 
 type Device = {
     device_id: string;
@@ -44,6 +45,8 @@ export default function ViewDevice() {
     const [deviceType, setDeviceType] = useState<DeviceType | null>(null);
     const [interfaces, setInterfaces] = useState<Interface[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [updateMessage, setUpdateMessage] = useState<{ success?: string; error?: string } | null>(null);
     const router = useRouter();
     const [deviceImage, setDeviceImage] = useState<string | null>(null);
     const [newDeviceImage, setNewDeviceImage] = useState<File | null>(null);
@@ -166,9 +169,11 @@ export default function ViewDevice() {
 
     const handleSave = async () => {
         if (!device || !device.device_id) {
-            alert('Device information is missing. Please refresh the page and try again.');
+            setUpdateMessage({ error: 'Device information is missing. Please refresh the page and try again.' });
+            setIsModalOpen(true);
             return;
         }
+    
     
         try {
             let imageUrl = device.image_url;
@@ -262,12 +267,18 @@ export default function ViewDevice() {
                 if (interfaceResult.error) throw interfaceResult.error;
             }
     
-            alert('Device and interfaces updated successfully!');
+            setUpdateMessage({ success: `Device ${device.device_name} updated successfully!` });
+            setIsModalOpen(true);
             fetchDeviceAndInterfaces();
         } catch (error) {
             console.error('Error updating device and interfaces:', error);
-            alert('Failed to update device and interfaces. Check console for details.');
+            setUpdateMessage({ error: 'Failed to update device and interfaces. Please try again.' });
+            setIsModalOpen(true);
         }
+    };
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setUpdateMessage(null);
     };
     const handleDeleteInterface = async (index: number) => {
         try {
@@ -505,12 +516,31 @@ export default function ViewDevice() {
                     </button>
                     <button
                         onClick={handleSave}
-                        className="mt-4 ml-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        className="mt-4 ml-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                     >
                         Save Changes
                     </button>
                 </div>
             </div>
+            <PopUpModal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                title={updateMessage?.success ? 'Success' : 'Error'}
+                content={
+                    <>
+                        {updateMessage?.success && (
+                            <p className="text-center text-green-700 mt-4">
+                                {updateMessage.success}
+                            </p>
+                        )}
+                        {updateMessage?.error && (
+                            <p className="text-center text-red-700 mt-4">
+                                {updateMessage.error}
+                            </p>
+                        )}
+                    </>
+                }
+            />
         </div>
     );
 }

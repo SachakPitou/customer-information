@@ -32,7 +32,7 @@ const LoadingSpinner = () => {
         <div className="space-y-3 text-center">
           <p className="text-lg text-gray-800 font-medium animate-pulse">Loading...</p>
           <p className="text-gray-600 animate-fade-in">Please wait patiently...</p>
-          <p className="text-gray-600 font-khmer animate-fade-in">សូមរង់ចាំ...</p>
+          <p className="text-gray-600 font-kh-battambang animate-fade-in">សូមរង់ចាំ...</p>
         </div>
       </div>
       

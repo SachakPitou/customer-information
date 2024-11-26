@@ -777,26 +777,8 @@ export default function Dashboard() {
                     {displayedCustomers.map((customer) => (
                         <React.Fragment key={customer.customer_id}>
                             <tr className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
-                                {/* <td className="w-4 p-4">
-                                    <div className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                        />
-                                    </div>
-                                </td> */}
                                 <td className="px-6 py-4">{customer.rowNumber}</td>
                                 <td className="px-6 py-4">{customer.customer_name}</td>
-                                {/* <td className="px-6 py-4">
-                                    <button
-                                        onClick={() => toggleUserStatus(customer)}
-                                        className={`text-sm font-medium rounded-lg px-3 py-1 ${
-                                            customer.isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                                        }`}
-                                    >
-                                        {customer.isActive ? 'Active' : 'Inactive'}
-                                    </button>
-                                </td> */}
                                 <td className="px-6 py-4">
                                     <button 
                                         className={`px-4 py-2 font-semibold text-sm text-white rounded-full ${
