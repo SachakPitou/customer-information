@@ -13,7 +13,8 @@ interface Device {
   device_type: string;
   model: string;
   ip_address: string;
-  ups_name: string;
+  ups_name_1: string;
+  ups_name_2: string;
   power_source_type_1: string;
   power_source_type_2: string;
   location_name: string;
@@ -21,6 +22,7 @@ interface Device {
   pop_name: string;
   status: 'active' | 'inactive' | string;
   deployedBy: string;
+  add_date: string;
 }
 
 export default function DeviceDetail() {
@@ -108,7 +110,11 @@ export default function DeviceDetail() {
                         .select('ups_name')
                         .eq('ups_id', device.ups_id)
                         .single();
-    
+                        const { data: upsData2 } = await supabase
+                        .from('UPS')
+                        .select('ups_name')
+                        .eq('ups_id', device.ups_id_2)
+                        .single();
                     // Fetch rack information by joining RackDevice and Rack tables
                     const { data: rackDeviceData } = await supabase
                         .from('Rack Device')
@@ -143,7 +149,8 @@ export default function DeviceDetail() {
                         power_source_type_1: powerSource1Data?.data?.power_source_type || 'N/A',
                         power_source_type_2: powerSource2Data?.data?.power_source_type || 'N/A',
                         location_name: locationData?.location_name || 'Unknown Location',
-                        ups_name: upsData?.ups_name || 'Unknown UPS',
+                        ups_name_1: upsData?.ups_name || 'Unknown UPS',
+                        ups_name_2: upsData2?.ups_name || 'Unknown UPS',
                         device_type: deviceTypeData?.device_type || 'Unknown Device Type',
                         rack_name: rackData?.rack_name || 'Unknown Rack',
                         pop_name: popData?.pop_name || 'Unknown Pop'
@@ -205,7 +212,8 @@ export default function DeviceDetail() {
                 device.device_type.toLowerCase().includes(searchTerm) ||
                 device.model.toLowerCase().includes(searchTerm) ||
                 device.ip_address.toLowerCase().includes(searchTerm) ||
-                device.ups_name.toLowerCase().includes(searchTerm)
+                device.ups_name_1.toLowerCase().includes(searchTerm) ||
+                device.ups_name_2.toLowerCase().includes(searchTerm)
             );
         } else if (searchField === 'device_name') {
             isMatchingSearch = device.device_name.toLowerCase().includes(searchTerm);
@@ -219,7 +227,7 @@ export default function DeviceDetail() {
             const ipAddressString = device.ip_address?.toString() || '';
             isMatchingSearch = ipAddressString.includes(searchTerm);
         } else if (searchField === 'ups') {
-            const upsString = device.ups_name?.toString() || '';
+            const upsString = device.ups_name_1?.toString() || '';
             isMatchingSearch = upsString.toLowerCase().includes(searchTerm);
         }
     
@@ -246,7 +254,13 @@ export default function DeviceDetail() {
     const handlePageChange = (pageNumber: number) => {
         setCurrentPage(pageNumber);
     };
-    
+    const calculateDeviceDuration = (addDate: string) => {
+        const currentDate = new Date();
+        const deviceAddDate = new Date(addDate);
+        const durationInMs = currentDate.getTime() - deviceAddDate.getTime();
+        const durationInDays = Math.floor(durationInMs / (1000 * 60 * 60 * 24));
+        return durationInDays;
+    };
     const totalPages = Math.ceil(filteredDevices.length / packagesPerPage);
     const startIndex = (currentPage - 1) * packagesPerPage;
     const displayedDevices = filteredDevices.slice(startIndex, startIndex + packagesPerPage);
@@ -343,10 +357,16 @@ export default function DeviceDetail() {
                             PWS 2
                         </th>
                         <th scope="col" className="px-6 py-3">
-                            UPS  
+                            UPS 1 
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            UPS 2 
                         </th>
                         <th scope="col" className="px-6 py-3">
                             Status
+                        </th>
+                        <th scope="col" className="px-6 py-3">
+                            Duration
                         </th>
                         <th scope="col" className="px-6 py-3">
                             Deploy By
@@ -375,7 +395,9 @@ export default function DeviceDetail() {
                             <td className="px-6 py-4">{device.ip_address}</td>
                             <td className="px-6 py-4">{device.power_source_type_1}</td>
                             <td className="px-6 py-4">{device.power_source_type_2}</td>
-                            <td className="px-6 py-4">{device.ups_name}</td>
+                            <td className="px-6 py-4">{device.ups_name_1}</td>
+                            <td className="px-6 py-4">{device.ups_name_2}</td>
+                            
                             <td className="px-6 py-4">
                                 <span
                                     className={`px-3 py-1 rounded-lg font-medium ${
@@ -389,6 +411,7 @@ export default function DeviceDetail() {
                                     {device.status}
                                 </span>
                             </td>
+                            <td className="px-6 py-4">{calculateDeviceDuration(device.add_date)} days</td>
                             <td className="px-6 py-4">{device.deployedBy}</td>
                             <td className="px-6 py-4">
                                 <Link href={`/viewDevice/${device.device_id}`}>

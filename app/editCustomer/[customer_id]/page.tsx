@@ -1122,6 +1122,18 @@ export default function Page() {
                   />
                 </div>
                 <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="switchPort" className="block mb-2">Switch Port:</label>
+                    <input
+                      type="text"
+                      id="switchPort"
+                      placeholder="Enter Switch Port"
+                      value={customer.switch_port}
+                      onChange={(e) => setCustomer({ ...customer, switch_port: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                {/* <div className="w-full md:w-1/2 px-2 mb-4">
                   <label htmlFor="onuID" className="block mb-2">ONU ID:</label>
                   <input
                     type="text"
@@ -1132,7 +1144,7 @@ export default function Page() {
                     required
                     className="w-full p-2 border rounded"
                   />
-                </div>
+                </div> */}
                 <div className="w-full md:w-1/2 px-2 mb-4">
                   <label htmlFor="ontId" className="block mb-2">ONT ID:</label>
                   <input
@@ -1160,7 +1172,7 @@ export default function Page() {
               </>
             )}
             <br />
-            <div className="w-full md:w-1/2 px-2 mb-4">
+            {/* <div className="w-full md:w-1/2 px-2 mb-4">
             <label htmlFor="statusType" className="block mb-2">Status Type:</label>
             <select
               id="statusType"
@@ -1220,7 +1232,7 @@ export default function Page() {
                   <label htmlFor="noEndDate">No End Date</label>
                 </div>
               </>
-            )}
+            )} */}
             </>
           )}
           <div className="w-full p-2 text-center">

@@ -431,11 +431,6 @@ export default function ViewCustomer() {
                                 </div>
                                 <br />
                                 <div className="flex mb-2">
-                                    <span className="font-semibold mr-2 w-40">ACL</span>
-                                    <span>: {customer.ACL}</span>
-                                </div>
-                                <br />
-                                <div className="flex mb-2">
                                     <span className="font-semibold mr-2 w-40">IP Address</span>
                                     <span>: {customer.ip_address}</span>
                                 </div>
@@ -467,6 +462,11 @@ export default function ViewCustomer() {
                                         <span>: {customer.camera_ip}</span>
                                         </div>
                                         <br />
+                                        <div className="flex mb-2">
+                                            <span className="font-semibold mr-2 w-40">ACL</span>
+                                            <span>: {customer.ACL}</span>
+                                        </div>
+                                        <br />
                                     </>
                                     ) : customer.device_type_id === 3 ? (
                                     <>
@@ -486,8 +486,8 @@ export default function ViewCustomer() {
                                         </div>
                                         <br />
                                         <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">ONU ID</span>
-                                        <span>: {customer.onu_id}</span>
+                                        <span className="font-semibold mr-2 w-40">Switch Port</span>
+                                        <span>: {customer.switch_port}</span>
                                         </div>
                                         <br />
                                         <div className="flex mb-2">

@@ -15,6 +15,7 @@ interface DeviceData {
   rack_id: number;
   power_source_id_1: number | null;
   power_source_id_2: number | null;
+  ups_id_2: number | null;
   mac_address: string;
   serial_number: string;
   description: string;
@@ -22,8 +23,8 @@ interface DeviceData {
   u_position: string;
   status: string;
   ups_id: number | null;
+  add_date: string; // You can use Date or string depending on your preference
 }
-
 interface Location {
   location_id: number;
   location_name: string;
@@ -75,13 +76,15 @@ export default function EditDevice() {
     rack_id: 0,
     power_source_id_1: null,
     power_source_id_2: null,
+    ups_id: null,
+    ups_id_2: null,
     mac_address: '',
     serial_number: '',
     description: '',
     deployedBy: '',
     u_position: '',
     status: '',
-    ups_id: null,
+    add_date: '',
   });
 
   const [locations, setLocations] = useState<Location[]>([]);
@@ -247,7 +250,11 @@ export default function EditDevice() {
       fetchRacks(device.pop_id);
     }
   }, [device.pop_id]);
-
+  useEffect(() => {
+    if (device.add_date) {
+      setDevice({ ...device, add_date: new Date(device.add_date).toISOString().slice(0, 10) });
+    }
+  }, [device.add_date]);
   const handleEditDevice = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
@@ -267,6 +274,8 @@ export default function EditDevice() {
           status: device.status,
           deployedBy: device.deployedBy,
           ups_id: device.ups_id,
+          ups_id_2: device.ups_id_2,
+          add_date: device.add_date,
         })
         .eq('device_id', device_id);
 
@@ -379,6 +388,15 @@ export default function EditDevice() {
               required
               className="font-raleway-black w-full p-2 border"
             />
+            <label htmlFor="addDate" className="block mb-2 mt-4">Add Device Date:</label>
+              <input
+                type="date"
+                id="addDate"
+                value={device.add_date}
+                onChange={(e) => setDevice({ ...device, add_date: e.target.value })}
+                required
+                className="font-raleway-black w-full p-2 border"
+              />
             {/* Number of Power Sources */}
             <label htmlFor="powerSource1" className="block mb-2 mt-4">Power Source 1:</label>
             <select
@@ -394,6 +412,26 @@ export default function EditDevice() {
                 </option>
               ))}
             </select>
+
+            {/* UPS for Power Source 1 */}
+            {device.power_source_id_1 && (
+              <>
+                <label htmlFor="ups1" className="block mb-2 mt-4">UPS for Power Source 1:</label>
+                <select
+                  id="ups1"
+                  value={device.ups_id ?? ''} 
+                  onChange={(e) => setDevice({ ...device, ups_id: e.target.value ? parseInt(e.target.value, 10) : null })}
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">Select UPS for Power Source 1...</option>
+                  {UPSs.map((ups) => (
+                    <option key={ups.ups_id} value={ups.ups_id}>
+                      {ups.ups_name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
 
             {/* Power Source 2 */}
             <label htmlFor="powerSource2" className="block mb-2 mt-4">Power Source 2:</label>
@@ -411,25 +449,25 @@ export default function EditDevice() {
               ))}
             </select>
 
-          {/* UPS */}
-          {(device.power_source_id_1 || device.power_source_id_2) && (
-            <>
-              <label htmlFor="ups" className="block mb-2 mt-4">UPS:</label>
-              <select
-                id="ups"
-                value={device.ups_id ?? ''} // Ensure the value is either a number or an empty string
-                onChange={(e) => setDevice({ ...device, ups_id: e.target.value ? parseInt(e.target.value, 10) : null })}
-                className="font-raleway-black w-full p-2 border"
-              >
-                <option value="">Select UPS...</option>
-                {UPSs.map((ups) => (
-                  <option key={ups.ups_id} value={ups.ups_id}>
-                    {ups.ups_name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
+            {/* UPS for Power Source 2 */}
+            {device.power_source_id_2 && (
+              <>
+                <label htmlFor="ups2" className="block mb-2 mt-4">UPS for Power Source 2:</label>
+                <select
+                  id="ups2"
+                  value={device.ups_id_2 ?? ''} 
+                  onChange={(e) => setDevice({ ...device, ups_id_2: e.target.value ? parseInt(e.target.value, 10) : null })}
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">Select UPS for Power Source 2...</option>
+                  {UPSs.map((ups) => (
+                    <option key={ups.ups_id} value={ups.ups_id}>
+                      {ups.ups_name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
 
           {/* Location Name */}
           <label htmlFor="locationName" className="block mb-2 mt-4">Location Name:</label>

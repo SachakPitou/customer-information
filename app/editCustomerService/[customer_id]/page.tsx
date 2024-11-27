@@ -17,25 +17,30 @@ interface CustomerData {
     service_id: string;
     package_id: string;
     isActive: string;
+    status_type?: string;
 }
 
 interface ServiceData {
     service_id: number;
     service_name: string;
-    // Add other service properties if needed
 }
 
 interface PackageData {
     package_id: number;
     service_id: number;
     package_name: string;
-    // Add other package properties if needed
+}
+
+interface StatusHistoryData {
+    status_type: string;
+    start_date: string;
+    end_date?: string | null;
 }
 
 export default function Page() {
     const router = useRouter();
     const [userType, setUserType] = useState<string>('');
-    const [session, setSession] = useState<any>(null); // Adjust type based on your session structure
+    const [session, setSession] = useState<any>(null);
     const [customer, setCustomer] = useState<CustomerData>({
         customer_name: '',
         phone_number: '',
@@ -53,6 +58,11 @@ export default function Page() {
     const [error, setError] = useState<string | null>(null);
     const { customer_id } = useParams<{ customer_id: string }>();
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    const [statusHistory, setStatusHistory] = useState<StatusHistoryData>({
+        status_type: '',
+        start_date: '',
+        end_date: null
+    });
 
     const closeModal = () => {
         setIsModalOpen(false);
@@ -72,6 +82,32 @@ export default function Page() {
             } catch (error) {
                 console.error('Error fetching customer:', (error as Error).message);
                 setError((error as Error).message);
+            }
+        };
+
+        const fetchStatusHistory = async () => {
+            try {
+                const { data: statusData, error } = await supabase
+                    .from('statushistory')
+                    .select('*')
+                    .eq('customer_id', customer_id)
+                    .order('start_date', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') {
+                    throw new Error(error.message);
+                }
+
+                if (statusData) {
+                    setStatusHistory({
+                        status_type: statusData.status_type,
+                        start_date: statusData.start_date,
+                        end_date: statusData.end_date
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching status history:', (error as Error).message);
             }
         };
 
@@ -132,61 +168,68 @@ export default function Page() {
         };
 
         fetchCustomer();
+        fetchStatusHistory();
         fetchPackage();
         fetchService();
         fetchUserType();
     }, [customer_id]);
 
-    const handleEditCustomer = async (e: React.FormEvent) => {
+    const handleStatusTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newStatusType = e.target.value;
+        setStatusHistory(prev => ({
+            ...prev,
+            status_type: newStatusType,
+            start_date: new Date().toISOString().slice(0, 16), // Current datetime
+        }));
+    };
+
+    const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setStatusHistory(prev => ({
+            ...prev,
+            start_date: e.target.value
+        }));
+    };
+
+    const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setStatusHistory(prev => ({
+            ...prev,
+            end_date: e.target.value || null
+        }));
+    };
+
+    const handleEditCustomerStatus = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const { data: currentCustomerData, error: fetchError } = await supabase
-                .from('Customer')
-                .select('*')
-                .eq('customer_id', customer_id)
-                .single();
-
-            if (fetchError) throw new Error(fetchError.message);
-
-            const fieldsToCheck: (keyof CustomerData)[] = [
-                'customer_name', 'phone_number', 'cid', 'address', 'longtitude', 'langtitude',
-                'activation_date', 'service_id', 'package_id', 'isActive'
-            ];
-
-            const historyRecords = fieldsToCheck.map(field => {
-                if (currentCustomerData[field] !== customer[field]) {
-                    return {
-                        customer_id: customer_id, // Use customer_id from params
-                        field_changed: field,
-                        old_value: currentCustomerData[field],
-                        new_value: customer[field],
-                        timestamp: new Date()
-                    };
-                }
-                return null;
-            }).filter(record => record !== null);
-
-            if (historyRecords.length > 0) {
-                const { error: historyError } = await supabase
-                    .from('CustomerHistory')
-                    .insert(historyRecords as any[]); // Use `any[]` for dynamic records
-                if (historyError) throw new Error(historyError.message);
+            // Validate required fields
+            if (!statusHistory.status_type) {
+                setError('Please select a status type');
+                return;
             }
 
-            // Update the Customer table directly
+            // Insert new status history record
+            const { error: insertError } = await supabase
+                .from('statushistory')
+                .insert({
+                    customer_id: customer_id,
+                    status_type: statusHistory.status_type,
+                    start_date: statusHistory.start_date,
+                    end_date: statusHistory.end_date || null
+                });
+
+            if (insertError) throw new Error(insertError.message);
+
+            // Update Customer table with the latest status type
             const { error: updateError } = await supabase
                 .from('Customer')
-                .update({
-                    isActive: customer.isActive
-                })
+                .update({ status_type: statusHistory.status_type })
                 .eq('customer_id', customer_id);
 
             if (updateError) throw new Error(updateError.message);
 
             setIsModalOpen(true);
-            console.log('Customer updated successfully');
+            console.log('Customer status updated successfully');
         } catch (error) {
-            console.error('Error updating customer:', (error as Error).message);
+            console.error('Error updating customer status:', (error as Error).message);
             setError((error as Error).message);
         }
     };
@@ -202,8 +245,8 @@ export default function Page() {
                     </svg>
                 </button>
                 <span>Customer Information: </span>
-                <form onSubmit={handleEditCustomer} className="flex flex-wrap justify-between mt-10">
-                <div className="flex flex-wrap -mx-2">
+                <form onSubmit={handleEditCustomerStatus} className="flex flex-wrap justify-between mt-10">
+                    <div className="flex flex-wrap -mx-2">
                         <div className="w-full md:w-1/2 px-2 mb-4">
                             <label htmlFor="customerName" className="block mb-2">Customer Name:</label>
                             <input
@@ -245,56 +288,82 @@ export default function Page() {
                                 className="w-full p-2 border rounded bg-gray-100" 
                             />
                         </div>
-                        <div className="w-full md:w-1/2 px-2 mb-4">
-                            <label htmlFor="CID" className="block mb-2">CID:</label>
-                            <input
-                                type="text"
-                                id="CID"
-                                value={customer.cid}
-                                readOnly
-                                className="w-full p-2 border rounded bg-gray-100" 
-                            />
-                        </div>
-                        <div className="w-full md:w-1/2 px-2 mb-4">
-                            <label htmlFor="serviceName" className="block mb-2">Service Name:</label>
-                            <input
-                                type="text"
-                                id="serviceName"
-                                value={services.find(service => service.service_id === parseInt(customer.service_id, 10))?.service_name || ''}
-                                readOnly
-                                className="w-full p-2 border rounded bg-gray-100"
-                            />
-                        </div>
 
                         <div className="w-full md:w-1/2 px-2 mb-4">
-                            <label htmlFor="activationDate" className="block mb-2">Activation Date:</label>
-                            <input
-                                type="text"
-                                id="activationDate"
-                                value={customer.activation_date}
-                                readOnly
-                                className="w-full p-2 border rounded bg-gray-100" 
-                            />
-                        </div>
-                        {/* <div className="w-full md:w-1/2 px-2 mb-4">
-                            <label htmlFor="status" className="block mb-2">Status:</label>
+                            <label htmlFor="statusType" className="block mb-2">Status Type:</label>
                             <select
-                                id="isActive"
-                                value={customer.isActive ? 'true' : 'false'}
-                                onChange={(e) => setCustomer({ ...customer, isActive: e.target.value === 'true' })}
+                                id="statusType"
+                                value={statusHistory.status_type || ''}
+                                onChange={handleStatusTypeChange}
                                 className="w-full p-2 border rounded"
+                                required
                             >
-                                <option value="true">Active</option>
-                                <option value="false">Inactive</option>
+                                <option value="">Select Status...</option>
+                                <option value="ACTIVE">Active</option>
+                                <option value="INACTIVE">Inactive</option>
+                                <option value="REACTIVE">Reactive</option>
+                                <option value="TERMINATE">Terminate</option>
                             </select>
-                        </div> */}
+                        </div>
+
+                        {statusHistory.status_type && (
+                            <>
+                                <div className='w-full md:w-1/2 px-2 mb-4'>
+                                    <label htmlFor="statusStartDate" className="block mb-2">
+                                        Status Start Date:
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        id="statusStartDate"
+                                        value={statusHistory.start_date || ''}
+                                        onChange={handleStartDateChange}
+                                        required
+                                        className="font-raleway-black w-full p-2 border mb-3"
+                                    />
+                                </div>
+                                <div className='w-full md:w-1/2 px-2 mb-4'>
+                                    <label htmlFor="statusEndDate" className="block mb-2">
+                                        Status End Date:
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        id="statusEndDate"
+                                        value={statusHistory.end_date || ''}
+                                        onChange={handleEndDateChange}
+                                        className="font-raleway-black w-full p-2 border mb-3"
+                                    />
+                                </div>
+                                <div className="w-full px-2 mb-4 flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="noEndDate"
+                                        checked={!statusHistory.end_date}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setStatusHistory(prev => ({ ...prev, end_date: null }));
+                                            } else {
+                                                // Set end date to a day from start date if not checked
+                                                const startDate = new Date(statusHistory.start_date);
+                                                startDate.setDate(startDate.getDate() + 1);
+                                                setStatusHistory(prev => ({ 
+                                                    ...prev, 
+                                                    end_date: startDate.toISOString().slice(0, 16) 
+                                                }));
+                                            }
+                                        }}
+                                        className="mr-2"
+                                    />
+                                    <label htmlFor="noEndDate">No End Date</label>
+                                </div>
+                            </>
+                        )}
                     </div>
                     <div className="w-full p-2 text-center">
                         <button
-                        type="submit"
-                        className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600"
+                            type="submit"
+                            className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600"
                         >
-                        Submit
+                            Submit
                         </button>
                     </div>
                 </form>
@@ -304,14 +373,14 @@ export default function Page() {
                     title={customer_id ? 'Success' : 'Error'}
                     content={
                         <>
-                        {customer_id && (
-                            <p className="text-center text-green-700 mt-4">
-                            Customer with ID: {customer_id} status update.
-                            </p>
-                        )}
-                        {error && (
-                            <p className="text-center text-red-700 mt-4">Error updating customer status: {error}</p>
-                        )}
+                            {customer_id && (
+                                <p className="text-center text-green-700 mt-4">
+                                    Customer with ID: {customer_id} status update successful.
+                                </p>
+                            )}
+                            {error && (
+                                <p className="text-center text-red-700 mt-4">Error updating customer status: {error}</p>
+                            )}
                         </>
                     }
                 />

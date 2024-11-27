@@ -63,6 +63,7 @@ export default function CreateDevice() {
     const [status, setStatus] = useState('default');
     const [deviceType, setDeviceType] = useState('');
     const [description, setDescription] = useState('');
+    const [addDate, setAddDate] = useState('');
     const [deployedBy, setDeployedBy] = useState('');
     const [ipAddress, setIPAddress] = useState('');
     const [macAddress, setMACAddress] = useState('');
@@ -76,6 +77,7 @@ export default function CreateDevice() {
     const [uPosition, setUPosition] = useState('');
     const [powerSources, setPowerSources] = useState<PowerSource[]>([]);
     const [UPSs, setUPSs] = useState<UPS[]>([]);
+    const [selectedUPSIds, setSelectedUPSIds] = useState<string[]>(['', '']);
     const [locations, setLocations] = useState<Location[]>([]);
     const [racks, setRacks] = useState<Rack[]>([]);
     const [POPs, setPOPs] = useState<POP[]>([]);
@@ -91,7 +93,7 @@ export default function CreateDevice() {
     const [image, setImage] = useState<File | null>(null);
     const [imageUrl, setImageUrl] = useState('');
     const [deviceImage, setDeviceImage] = useState<File | null>(null);
-    const [interfacePrefix, setInterfacePrefix] = useState('');
+    const [interfacePrefix, setInterfacePrefix] = useState<{[key: number]: string}>({});
     const [interfaceError, setInterfaceError] = useState('');
     const [availableUPositions, setAvailableUPositions] = useState<number[]>([]);
     const [allUPositions, setAllUPositions] = useState<UPosition[]>([]);
@@ -112,7 +114,15 @@ export default function CreateDevice() {
         setNumberOfPowerSources(parseInt(e.target.value));
         setSelectedPowerSourceIds(['', '']); // Reset selections when changing number of sources
     };
+    
 
+    
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setDeviceImage(e.target.files[0]);
+        }
+    };
     const handleNumberOfPortsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         if (value === '' || value === null) {
@@ -128,33 +138,23 @@ export default function CreateDevice() {
             }
         }
     };
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setDeviceImage(e.target.files[0]);
-        }
-    };
-
     const setupPortAttributes = (deviceTypeId: string, portCount: number) => {
-        const selectedDeviceType = deviceTypes.find(
-            type => type.device_type_id === Number(deviceTypeId)
-        );
-        
+        const selectedDeviceType = deviceTypes.find(type => type.device_type_id === Number(deviceTypeId));
+    
         if (!selectedDeviceType) return;
     
         // Ensure portCount is at least 1
         portCount = Math.max(1, portCount || 1);
     
         let attributes: PortAttribute[] = [];
-        
-        switch(selectedDeviceType.device_type_id) {
-            case 2:  // Swtich
+    
+        switch (selectedDeviceType.device_type_id) {
+            case 2: // Switch
                 attributes = Array(portCount).fill(null).map(() => ({
                     interface_name: null,
                 }));
                 break;
-                
-            case 3:  // OLT
+            case 3: // OLT
                 attributes = Array(portCount).fill(null).map(() => ({
                     interface_name: null,
                     description: null,
@@ -163,38 +163,38 @@ export default function CreateDevice() {
                     capacity: null,
                 }));
                 break;
-                
-            case 1:  // Router
+            case 1: // Router
                 attributes = Array(portCount).fill(null).map(() => ({
                     interface_name: null,
                     capacity: null,
                     link_protocol: null,
                 }));
                 break;
-                
             default:
                 attributes = Array(portCount).fill(null).map(() => ({
                     interface_name: null,
                 }));
         }
-        
+    
         setPortAttributes(attributes);
     };
     const handlePortChange = (index: number, field: string, value: string) => {
         const updatedPorts = [...portAttributes];
+        const currentPrefix = interfacePrefix[index] || '';
+    
         if (field === 'interface_name') {
-            // Check if the new interface name is unique
-            const fullInterfaceName = `${interfacePrefix}${value}`;
-            const isUnique = !updatedPorts.some((port, i) => 
-                i !== index && `${interfacePrefix}${port.interface_name}` === fullInterfaceName
+            const fullInterfaceName = `${currentPrefix}${value}`;
+            const isUnique = !updatedPorts.some((port, i) =>
+                i !== index && 
+                `${interfacePrefix[i] || ''}${port.interface_name}` === fullInterfaceName
             );
-            
+    
             if (isUnique) {
                 updatedPorts[index][field as keyof PortAttribute] = value;
                 setInterfaceError('');
             } else {
                 setInterfaceError(`Interface name '${fullInterfaceName}' is already in use`);
-                return; // Don't update if not unique
+                return;
             }
         } else {
             updatedPorts[index][field as keyof PortAttribute] = value === '' ? null : value;
@@ -208,18 +208,17 @@ export default function CreateDevice() {
         setSelectedPowerSourceIds(newSelectedPowerSourceIds);
     };
     
-    const handleInterfacePrefixChange = (value: React.SetStateAction<string>) => {
+    const handlePrefixChange = (value: string) => {
         setInterfacePrefix(value);
-        // Update all existing interface names with new prefix
+        // Update all existing interface names with the new prefix
         const updatedPorts = portAttributes.map(port => ({
-          ...port,
-          interface_name: port.interface_name ? 
-            value + port.interface_name.replace(interfacePrefix, '') : 
-            null
+            ...port,
+            interface_name: port.interface_name ?
+                value + port.interface_name.replace(/^.*?(?=\d)/, '') :
+                null
         }));
         setPortAttributes(updatedPorts);
     };
-    // Add this function in your component
     const renderPortAttributes = (port: PortAttribute, index: number) => {
         const renderAdditionalFields = () => {
             switch (Number(selectedDeviceTypeId)) {
@@ -271,7 +270,7 @@ export default function CreateDevice() {
                             </div>
                         </>
                     );
-                
+    
                 case 1: // Router
                     return (
                         <>
@@ -297,35 +296,64 @@ export default function CreateDevice() {
                             </div>
                         </>
                     );
-                
+    
                 default: // Switch or default case
                     return null;
             }
         };
-
+    
         return (
             <div key={index} className="border p-4 rounded">
                 <h3 className="font-bold mb-2">Port {index + 1}</h3>
-                
-                {/* Interface Name Field (Common to all types) */}
-                <div>
-                    <label 
-                        htmlFor={`interface_name${index}`} 
-                        className="block mb-2 font-semibold"
-                    >
-                        Interface Name:
+    
+                {/* Interface Prefix Dropdown */}
+                <div className="mb-4">
+                    <label htmlFor={`interface_prefix_${index}`} className="block mb-2 font-semibold">
+                        Interface Prefix:
                     </label>
+                    <select
+                        id={`interface_prefix_${index}`}
+                        value={interfacePrefix[index] || ''}
+                        onChange={(e) => {
+                            const newPrefixes = { ...interfacePrefix, [index]: e.target.value };
+                            setInterfacePrefix(newPrefixes);
+    
+                            // Update port attributes with new prefix
+                            const updatedPorts = [...portAttributes];
+                            handlePortChange(index, 'interface_name', updatedPorts[index].interface_name || '');
+                        }}
+                        className="w-full p-2 border rounded"
+                    >
+                        <option value="">Select Prefix</option>
+                        {Number(selectedDeviceTypeId) === 1 
+                            ? prefixOptions.router.map(option => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))
+                            : prefixOptions.switch.map(option => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))
+                        }
+                    </select>
+                </div>
+    
+                {/* Interface Name Field */}
+                <div>
+                    <label htmlFor={`interface_name${index}`} className="block mb-2 font-semibold">Interface Name:</label>
                     <div className="flex">
                         <input
                             type="text"
-                            id={`interface_name${index}`}
-                            value={interfacePrefix}
+                            id={`interface_prefix_display${index}`}
+                            value={interfacePrefix[index] || ''}
                             className="w-1/2 p-2 border rounded-l bg-gray-100"
                             readOnly
                         />
                         <input
                             type="text"
-                            value={port.interface_name?.replace(interfacePrefix, '') || ''}
+                            value={port.interface_name?.replace(interfacePrefix[index] || '', '') || ''}
                             onChange={(e) => handlePortChange(index, 'interface_name', e.target.value)}
                             placeholder="Enter number"
                             className="w-1/2 p-2 border rounded-r"
@@ -333,11 +361,26 @@ export default function CreateDevice() {
                     </div>
                     {interfaceError && <p className="text-red-500 text-sm mt-1">{interfaceError}</p>}
                 </div>
-
-                {/* Additional Fields Based on Device Type */}
+    
+                {/* Additional Device-Specific Fields */}
                 {renderAdditionalFields()}
             </div>
         );
+    };
+    
+    // Prefix Options
+    const prefixOptions = {
+        switch: [
+            { label: 'GigabitEthernet0/0/*', value: 'GigabitEthernet0/0/*' },
+            { label: 'XGigabitEthernet0/0/*', value: 'XGigabitEthernet0/0/*' },
+            { label: 'XGigabitEthernet1/0/*', value: 'XGigabitEthernet1/0/*' },
+            { label: '40GE0/0/*', value: '40GE0/0/*' },
+            { label: '40GE1/0/*', value: '40GE1/0/*' }
+        ],
+        router: [
+            { label: 'ether*', value: 'ether*' },
+            { label: 'sfp-sfpplus*', value: 'sfp-sfpplus*' }
+        ]
     };
     useEffect(() => {
         const fetchUserType = async () => {
@@ -573,9 +616,11 @@ export default function CreateDevice() {
                         power_source_id_1: selectedPowerSourceIds[0] ? parseInt(selectedPowerSourceIds[0]) : null,
                         power_source_id_2: selectedPowerSourceIds[1] ? parseInt(selectedPowerSourceIds[1]) : null,
                         location_id: parseInt(selectedLocationId),
-                        ups_id: parseInt(selectedUPSId),
+                        ups_id: selectedPowerSourceIds[0] ? parseInt(selectedUPSIds[0]) : null,
+                        ups_id_2: selectedPowerSourceIds[1] ? parseInt(selectedUPSIds[1]) : null,
                         status: status,
                         image_url: imageUrl,
+                        add_date: addDate,
                     },
                 ])
                 .select();
@@ -586,15 +631,25 @@ export default function CreateDevice() {
 
             const deviceId = deviceData[0].device_id;
 
-            const interfaces = portAttributes.map((port, index) => ({
-                device_id: parseInt(deviceId.toString()),
-                interface_name: `${interfacePrefix}${port.interface_name || (index + 1)}`, // Full interface name
-                description: port.description,
-                port_type: port.port_type,
-                link_mode: port.link_mode,
-                capacity: port.capacity,
-                link_protocol: port.link_protocol,
-            }));
+            const interfaces = portAttributes.map((port, index) => {
+                // Find the selected prefix option
+                const selectedPrefixOption = 
+                    Number(selectedDeviceTypeId) === 1 
+                        ? prefixOptions.router.find(option => option.value === interfacePrefix[index])
+                        : prefixOptions.switch.find(option => option.value === interfacePrefix[index]);
+    
+                return {
+                    device_id: parseInt(deviceId.toString()),
+                    interface_name: `${selectedPrefixOption?.value || ''}${port.interface_name || (index + 1)}`, // Full interface name
+                    description: port.description,
+                    port_type: port.port_type 
+                        ? (port.port_type === 'uplink' ? 'Uplink' : 'Downlink') 
+                        : null,
+                    link_mode: port.link_mode,
+                    capacity: port.capacity,
+                    link_protocol: port.link_protocol,
+                };
+            });
     
             const { data: interfaceData, error: interfaceError } = await supabase
                 .from('Interface')
@@ -654,12 +709,13 @@ export default function CreateDevice() {
         setIPAddress('');
         setMACAddress('');
         setSerialNumber('');
+        setAddDate('');
         setSelectedPowerSourceIds(['', '']);
         setNumberOfPowerSources(1);
         setSelectedLocationId('');
         setSelectedRackId('');
         setUPosition('');
-        setSelectedUPSId('');
+        setSelectedUPSIds(['', '']);
         setSelectedDeviceTypeId('');
         setNumberOfPorts(1);
         setPortAttributes([]);
@@ -828,25 +884,35 @@ export default function CreateDevice() {
                                 </select>
                             </div>
                         ))}
-                        {selectedPowerSourceIds.some(id => id !== "") && (
-                            <div>
-                                <label htmlFor="upsName" className="block mb-2 font-semibold">UPS Name:</label>
-                                <select
-                                    id="upsName"
-                                    value={selectedUPSId}
-                                    onChange={(e) => setSelectedUPSId(e.target.value)}
-                                    required
-                                    className="w-full p-2 border rounded"
-                                >
-                                    <option value="">Select UPS...</option>
-                                    {UPSs.map((ups) => (
-                                        <option key={ups.ups_id} value={ups.ups_id}>
-                                            {ups.ups_name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
+                        {selectedPowerSourceIds.filter(id => id !== "").length > 0 && (
+                        <div>
+                            {[...Array(selectedPowerSourceIds.filter(id => id !== "").length)].map((_, index) => (
+                                <div key={index} className="mt-4">
+                                    <label htmlFor={`upsName${index}`} className="block mb-2 font-semibold">
+                                        UPS Name for Power Source {index + 1}:
+                                    </label>
+                                    <select
+                                        id={`upsName${index}`}
+                                        value={selectedUPSIds[index]}
+                                        onChange={(e) => {
+                                            const newUPSIds = [...selectedUPSIds];
+                                            newUPSIds[index] = e.target.value;
+                                            setSelectedUPSIds(newUPSIds);
+                                        }}
+                                        required
+                                        className="w-full p-2 border rounded"
+                                    >
+                                        <option value="">Select UPS...</option>
+                                        {UPSs.map((ups) => (
+                                            <option key={ups.ups_id} value={ups.ups_id}>
+                                                {ups.ups_name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                         <div>
                             <label htmlFor="macAddress" className="block mb-2 font-semibold">MAC Address:</label>
                             <input
@@ -867,6 +933,17 @@ export default function CreateDevice() {
                                 placeholder="Enter Serial Number"
                                 value={serialNumber}
                                 onChange={(e) => setSerialNumber(e.target.value)}
+                                required
+                                className="w-full p-2 border rounded"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="addDate" className="block mb-2 font-semibold">Device Add Date:</label>
+                            <input
+                                type="date"
+                                id="addDate"
+                                value={addDate}
+                                onChange={(e) => setAddDate(e.target.value)}
                                 required
                                 className="w-full p-2 border rounded"
                             />
@@ -960,21 +1037,29 @@ export default function CreateDevice() {
                         </div>
                     </div>
                     <div className="col-span-1 md:col-span-2 space-y-4">
-                            <div className="mb-4">
-                                <label htmlFor="interfaceType" className="block mb-2 font-semibold">
-                                    Interface Type for All Ports:
+                        {portAttributes.map((port, index) => (
+                            <div key={index} className="mb-4">
+                                <label htmlFor={`interface_prefix_${index}`} className="block mb-2 font-semibold">
+                                    Interface Prefix for Port {index + 1}:
                                 </label>
                                 <input
                                     type="text"
-                                    id="interfaceType"
-                                    value={interfacePrefix}
-                                    onChange={(e) => handleInterfacePrefixChange(e.target.value)}
-                                    placeholder="Enter interface type (e.g., Gigabit 0/0/)"
+                                    id={`interface_prefix_${index}`}
+                                    value={interfacePrefix[index] || ''}
+                                    onChange={(e) => {
+                                        const newPrefixes = { ...interfacePrefix, [index]: e.target.value };
+                                        setInterfacePrefix(newPrefixes);
+
+                                        // Update port attributes with new prefix
+                                        const updatedPorts = [...portAttributes];
+                                        handlePortChange(index, 'interface_name', updatedPorts[index].interface_name || '');
+                                    }}
                                     className="w-full p-2 border rounded"
                                 />
                             </div>
-                            
-                            {portAttributes.map((port, index) => renderPortAttributes(port, index))}
+                        ))}
+
+                        {portAttributes.map((port, index) => renderPortAttributes(port, index))}
                     </div>
                     <div className="col-span-1 md:col-span-2 text-center">
                         <button

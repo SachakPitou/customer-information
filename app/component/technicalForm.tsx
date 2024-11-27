@@ -450,9 +450,13 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                       <input type="text" value={ontId} onChange={e => setOntId(e.target.value)} className="w-full p-2 border" />
                     </div>
                     <div className="mb-4">
+                      <label className="block mb-2">Switch Port:</label>
+                      <input type="text" value={switchPort} onChange={e => setSwitchPort(e.target.value)} className="w-full p-2 border" />
+                    </div>
+                    {/* <div className="mb-4">
                       <label className="block mb-2">ONU ID:</label>
                       <input type="text" value={onuID} onChange={e => setOnuID(e.target.value)} className="w-full p-2 border" />
-                    </div>
+                    </div> */}
                     <div className="mb-4">
                       <label className="block mb-2">ONU MAC ADDRESS:</label>
                       <input type="text" value={onuMacAddress} onChange={e => setOnuMacAddress(e.target.value)} className="w-full p-2 border" />

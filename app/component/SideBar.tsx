@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { createClient } from '@/utils/supabase/client';
 import { Session } from '@supabase/supabase-js';
+import { NotificationBell } from '@/app/component/customernotification'  
 
 export default function SideBar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -115,6 +116,11 @@ export default function SideBar() {
                         </svg>
                     </button>
                     <br />
+                    {userType !== "technical" && (
+                                    <div className="fixed top-4 right-4 z-50">
+                                        <NotificationBell />
+                                    </div>
+                    )}
                     <br />
                     <div className="py-4 overflow-y-auto">
                         {session ? ( // Conditional rendering based on session state
@@ -184,6 +190,7 @@ export default function SideBar() {
                                     </ul>
                                 </li>
                                 )}
+                                
                                 {userType !== "customer_service" && (
                                 <li>
                                     <button onClick={toggleDropdown6} className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-expanded={isOpen2} aria-controls="dropdown-example">
