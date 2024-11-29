@@ -1122,13 +1122,13 @@ export default function Page() {
                   />
                 </div>
                 <div className="w-full md:w-1/2 px-2 mb-4">
-                    <label htmlFor="switchPort" className="block mb-2">Switch Port:</label>
+                    <label htmlFor="switchPort" className="block mb-2">Service Port:</label>
                     <input
                       type="text"
-                      id="switchPort"
-                      placeholder="Enter Switch Port"
-                      value={customer.switch_port}
-                      onChange={(e) => setCustomer({ ...customer, switch_port: e.target.value })}
+                      id="servicePort"
+                      placeholder="Enter Service Port"
+                      value={customer.service_port}
+                      onChange={(e) => setCustomer({ ...customer, service_port: e.target.value })}
                       required
                       className="w-full p-2 border rounded"
                     />

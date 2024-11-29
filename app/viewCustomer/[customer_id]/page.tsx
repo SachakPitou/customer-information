@@ -486,8 +486,8 @@ export default function ViewCustomer() {
                                         </div>
                                         <br />
                                         <div className="flex mb-2">
-                                        <span className="font-semibold mr-2 w-40">Switch Port</span>
-                                        <span>: {customer.switch_port}</span>
+                                        <span className="font-semibold mr-2 w-40">Service Port</span>
+                                        <span>: {customer.service_port}</span>
                                         </div>
                                         <br />
                                         <div className="flex mb-2">
