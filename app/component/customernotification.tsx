@@ -27,22 +27,53 @@ function useCustomerNotifications() {
         // Fetch customer names for each notification based on related_id
         const notificationsWithCustomerNames = await Promise.all(
           notificationsData.map(async (notification) => {
-            const { data: customerData, error: customerError } = await supabase
-              .from('Customer')
-              .select('customer_name')
-              .eq('customer_id', notification.related_id)
-              .single();
+            try {
+              console.log('Fetching customer for related_id:', notification.related_id);
+              
+              const { data: customerData, error: customerError } = await supabase
+                .from('Customer')
+                .select('customer_name')
+                .eq('customer_id', notification.related_id)
+                .single();
 
-            if (customerError) {
-              console.error('Error fetching customer name:', customerError);
-              return { ...notification, customer_name: 'Unknown' };
+              console.log('Customer Data:', customerData);
+              console.log('Customer Error:', customerError);
+
+              if (customerError) {
+                console.error('Error fetching customer name:', customerError);
+                return { 
+                  ...notification, 
+                  customer_name: 'Unknown',
+                  fetch_error: customerError.message 
+                };
+              }
+
+              return { 
+                ...notification, 
+                customer_name: customerData?.customer_name || 'Unknown' 
+              };
+            } catch (catchError) {
+              console.error('Unexpected error fetching customer:', catchError);
+              return { 
+                ...notification, 
+                customer_name: 'Unknown',
+                fetch_error: String(catchError) 
+              };
             }
-
-            return { ...notification, customer_name: customerData?.customer_name || 'Unknown' };
           })
         );
 
-        setNotifications(notificationsWithCustomerNames);
+        // Deduplicate notifications
+        const uniqueNotifications = Array.from(
+          new Map(
+            notificationsWithCustomerNames.map(notification => [
+              `${notification.related_id}-${notification.message}-${notification.created_at}`, 
+              notification
+            ])
+          ).values()
+        );
+
+        setNotifications(uniqueNotifications);
       } catch (err) {
         console.error('Unexpected error in notifications:', err);
         setError('Failed to fetch notifications');
@@ -53,23 +84,44 @@ function useCustomerNotifications() {
 
     // Set up real-time subscription
     const channel = supabase
-    .channel('notifications')
-    .on(
-        'postgres_changes',
-        {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        },
-        (payload) => {
-        // Only add the notification if it's unread
-        if (payload.new.is_read === false) {
-            setNotifications((prev) => [payload.new, ...prev]);
-        }
-        }
-    )
-    .subscribe();
+  .channel('notifications')
+  .on(
+    'postgres_changes',
+    {
+      event: '*', // Listen to all events (INSERT, UPDATE, etc.)
+      schema: 'public',
+      table: 'notifications',
+    },
+    (payload) => {
+      console.log('Notification payload:', payload);
 
+      // Handle different event types
+      switch(payload.eventType) {
+        case 'INSERT':
+          if (payload.new.is_read === false) {
+            setNotifications((prev) => {
+              const isDuplicate = prev.some(
+                notification => 
+                  notification.related_id === payload.new.related_id && 
+                  notification.message === payload.new.message && 
+                  notification.created_at === payload.new.created_at
+              );
+
+              return isDuplicate 
+                ? prev 
+                : [payload.new, ...prev];
+            });
+          }
+          break;
+        
+        // Optionally handle other event types if needed
+        case 'UPDATE':
+          // Handle updates if necessary
+          break;
+      }
+    }
+  )
+  .subscribe();
     // Cleanup subscription
     return () => {
       supabase.removeChannel(channel);
@@ -77,20 +129,36 @@ function useCustomerNotifications() {
   }, []);
 
   // Method to mark notification as read
-  const markNotificationAsRead = async (id: number) => {
+  const markNotificationsAsRead = async (notification: any) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', id);
+      // Find all notifications with the same related_id, message, and created_at
+      const notificationIdsToUpdate = notifications
+        .filter(
+          (n) =>
+            n.related_id === notification.related_id &&
+            n.message === notification.message &&
+            n.created_at === notification.created_at
+        )
+        .map((n) => n.id);
 
-      if (error) {
-        console.error('Error marking notification as read:', error);
-        return;
-      }
+      // Update all matching notifications to be read
+      await Promise.all(
+        notificationIdsToUpdate.map(async (id) => {
+          const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', id);
+
+          if (error) {
+            console.error('Error marking notification as read:', error);
+          }
+        })
+      );
 
       // Optimistically update local state
-      setNotifications((prev) => prev.filter((notification) => notification.id !== id));
+      setNotifications((prev) =>
+        prev.filter((n) => !notificationIdsToUpdate.includes(n.id))
+      );
     } catch (err) {
       console.error('Unexpected error marking notification:', err);
     }
@@ -98,19 +166,24 @@ function useCustomerNotifications() {
 
   return {
     notifications,
-    markNotificationAsRead,
+    markNotificationsAsRead,
     error,
   };
 }
 
+
+
 export function NotificationBell() {
-  const { notifications, markNotificationAsRead, error } = useCustomerNotifications();
+  const { notifications, markNotificationsAsRead, error } = useCustomerNotifications();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const toggleNotificationDropdown = () => {
     setIsDropdownOpen((prevState) => !prevState);
   };
-
+  const handleDismiss = (notification: any) => {
+    markNotificationsAsRead(notification);
+    setIsDropdownOpen(false);
+  };
   if (error) {
     console.error('Notification error:', error);
     return null;
@@ -144,10 +217,7 @@ export function NotificationBell() {
                 <p>{notification.message}</p>
               </div>
               <button
-                onClick={() => {
-                  markNotificationAsRead(notification.id);
-                  setIsDropdownOpen(false);
-                }}
+                onClick={() => handleDismiss(notification)}
                 className="text-sm text-gray-500 cursor-pointer"
               >
                 Dismiss
@@ -159,3 +229,5 @@ export function NotificationBell() {
     </div>
   );
 }
+
+export default NotificationBell;
