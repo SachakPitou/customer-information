@@ -183,14 +183,26 @@ export default function CreateDevice() {
         const currentPrefix = interfacePrefix[index] || '';
     
         if (field === 'interface_name') {
-            const fullInterfaceName = `${currentPrefix}${value}`;
+            // Convert single-digit input to zero-padded for interfaces 11-99 with any prefix
+            const normalizePrefixNumber = (prefix: string) => {
+                const match = prefix.match(/(\D*)(\d+)/);
+                return match ? parseInt(match[2]) : 0;
+            };
+    
+            const prefixNumber = normalizePrefixNumber(currentPrefix);
+            const normalizedValue = 
+                (prefixNumber >= 11 && value.length === 1) 
+                    ? `0${value}` 
+                    : value;
+    
+            const fullInterfaceName = `${currentPrefix}${normalizedValue}`;
             const isUnique = !updatedPorts.some((port, i) =>
                 i !== index && 
                 `${interfacePrefix[i] || ''}${port.interface_name}` === fullInterfaceName
             );
     
             if (isUnique) {
-                updatedPorts[index][field as keyof PortAttribute] = value;
+                updatedPorts[index][field as keyof PortAttribute] = normalizedValue;
                 setInterfaceError('');
             } else {
                 setInterfaceError(`Interface name '${fullInterfaceName}' is already in use`);
@@ -378,8 +390,8 @@ export default function CreateDevice() {
             { label: '40GE1/0/*', value: '40GE1/0/*' }
         ],
         router: [
-            { label: 'ether*', value: 'ether*' },
-            { label: 'sfp-sfpplus*', value: 'sfp-sfpplus*' }
+            { label: 'ether', value: 'ether' },
+            { label: 'sfp-sfpplus', value: 'sfp-sfpplus' }
         ]
     };
     useEffect(() => {
