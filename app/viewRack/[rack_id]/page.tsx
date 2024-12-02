@@ -1,8 +1,9 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/app/supabaseClient';
 import LoadingSpinner from '@/app/component/LoadingSpinner';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Rack {
     rack_id: string;
@@ -14,6 +15,7 @@ interface Rack {
     rack_brand: string;
     dimension: string;
     numberOfU: number;
+    image_url?: string;
     location_name: string;
     pop_name: string;
     ups_name: string;
@@ -47,7 +49,6 @@ interface UPS {
     ups_name: string;
 }
 
-
 export default function ViewRack() {
     const [rack, setRack] = useState<Rack | null>(null);
     const [devices, setDevices] = useState<Device[]>([]);
@@ -61,10 +62,101 @@ export default function ViewRack() {
     const [editedPop, setEditedPop] = useState<string>('');
     const [editedUps, setEditedUps] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(true);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
     const router = useRouter();
     const params = useParams();
     const rack_id = params.rack_id as string;
+    const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            // Validate file type and size
+            const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            const maxSize = 5 * 1024 * 1024; // 5MB
 
+            if (!validTypes.includes(file.type)) {
+                alert('Invalid file type. Please upload a JPEG, PNG, or GIF.');
+                return;
+            }
+
+            if (file.size > maxSize) {
+                alert('File is too large. Maximum size is 5MB.');
+                return;
+            }
+
+            setImageFile(file);
+            
+            // Create a preview of the image
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const uploadImageToStorage = async (): Promise<string | null> => {
+        if (!imageFile || !rack) return null;
+
+        try {
+            // Generate a unique filename
+            const fileExt = imageFile.name.split('.').pop();
+            const fileName = `${rack.rack_id}_${uuidv4()}.${fileExt}`;
+            const filePath = `images/${fileName}`;
+
+            // Upload to Supabase storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('Rack Image')
+                .upload(filePath, imageFile);
+
+            if (uploadError) {
+                console.error('Error uploading image:', uploadError);
+                alert('Failed to upload image');
+                return null;
+            }
+
+            // Get public URL
+            const { data: urlData } = supabase.storage
+                .from('Rack Image')
+                .getPublicUrl(filePath);
+
+            return urlData?.publicUrl || null;
+        } catch (error) {
+            console.error('Error in image upload:', error);
+            alert('An error occurred while uploading the image');
+            return null;
+        }
+    };
+
+    const handleSaveImage = async () => {
+        if (!imageFile) return;
+
+        try {
+            // Upload image and get URL
+            const imageUrl = await uploadImageToStorage();
+
+            if (imageUrl) {
+                // Update rack with new image URL
+                const { error } = await supabase
+                    .from('Rack')
+                    .update({ image_url: imageUrl })
+                    .eq('rack_id', rack_id);
+
+                if (error) throw error;
+
+                // Update local state
+                setRack(prev => prev ? { ...prev, image_url: imageUrl } : null);
+                
+                // Reset image states
+                setImageFile(null);
+                setImagePreview(null);
+                setEditingField(null);
+            }
+        } catch (error) {
+            console.error('Error saving image:', error);
+            alert('Failed to save image');
+        }
+    };
     useEffect(() => {
         async function fetchRack() {
             try {
@@ -280,6 +372,50 @@ export default function ViewRack() {
                                     </div>
                                 )}
                             </div>
+                            {rack?.image_url && (
+                                <div className="flex flex-col mt-4">
+                                    <span className="font-semibold mr-2">Rack Image:</span>
+                                    {editingField === 'image_url' ? (
+                                        <div className="flex flex-col items-start">
+                                            <input
+                                                type="file"
+                                                accept="image/jpeg,image/png,image/gif"
+                                                onChange={handleImageUpload}
+                                                className="mb-2"
+                                            />
+                                            {imagePreview && (
+                                                <img 
+                                                    src={imagePreview} 
+                                                    alt="Preview" 
+                                                    className="w-32 h-32 object-cover mb-2"
+                                                />
+                                            )}
+                                            {imageFile && (
+                                                <button
+                                                    className="bg-green-500 text-white px-2 py-1 rounded-md"
+                                                    onClick={handleSaveImage}
+                                                >
+                                                    Save Image
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center">
+                                            <img 
+                                                src={rack.image_url} 
+                                                alt="Rack" 
+                                                className="w-32 h-32 object-cover mr-2"
+                                            />
+                                            <button
+                                                className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
+                                                onClick={() => setEditingField('image_url')}
+                                            >
+                                                Upload New Image
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             <div className="flex flex-col mt-4">
                                 <span className="font-semibold mr-2">Location:</span>
                                 {editingField === 'location_name' ? (
