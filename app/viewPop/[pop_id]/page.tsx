@@ -4,6 +4,8 @@ import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import LoadingSpinner from '@/app/component/LoadingSpinner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 type Rack = {
     rack_id: string;
@@ -21,6 +23,8 @@ type Location = {
 
 export default function ViewPOP() {
     const [racks, setRacks] = useState<Rack[]>([]);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [selectedRack, setSelectedRack] = useState<Rack | null>(null);
     const router = useRouter();
     const params = useParams();
     const pop_id = params.pop_id as string;
@@ -68,6 +72,35 @@ export default function ViewPOP() {
         router.push(`/viewRack/${rack_id}`);
     };
 
+    const openDeleteModal = (rack: Rack, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent triggering rack view
+        setSelectedRack(rack);
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleDeleteRack = async () => {
+        if (!selectedRack) return;
+
+        try {
+            // Delete the rack from the Rack table
+            const { error } = await supabase
+                .from('Rack')
+                .delete()
+                .eq('rack_id', selectedRack.rack_id);
+
+            if (error) throw error;
+
+            // Remove the deleted rack from the state
+            setRacks(racks.filter(rack => rack.rack_id !== selectedRack.rack_id));
+            
+            // Close the modal
+            setIsDeleteModalOpen(false);
+        } catch (error) {
+            console.error('Error deleting rack:', error);
+            // Optionally, show an error toast or alert
+        }
+    };
+
     if (racks.length === 0) {
         return <LoadingSpinner />;
     }
@@ -86,7 +119,7 @@ export default function ViewPOP() {
                 {racks.map((rack) => (
                     <div 
                         key={rack.rack_id} 
-                        className="bg-white border rounded-lg shadow-md p-4 dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-400 cursor-pointer"
+                        className="relative bg-white border rounded-lg shadow-md p-4 dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-400 cursor-pointer"
                         onClick={() => handleRackClick(rack.rack_id)}
                     >
                         <div className="flex flex-col items-center">
@@ -101,9 +134,45 @@ export default function ViewPOP() {
                                 <p className="text-gray-700 dark:text-gray-600">POP ID: {rack.pop_id}</p>
                             </div>
                         </div>
+                        <button 
+                            onClick={(e) => openDeleteModal(rack, e)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            title="Delete Rack"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
                     </div>
                 ))}
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Rack</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete the rack "{selectedRack?.rack_name}"? 
+                            This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsDeleteModalOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={handleDeleteRack}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
