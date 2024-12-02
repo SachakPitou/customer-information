@@ -343,11 +343,19 @@ export default function CreateDevice() {
                                     {option.label}
                                 </option>
                             ))
-                            : prefixOptions.switch.map(option => (
+                            : Number(selectedDeviceTypeId) === 2
+                            ? prefixOptions.switch.map(option => (
                                 <option key={option.value} value={option.value}>
                                     {option.label}
                                 </option>
                             ))
+                            : Number(selectedDeviceTypeId) === 3
+                            ? prefixOptions.olt.map(option => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))
+                            : null
                         }
                     </select>
                 </div>
@@ -392,6 +400,9 @@ export default function CreateDevice() {
         router: [
             { label: 'ether', value: 'ether' },
             { label: 'sfp-sfpplus', value: 'sfp-sfpplus' }
+        ],
+        olt: [
+            { label: 'gpon', value: 'gpon' },
         ]
     };
     useEffect(() => {
@@ -644,15 +655,28 @@ export default function CreateDevice() {
             const deviceId = deviceData[0].device_id;
 
             const interfaces = portAttributes.map((port, index) => {
-                // Find the selected prefix option
-                const selectedPrefixOption = 
-                    Number(selectedDeviceTypeId) === 1 
-                        ? prefixOptions.router.find(option => option.value === interfacePrefix[index])
-                        : prefixOptions.switch.find(option => option.value === interfacePrefix[index]);
-    
+                console.log('Selected Device Type ID:', selectedDeviceTypeId);
+                console.log('Interface Prefix:', interfacePrefix[index]);
+                console.log('Prefix Options:', prefixOptions);
+            
+                let selectedPrefixOption = null;
+            
+                if (Number(selectedDeviceTypeId) === 1) {
+                    selectedPrefixOption = prefixOptions.router.find(option => option.value === interfacePrefix[index]);
+                    console.log('Router Prefix Option:', selectedPrefixOption);
+                } else if (Number(selectedDeviceTypeId) === 2) {
+                    selectedPrefixOption = prefixOptions.switch.find(option => option.value === interfacePrefix[index]);
+                    console.log('Switch Prefix Option:', selectedPrefixOption);
+                } else if (Number(selectedDeviceTypeId) === 3) {
+                    selectedPrefixOption = prefixOptions.olt.find(option => option.value === interfacePrefix[index]);
+                    console.log('OLT Prefix Option:', selectedPrefixOption);
+                }
+            
+                console.log('Final Selected Prefix Option:', selectedPrefixOption);
+            
                 return {
                     device_id: parseInt(deviceId.toString()),
-                    interface_name: `${selectedPrefixOption?.value || ''}${port.interface_name || (index + 1)}`, // Full interface name
+                    interface_name: `${selectedPrefixOption?.value || ''}${port.interface_name || (index + 1)}`,
                     description: port.description,
                     port_type: port.port_type 
                         ? (port.port_type === 'uplink' ? 'Uplink' : 'Downlink') 
