@@ -151,7 +151,7 @@ export default function Dashboard() {
                 'Port': customer.port,
                 'Frame': customer.frame,
                 'Service Port': customer.service_port,
-                'ONU ID': customer.onu_id,
+                // 'ONU ID': customer.onu_id,
                 'ONT ID': customer.ont_id,
                 'ACL': customer.ACL,
                 'Switch Port': customer.switch_port,

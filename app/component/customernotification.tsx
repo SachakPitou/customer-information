@@ -180,10 +180,22 @@ export function NotificationBell() {
   const toggleNotificationDropdown = () => {
     setIsDropdownOpen((prevState) => !prevState);
   };
+
   const handleDismiss = (notification: any) => {
     markNotificationsAsRead(notification);
     setIsDropdownOpen(false);
   };
+
+  // Format date to dd/mm/yy
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit'
+    });
+  };
+
   if (error) {
     console.error('Notification error:', error);
     return null;
@@ -213,7 +225,9 @@ export function NotificationBell() {
             >
               <div>
                 <span><strong>{notification.customer_name}</strong></span>
-                <div className="text-sm text-gray-500">{notification.created_at}</div>
+                <div className="text-sm text-gray-500">
+                  {formatDate(notification.created_at)}
+                </div>
                 <p>{notification.message}</p>
               </div>
               <button
