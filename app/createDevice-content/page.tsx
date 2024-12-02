@@ -383,11 +383,11 @@ export default function CreateDevice() {
     // Prefix Options
     const prefixOptions = {
         switch: [
-            { label: 'GigabitEthernet0/0/*', value: 'GigabitEthernet0/0/*' },
-            { label: 'XGigabitEthernet0/0/*', value: 'XGigabitEthernet0/0/*' },
-            { label: 'XGigabitEthernet1/0/*', value: 'XGigabitEthernet1/0/*' },
-            { label: '40GE0/0/*', value: '40GE0/0/*' },
-            { label: '40GE1/0/*', value: '40GE1/0/*' }
+            { label: 'GigabitEthernet0/0/', value: 'GigabitEthernet0/0/' },
+            { label: 'XGigabitEthernet0/0/', value: 'XGigabitEthernet0/0/' },
+            { label: 'XGigabitEthernet1/0/', value: 'XGigabitEthernet1/0/' },
+            { label: '40GE0/0/', value: '40GE0/0/' },
+            { label: '40GE1/0/', value: '40GE1/0/' }
         ],
         router: [
             { label: 'ether', value: 'ether' },
