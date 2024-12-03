@@ -121,25 +121,29 @@ export default function DeviceDetail() {
                         .select('rack_id')
                         .eq('device_id', device.device_id)
                         .single();
-    
+
                     let rackData = null;
                     let popData = null;
-                    if (rackDeviceData) {
+
+                    // Check both direct rack_id in Device and Rack Device table
+                    const rackId = device.rack_id || rackDeviceData?.rack_id;
+
+                    if (rackId) {
                         const { data: rackDetailsData } = await supabase
                             .from('Rack')
                             .select('rack_name, pop_id')
-                            .eq('rack_id', rackDeviceData.rack_id)
+                            .eq('rack_id', rackId)
                             .single();
-    
+
                         rackData = rackDetailsData;
-    
+
                         if (rackDetailsData?.pop_id) {
                             const { data: popDetailsData } = await supabase
                                 .from('POP')
                                 .select('pop_name')
                                 .eq('pop_id', rackDetailsData.pop_id)
                                 .single();
-    
+
                             popData = popDetailsData;
                         }
                     }
@@ -190,7 +194,7 @@ export default function DeviceDetail() {
             device.power_source_type_2.toLowerCase() === filters.powerSource.toLowerCase();
     
         const rackMatch = !filters.rack || 
-            device.rack_name.toLowerCase() === filters.rack.toLowerCase();
+            device.rack_name.toLowerCase().includes(filters.rack.toLowerCase());
     
         const popMatch = !filters.pop || 
             device.pop_name.toLowerCase() === filters.pop.toLowerCase();
