@@ -7,6 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import PopUpModal from '@/app/component/popUpmodal';
 import { useSupabase } from '@/app/context/SupabaseProvider';
 import { Session } from '@supabase/supabase-js';
+import LoadingSpinner from '@/app/component/LoadingSpinner';
 
 type CustomerStatus = 'ACTIVE' | 'INACTIVE' | 'REACTIVE' | 'TERMINATE' | '';
 interface CustomerData {
@@ -18,37 +19,37 @@ interface CustomerData {
   longtitude: string | null;
   langtitude: string | null;
   ONU_mac_address: string;
-  slot: string;
-  port: string;
-  service_port: string;
-  onu_id: string;
+  slot: number| null;
+  port: number| null;
+  service_port: number| null;
+  onu_id: number| null;
   camera_ip: string;
   ip_address: string;
   activation_date: string;
-  device_id: string;
-  service_id: string;
-  package_id: string;
-  location_id: string;
-  interface_id: string;
-  device_type_id: number;
-  olt_id: string;
+  device_id: number| null;
+  service_id: number;
+  package_id: number;
+  location_id: number;
+  interface_id: number| null;
+  device_type_id: number| null;
+  // olt_id: string;
   isActive: boolean;
   description: string| null;
   ACL: string | null;
   VLan: string;
-  frame: string;
-  ont_id: string;
+  frame: number| null;
+  ont_id: number| null;
   port_type: string;
-  switch_port: string;
+  switch_port: number| null;
   serial_number: string;
-  router_device_id: string;
+  router_device_id: number| null;
   capacity_bandwidth: string;
   subnet: string;
-  status_type: CustomerStatus;
-  active_timestamp: string | null;
-  inactive_timestamp: string | null;
-  reactive_timestamp: string | null;
-  terminate_timestamp: string | null;
+  // status_type: CustomerStatus;
+  // active_timestamp: string | null;
+  // inactive_timestamp: string | null;
+  // reactive_timestamp: string | null;
+  // terminate_timestamp: string | null;
   [key: string]: any;
 }
 type StatusHistory = {
@@ -95,12 +96,6 @@ interface InterfaceData {
   device_id: number;
   portDevice?: PortDeviceData;
 }
-
-interface OLTData {
-  olt_id: number;
-  // Add other OLT properties
-}
-
 interface PortDeviceData {
   interface_id: number;
   interface_name: string;
@@ -127,38 +122,38 @@ export default function Page() {
     longtitude: null,
     langtitude: null,
     ONU_mac_address: '',
-    slot: '',
-    port: '',
-    service_port: '',
-    onu_id: '',
+    slot: 0,
+    port: 0,
+    service_port: 0,
+    onu_id: 0,
     camera_ip: '',
     ip_address: '',
     activation_date: '',
-    device_id: '',
-    service_id: '',
-    package_id: '',
-    location_id: '',
-    interface_id: '',
+    device_id: 0,
+    service_id: 0,
+    package_id: 0,
+    location_id: 0,
+    interface_id: null,
     device_type_id: 0,
-    olt_id: '',
+    // olt_id: '',
     isActive: false,
     description: '',
     ACL: '',
     VLan: '',
-    frame: '',
-    ont_id: '',
+    frame: 0,
+    ont_id: 0,
     port_type: '',
-    switch_port: '',
-    router_device_id: '',
+    switch_port: 0,
+    router_device_id: 0,
     capacity_bandwidth: '',
     subnet: '',
-    status_type: '',
+    
     serial_number: '',
     sale_name: '',
-    active_timestamp: null,
-    inactive_timestamp: null,
-    reactive_timestamp: null,
-    terminate_timestamp: null,
+    // active_timestamp: null,
+    // inactive_timestamp: null,
+    // reactive_timestamp: null,
+    // terminate_timestamp: null,
   });
   const [services, setServices] = useState<ServiceData[]>([]);
   const [packages, setPackages] = useState<PackageData[]>([]);
@@ -167,7 +162,6 @@ export default function Page() {
   const [routers, setRouters] = useState<DeviceData[]>([]);
   const [deviceTypes, setDeviceTypes] = useState<DeviceTypeData[]>([]);
   const [interfaces, setInterfaces] = useState<InterfaceData[]>([]);
-  const [OLTs, setOLTs] = useState<OLTData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { customer_id } = useParams<{ customer_id: string }>();
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -328,17 +322,6 @@ export default function Page() {
           setError((error as Error).message);
         }
       };
-  
-      const fetchOLT = async () => {
-        try {
-          const { data, error } = await supabase.from('OLT').select('*');
-          if (error) throw error;
-          setOLTs(data as OLTData[]);
-        } catch (error) {
-          console.error('Error fetching OLTs:', (error as Error).message);
-          setError((error as Error).message);
-        }
-      };
       const fetchStatusHistory = async () => {
         try {
           const { data, error } = await supabase
@@ -402,7 +385,6 @@ export default function Page() {
         fetchLocation();
         fetchPackage();
         fetchService();
-        fetchOLT();
         fetchUserType();
         fetchInterface();
         fetchDeviceType();
@@ -411,14 +393,12 @@ export default function Page() {
     }, [customer_id]);
     const handleRouterChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
       const newRouterId = e.target.value;
-      
       try {
         // Update the customer state
         setCustomer(prev => ({
           ...prev,
-          router_device_id: newRouterId
+          router_device_id: newRouterId ? Number(newRouterId) : null // Convert to number or null if empty
         }));
-  
       } catch (error) {
         console.error('Error updating customer router:', error instanceof Error ? error.message : String(error));
       }
@@ -429,53 +409,53 @@ export default function Page() {
       setStatusTimestamp(typeof timestamp === 'string' ? timestamp.slice(0, 16) : '');
     };
   
-    const handleStatusTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const newStatusType = e.target.value as CustomerStatus;
-      setCustomer(prevCustomer => {
-        const updatedCustomer = { ...prevCustomer, status_type: newStatusType };
-        updateStatusTimestamp(newStatusType, updatedCustomer);
-        return updatedCustomer;
-      });
+   
+    const handleDeviceChange = async (deviceId: string) => {
+      try {
+        // Fetch device details
+        const { data: device, error: deviceError } = await supabase
+          .from('Device')
+          .select('device_id, device_type_id, device_name')
+          .eq('device_id', deviceId)
+          .single();
     
-      // Find the most recent status history for the new status type
-      const relevantHistory = statusHistory.find(item => item.status_type === newStatusType);
-      if (relevantHistory) {
-        setStatusDates({
-          start_date: relevantHistory.start_date,
-          end_date: relevantHistory.end_date || new Date().toISOString().split('T')[0] // Set to current date if null
-        });
-      } else {
-        // If no history found, set start date to today and end date to a future date (e.g., one year from now)
-        const today = new Date();
-        const oneYearFromNow = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
-        setStatusDates({
-          start_date: today.toISOString().split('T')[0],
-          end_date: oneYearFromNow.toISOString().split('T')[0]
-        });
+        if (deviceError) throw deviceError;
+    
+        // Fetch interface details for this device
+        const { data: interfaceData, error: interfaceError } = await supabase
+          .from('Interface')
+          .select('interface_id')
+          .eq('device_id', deviceId)
+          .single();
+    
+        if (interfaceError && interfaceError.code !== 'PGRST116') {
+          // Throw error if it's not a "no rows returned" error
+          throw interfaceError;
+        }
+    
+        setCustomer(prevCustomer => ({
+          ...prevCustomer,
+          device_id: device?.device_id ? Number(device.device_id) : null,
+          device_type_id: device?.device_type_id ? Number(device.device_type_id) : null,
+          interface_id: interfaceData?.interface_id ? Number(interfaceData.interface_id) : null,
+        
+          // Reset or update other device-related fields as needed
+          switch_port: 0, // Reset switch port when device changes
+          port_type: '',   // Reset port type
+          service_port: 0, // Reset service port
+          camera_ip: '',    // Reset camera IP
+          port: 0,         // Reset port
+          slot: 0,         // Reset slot
+          frame: 0,        // Reset frame
+          ONU_mac_address: '', // Reset ONU MAC address
+          onu_id: 0,       // Reset ONU ID
+          ont_id: 0,       // Reset ONT ID
+          serial_number: '', // Reset serial number
+        }));
+    
+      } catch (error) {
+        console.error('Error updating device details:', error instanceof Error ? error.message : String(error));
       }
-    };
-    
-    const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newStartDate = e.target.value;
-      setStatusDates(prevDates => ({ ...prevDates, start_date: newStartDate }));
-    };
-    
-    const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newEndDate = e.target.value;
-      setStatusDates(prevDates => ({ ...prevDates, end_date: newEndDate }));
-    };
-
-    const handleNoEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.checked) {
-        setStatusDates(prevDates => ({ ...prevDates, end_date: '' }));
-      } else {
-        const today = new Date().toISOString().split('T')[0];
-        setStatusDates(prevDates => ({ ...prevDates, end_date: today }));
-      }
-    };
-    const formatDate = (dateString: string | null): string => {
-      if (!dateString) return 'N/A';
-      return new Date(dateString).toLocaleString();
     };
     const handleEditCustomer = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -608,19 +588,60 @@ export default function Page() {
 
           console.log("Inserted status history data:", insertedData);
         }
-
-
-            const { error } = await supabase
-                .from('Customer')
-                .update({
-                    customer_name: customer.customer_name,
-                    phone_number: customer.phone_number,
-                    // device_id: customer.device_id ? parseInt(customer.device_id) : null,
-                    device_type_id: customer.device_type_id,
-                    cid: customer.cid,
-                    address: customer.address,
-                    longtitude: customer.longtitude ? parseFloat(customer.longtitude) : null,
-                    langtitude: customer.langtitude ? parseFloat(customer.langtitude) : null,
+        console.log('Potentially Problematic Fields:', {
+          router_device_id: customer.router_device_id,
+          device_id: customer.device_id,
+          device_type_id: customer.device_type_id,
+          service_id: customer.service_id,
+          package_id: customer.package_id,
+          location_id: customer.location_id,
+          interface_id: customer.interface_id,
+        });
+    
+        // Create a function to safely convert to number or null
+        const safeNumberConvert = (value: any): number | null => {
+          // Check if value is undefined, null, or an empty string
+          if (value === undefined || value === null || value === '') {
+            return null;
+          }
+          // Try to convert to number
+          const numValue = Number(value);
+          // Return number if valid, otherwise null
+          return !isNaN(numValue) && numValue !== 0 ? numValue : null;
+        };
+    
+        // Apply safe conversion to all potentially problematic fields
+        const updateData = {
+          ...customer,
+          router_device_id: safeNumberConvert(customer.router_device_id),
+          device_id: safeNumberConvert(customer.device_id),
+          device_type_id: safeNumberConvert(customer.device_type_id),
+          service_id: safeNumberConvert(customer.service_id),
+          package_id: safeNumberConvert(customer.package_id),
+          location_id: safeNumberConvert(customer.location_id),
+          interface_id: safeNumberConvert(customer.interface_id),
+        };
+    
+        // Log the converted data
+        console.log('Converted Update Data:', updateData);
+    
+        const { error } = await supabase
+          .from('Customer')
+          .update({
+            // Use the converted values
+            
+            device_id: updateData.device_id,
+            device_type_id: updateData.device_type_id,
+            service_id: updateData.service_id,
+            package_id: updateData.package_id,
+            location_id: updateData.location_id,
+            interface_id: updateData.interface_id,
+            customer_name: customer.customer_name,
+            phone_number: customer.phone_number,
+            cid: customer.cid,
+            address: customer.address,
+            longtitude: customer.longtitude ? String(customer.longtitude) : null,
+            langtitude: customer.langtitude ? String(customer.langtitude) : null,
                     ONU_mac_address: customer.ONU_mac_address,
                     slot: customer.slot,
                     port: customer.port,
@@ -628,7 +649,7 @@ export default function Page() {
                     onu_id: customer.onu_id,
                     camera_ip: customer.camera_ip,
                     ip_address: customer.ip_address,
-                    isActive: customer.isActive,
+                    // isActive: customer.isActive,
                     activation_date: customer.activation_date,
                     switch_port: customer.switch_port,
                     port_type: customer.port_type,
@@ -637,92 +658,54 @@ export default function Page() {
                     frame: customer.frame,
                     ont_id: customer.ont_id,
                     serial_number: customer.serial_number,
-                    status_type: customer.status_type,
                     subnet: customer.subnet,
-                    description: customer.description ? String(customer.description) : null,
-                    active_timestamp: customer.active_timestamp,
-                    inactive_timestamp: customer.inactive_timestamp,
-                    reactive_timestamp: customer.reactive_timestamp,
-                    terminate_timestamp: customer.terminate_timestamp,
-                    capacity_bandwidth: customer.capacity_bandwidth,                    
+                    description: customer.description ? String(customer.description) : null,                
                     sale_name: customer.sale_name,
-                    device_id: customer.device_id ? parseInt(customer.device_id) : null,
-                    service_id: customer.service_id ? parseInt(customer.service_id) : null,
-                    package_id: customer.package_id ? parseInt(customer.package_id) : null,
-                    location_id: customer.location_id ? parseInt(customer.location_id) : null,
-                    interface_id: customer.interface_id ? parseInt(customer.interface_id) : null,
-                    olt_id: customer.olt_id ? parseInt(customer.olt_id) : null,
                 })
                 .eq('customer_id', customer_id);
+                
             if (error) throw new Error(error.message);
             
-          const { error: routerError } = await supabase
-            .from('customerrouter')
-            .upsert({
+            const { data: routerUpsertData, error: routerError } = await supabase
+              .from('customerrouter')
+              .upsert({
                 customer_id: customer_id,
-                router_device_id: customer.router_device_id
-            }, {
+                router_device_id: updateData.router_device_id,
+              }, {
                 onConflict: 'customer_id'
-            });
-
-        if (routerError) throw new Error(routerError.message);
+              });
+        
+          // Log the result of the upsert
+          console.log('Router upsert data:', routerUpsertData);
+          console.log('Router upsert error:', routerError);
+        
+          if (routerError) throw new Error(routerError.message);
             router.push('/dashboard');
             setIsModalOpen(true);
             console.log('Customer updated successfully');
           } catch (error) {
             console.error('Error updating customer:', (error as Error).message);
-            setError((error as Error).message);
-        }
-    };
+            if (error instanceof Error) {
+              console.error('Error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+              });
+            }
+            setError(error instanceof Error ? error.message : String(error));
+          }
+      };
 
-    const handleDeviceChange = async (deviceId: string) => {
-      try {
-        // Fetch device type
-        const { data: device, error: deviceError } = await supabase
-          .from('Device')
-          .select('device_type_id')
-          .eq('device_id', deviceId)
-          .single();
+      
+    const filteredPackages = packages.filter((pkg) => pkg.service_id === customer.service_id);
+    const filteredInterfaces = interfaces.filter((inf) => inf.device_id === customer.device_id);
+    if (isLoading) {
+      return <LoadingSpinner/>; // Show a loader while data is being fetched
+    }
     
-        if (deviceError) throw deviceError;
-    
-        // Fetch the current customer data
-        const { data: customerData, error: customerError } = await supabase
-          .from('Customer')
-          .select('*')
-          .eq('customer_id', customer.customer_id)
-          .single();
-    
-        if (customerError) throw customerError;
-    
-        // Update customer state
-        setCustomer(prevCustomer => ({
-          ...prevCustomer,
-          ...customerData,
-          device_id: deviceId,
-          device_type_id: device?.device_type_id,
-          // Only reset device-specific fields if they're not present in customerData
-          router_device_id: customerData.router_device_id || '',
-          switch_port: customerData.switch_port || '',
-          port_type: customerData.port_type || '',
-          service_port: customerData.service_port || '',
-          camera_ip: customerData.camera_ip || '',
-          port: customerData.port || '',
-          slot: customerData.slot || '',
-          frame: customerData.frame || '',
-          ONU_mac_address: customerData.ONU_mac_address || '',
-          onu_id: customerData.onu_id || '',
-          ont_id: customerData.ont_id || '',
-          serial_number: customerData.serial_number || '',
-        }));
-    
-      } catch (error) {
-        console.error('Error updating device details:', (error as Error).message);
-      }
-    };
-    const filteredPackages = packages.filter((pkg) => pkg.service_id === parseInt(customer.service_id, 10));
-    const filteredInterfaces = interfaces.filter((inf) => inf.device_id === parseInt(customer.device_id, 10));
-    
+    if (!routers || routers.length === 0) {
+      return <LoadingSpinner/>; // Handle empty state gracefully
+    }
   return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
       <div className="font-raleway-black w-full max-w-4xl p-5">
@@ -787,7 +770,10 @@ export default function Page() {
                 <select
                   id="packageName"
                   value={customer.package_id}
-                  onChange={(e) => setCustomer({ ...customer, package_id: e.target.value })}
+                  onChange={(e) => setCustomer({ 
+                    ...customer, 
+                    package_id: e.target.value ? Number(e.target.value) : 0 
+                  })}
                   required
                   key={customer.service_id}
                   className="w-full p-2 border rounded"
@@ -818,18 +804,18 @@ export default function Page() {
                   id="serviceName"
                   value={customer.service_id}
                   onChange={(e) => {
-                    const newServiceId = e.target.value;
+                    const newServiceId = Number(e.target.value);
                     console.log("New service_id selected:", newServiceId);
                     setCustomer(prevCustomer => ({
                       ...prevCustomer,
-                      service_id: newServiceId,
-                      package_id: '' // Reset package_id when service changes
+                      service_id: newServiceId, // Directly set as number
+                      package_id: 0 // Reset package_id when service changes
                     }));
                   }}
                   required
                   className="w-full p-2 border rounded"
                 >
-                  <option value="">Select Service...</option>
+                  <option value="0">Select Service...</option>
                   {services.map((service) => (
                     <option key={service.service_id} value={service.service_id}>
                       {service.service_name} (ID: {service.service_id})
@@ -869,7 +855,10 @@ export default function Page() {
                 <select
                   id="locationName"
                   value={customer.location_id}
-                  onChange={(e) => setCustomer({ ...customer, location_id: e.target.value })}
+                  onChange={(e) => setCustomer({ 
+                    ...customer, 
+                    location_id: Number(e.target.value) 
+                  })}
                   required
                   className="w-full p-2 border rounded"
                 >
@@ -885,25 +874,29 @@ export default function Page() {
               <label htmlFor="router" className="block mb-2">
                 Router:
               </label>
-              <select
-                id="router"
-                value={customer.router_device_id} 
-                onChange={handleRouterChange}
-                className="w-full p-2 border rounded"
-              >
-                <option value="">Select Router</option>
-                {routers.map((router) => (
-                  <option key={router.device_id} value={router.device_id}>
-                    {router.device_name}
-                  </option>
-                ))}
-              </select>
+              {routers && routers.length > 0 ? (
+                <select
+                    id="router"
+                    value={customer.router_device_id ?? ''}
+                    onChange={handleRouterChange}
+                    className="w-full p-2 border rounded"
+                >
+                    <option value="">Select Router</option>
+                    {routers.map((router) => (
+                        <option key={router.device_id} value={router.device_id}>
+                            {router.device_name}
+                        </option>
+                    ))}
+                </select>
+            ) : (
+                <LoadingSpinner/>
+            )}
             </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
                 <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
                 <select
                   id="deviceName"
-                  value={customer.device_id}
+                  value={customer.device_id ?? ''}
                   onChange={(e) => handleDeviceChange(e.target.value)}
                   required
                   className="w-full p-2 border rounded"
@@ -917,24 +910,27 @@ export default function Page() {
                 </select>
               </div>
               {customer.device_type_id !== 3 && (
-                <div className="w-full md:w-1/2 px-2 mb-4">
-                  <label htmlFor="interfaceName" className="block mb-2">Interface Name:</label>
-                  <select
-                    id="interfaceName"
-                    value={customer.interface_id}
-                    onChange={(e) => setCustomer({ ...customer, interface_id: e.target.value })}
-                    required
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="">Select Interface...</option>
-                    {filteredInterfaces.map((inf) => (
-                      <option key={inf.interface_id} value={inf.interface_id}>
-                        Port {inf.portDevice?.port_number ?? 'N/A'}: {inf.interface_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="interfaceName" className="block mb-2">Interface Name:</label>
+                    <select
+                      id="interfaceName"
+                      value={customer.interface_id ?? ''} // Handle potential null/undefined
+                      onChange={(e) => setCustomer({ 
+                        ...customer, 
+                        interface_id: e.target.value ? Number(e.target.value) : null // Convert to number or null
+                      })}
+                      required
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Select Interface...</option>
+                      {filteredInterfaces.map((inf) => (
+                        <option key={inf.interface_id} value={inf.interface_id}>
+                          Port {inf.portDevice?.port_number ?? 'N/A'}: {inf.interface_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               <div className="w-full md:w-1/2 px-2 mb-4">
                 <label htmlFor="VLan" className="block mb-2">VLan:</label>
                 <input
@@ -1015,8 +1011,8 @@ export default function Page() {
                       type="text"
                       id="switchPort"
                       placeholder="Enter Switch Port"
-                      value={customer.switch_port}
-                      onChange={(e) => setCustomer({ ...customer, switch_port: e.target.value })}
+                      value={customer.switch_port ?? ""}
+                      onChange={(e) => setCustomer({ ...customer, switch_port: e.target.value ? Number(e.target.value) : null })}
                       required
                       className="w-full p-2 border rounded"
                     />
@@ -1039,8 +1035,8 @@ export default function Page() {
                       type="text"
                       id="servicePort"
                       placeholder="Enter Service Port"
-                      value={customer.service_port}
-                      onChange={(e) => setCustomer({ ...customer, service_port: e.target.value })}
+                      value={customer.service_port ?? ""}
+                      onChange={(e) => setCustomer({ ...customer, service_port: e.target.value ? Number(e.target.value) : null })}
                       required
                       className="w-full p-2 border rounded"
                     />
@@ -1078,8 +1074,8 @@ export default function Page() {
                       type="text"
                       id="port"
                       placeholder="Enter Port"
-                      value={customer.port}
-                      onChange={(e) => setCustomer({ ...customer, port: e.target.value })}
+                      value={customer.port ?? ""}
+                      onChange={(e) => setCustomer({ ...customer, port: e.target.value ? Number(e.target.value) : null })}
                       required
                       className="w-full p-2 border rounded"
                     />
@@ -1090,8 +1086,8 @@ export default function Page() {
                       type="text"
                       id="slot"
                       placeholder="Enter Slot"
-                      value={customer.slot}
-                      onChange={(e) => setCustomer({ ...customer, slot: e.target.value })}
+                      value={customer.slot ?? ""}
+                      onChange={(e) => setCustomer({ ...customer, slot: e.target.value ? Number(e.target.value) : null })}
                       required
                       className="w-full p-2 border rounded"
                     />
@@ -1103,8 +1099,8 @@ export default function Page() {
                       type="text"
                       id="frame"
                       placeholder="Enter Frame"
-                      value={customer.frame}
-                      onChange={(e) => setCustomer({ ...customer, frame: e.target.value })}
+                      value={customer.frame ?? ""}
+                      onChange={(e) => setCustomer({ ...customer, frame: e.target.value ? Number(e.target.value) : null })}
                       required
                       className="w-full p-2 border rounded"
                     />
@@ -1127,8 +1123,8 @@ export default function Page() {
                       type="text"
                       id="servicePort"
                       placeholder="Enter Service Port"
-                      value={customer.service_port}
-                      onChange={(e) => setCustomer({ ...customer, service_port: e.target.value })}
+                      value={customer.service_port ?? ""}
+                      onChange={(e) => setCustomer({ ...customer, service_port: e.target.value ? Number(e.target.value) : null })}
                       required
                       className="w-full p-2 border rounded"
                     />
@@ -1151,8 +1147,8 @@ export default function Page() {
                     type="text"
                     id="ontId"
                     placeholder="Enter ONT ID"
-                    value={customer.ont_id}
-                    onChange={(e) => setCustomer({ ...customer, ont_id: e.target.value })}
+                    value={customer.ont_id ?? ""}
+                    onChange={(e) => setCustomer({ ...customer, ont_id: e.target.value ? Number(e.target.value) : null })}
                     required
                     className="w-full p-2 border rounded"
                   />
@@ -1172,67 +1168,6 @@ export default function Page() {
               </>
             )}
             <br />
-            {/* <div className="w-full md:w-1/2 px-2 mb-4">
-            <label htmlFor="statusType" className="block mb-2">Status Type:</label>
-            <select
-              id="statusType"
-              value={customer.status_type || ''}
-              onChange={handleStatusTypeChange}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Select Status...</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-              <option value="REACTIVE">Reactive</option>
-              <option value="TERMINATE">Terminate</option>
-            </select>
-            </div>
-            {customer.status_type && (
-              <>
-                <br />
-                <div className='w-full md:w-1/2 px-2 mb-4'>
-                <label htmlFor="statusStartDate" className="block">
-                  Status Start Date:
-                </label>
-                <input
-                  type="datetime-local"
-                  id="statusStartDate"
-                  value={statusDates.start_date || ''}
-                  onChange={handleStartDateChange}
-                  required
-                  className="font-raleway-black w-full p-2 border mb-3"
-                />
-                </div>
-                <div className='w-full md:w-1/2 px-2 mb-4'>
-                <label htmlFor="statusEndDate" className="block">
-                  Status End Date:
-                </label>
-                <input
-                  type="datetime-local"
-                  id="statusEndDate"
-                  value={statusDates.end_date || ''}
-                  onChange={handleEndDateChange}
-                  className="font-raleway-black w-full p-2 border mb-3"
-                />
-                </div>
-                <div className="flex items-center mb-3">
-                  <input
-                    type="checkbox"
-                    id="noEndDate"
-                    checked={!statusDates.end_date}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setStatusDates(prevDates => ({ ...prevDates, end_date: '' }));
-                      } else {
-                        setStatusDates(prevDates => ({ ...prevDates, end_date: new Date().toISOString().split('T')[0] }));
-                      }
-                    }}
-                    className="mr-2"
-                  />
-                  <label htmlFor="noEndDate">No End Date</label>
-                </div>
-              </>
-            )} */}
             </>
           )}
           <div className="w-full p-2 text-center">
@@ -1266,3 +1201,51 @@ export default function Page() {
 );
 }
 
+ // const handleStatusTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    //   const newStatusType = e.target.value as CustomerStatus;
+    //   setCustomer(prevCustomer => {
+    //     const updatedCustomer = { ...prevCustomer, status_type: newStatusType };
+    //     updateStatusTimestamp(newStatusType, updatedCustomer);
+    //     return updatedCustomer;
+    //   });
+    
+    //   // Find the most recent status history for the new status type
+    //   const relevantHistory = statusHistory.find(item => item.status_type === newStatusType);
+    //   if (relevantHistory) {
+    //     setStatusDates({
+    //       start_date: relevantHistory.start_date,
+    //       end_date: relevantHistory.end_date || new Date().toISOString().split('T')[0] // Set to current date if null
+    //     });
+    //   } else {
+    //     // If no history found, set start date to today and end date to a future date (e.g., one year from now)
+    //     const today = new Date();
+    //     const oneYearFromNow = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+    //     setStatusDates({
+    //       start_date: today.toISOString().split('T')[0],
+    //       end_date: oneYearFromNow.toISOString().split('T')[0]
+    //     });
+    //   }
+    // };
+    
+    // const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //   const newStartDate = e.target.value;
+    //   setStatusDates(prevDates => ({ ...prevDates, start_date: newStartDate }));
+    // };
+    
+    // const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //   const newEndDate = e.target.value;
+    //   setStatusDates(prevDates => ({ ...prevDates, end_date: newEndDate }));
+    // };
+
+    // const handleNoEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //   if (e.target.checked) {
+    //     setStatusDates(prevDates => ({ ...prevDates, end_date: '' }));
+    //   } else {
+    //     const today = new Date().toISOString().split('T')[0];
+    //     setStatusDates(prevDates => ({ ...prevDates, end_date: today }));
+    //   }
+    // };
+    // const formatDate = (dateString: string | null): string => {
+    //   if (!dateString) return 'N/A';
+    //   return new Date(dateString).toLocaleString();
+    // };
