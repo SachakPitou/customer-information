@@ -102,7 +102,12 @@ interface PortDeviceData {
   port_number: number;
   // Add other port device properties
 }
-
+interface CustomerRouterData {
+  router_device_id: number | null;
+  Device?: {
+    device_name: string;
+  };
+}
 interface UserData {
   user_type: string;
   // Add other user properties
@@ -168,6 +173,7 @@ export default function Page() {
   const [statusTimestamp, setStatusTimestamp] = useState('');
   const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRoutersLoading, setIsRoutersLoading] = useState<boolean>(true);
   const [statusDates, setStatusDates] = useState({ 
     start_date: '', 
     end_date: '',
@@ -182,24 +188,28 @@ export default function Page() {
       try {
         setIsLoading(true);
         
-        // Fetch customer router data from CustomerRouter table
         const { data: customerRouter, error } = await supabase
           .from('customerrouter')
-          .select('router_device_id')
+          .select(`
+            router_device_id,
+            Device(device_name)
+          `)
           .eq('customer_id', customer_id)
-          .single();
+          .single() as { 
+            data: CustomerRouterData | null, 
+            error: any 
+          };
     
         if (error) {
-          // Only throw if it's not a "no rows returned" error
           if (error.code !== 'PGRST116') {
             throw error;
           }
         }
     
-        // Update the customer state, maintaining null if no router is assigned
         setCustomer(prev => ({
           ...prev,
-          router_device_id: customerRouter?.router_device_id 
+          router_device_id: customerRouter?.router_device_id ?? null,
+          router_name: customerRouter?.Device?.device_name ?? ''
         }));
     
       } catch (error) {
@@ -208,7 +218,7 @@ export default function Page() {
         setIsLoading(false);
       }
     };
-
+    
     if (customer_id) {
       fetchCustomerRouter();
     }
@@ -230,15 +240,19 @@ export default function Page() {
 
       const fetchRouters = async () => {
         try {
+          setIsRoutersLoading(true);
           const { data, error } = await supabase
             .from('Device')
             .select('*')
-            .eq('device_type_id', 1);
+            .eq('device_type_id', 1);  // Specifically fetching routers
+      
           if (error) throw error;
           setRouters(data as DeviceData[]);
         } catch (error) {
           console.error('Error fetching routers:', (error as Error).message);
           setError((error as Error).message);
+        } finally {
+          setIsRoutersLoading(false);
         }
       };
       
@@ -703,8 +717,8 @@ export default function Page() {
       return <LoadingSpinner/>; // Show a loader while data is being fetched
     }
     
-    if (!routers || routers.length === 0) {
-      return <LoadingSpinner/>; // Handle empty state gracefully
+    if (isRoutersLoading || !routers || routers.length === 0) {
+      return <LoadingSpinner />;
     }
   return (
     <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
@@ -876,18 +890,22 @@ export default function Page() {
               </label>
               {routers && routers.length > 0 ? (
                 <select
-                    id="router"
-                    value={customer.router_device_id ?? ''}
-                    onChange={handleRouterChange}
-                    className="w-full p-2 border rounded"
-                >
-                    <option value="">Select Router</option>
-                    {routers.map((router) => (
-                        <option key={router.device_id} value={router.device_id}>
-                            {router.device_name}
-                        </option>
-                    ))}
-                </select>
+                  id="router"
+                  value={customer.router_device_id ?? ''}
+                  onChange={handleRouterChange}
+                  className="w-full p-2 border rounded"
+              >
+                  <option value="">Select Router</option>
+                  {routers.map((router) => (
+                      <option 
+                          key={router.device_id} 
+                          value={router.device_id}
+                          selected={router.device_id === customer.router_device_id}
+                      >
+                          {router.device_name}
+                      </option>
+                  ))}
+              </select>
             ) : (
                 <LoadingSpinner/>
             )}
