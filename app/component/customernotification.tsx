@@ -16,7 +16,7 @@ function useCustomerNotifications() {
           .select('*')
           .eq('is_read', false)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(50); // Increased from 10 to 50
 
         if (error) {
           console.error('Error fetching notifications:', error);
@@ -84,44 +84,45 @@ function useCustomerNotifications() {
 
     // Set up real-time subscription
     const channel = supabase
-  .channel('notifications')
-  .on(
-    'postgres_changes',
-    {
-      event: '*', // Listen to all events (INSERT, UPDATE, etc.)
-      schema: 'public',
-      table: 'notifications',
-    },
-    (payload) => {
-      console.log('Notification payload:', payload);
+      .channel('notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, etc.)
+          schema: 'public',
+          table: 'notifications',
+        },
+        (payload) => {
+          console.log('Notification payload:', payload);
 
-      // Handle different event types
-      switch(payload.eventType) {
-        case 'INSERT':
-          if (payload.new.is_read === false) {
-            setNotifications((prev) => {
-              const isDuplicate = prev.some(
-                notification => 
-                  notification.related_id === payload.new.related_id && 
-                  notification.message === payload.new.message && 
-                  notification.created_at === payload.new.created_at
-              );
+          // Handle different event types
+          switch(payload.eventType) {
+            case 'INSERT':
+              if (payload.new.is_read === false) {
+                setNotifications((prev) => {
+                  const isDuplicate = prev.some(
+                    notification => 
+                      notification.related_id === payload.new.related_id && 
+                      notification.message === payload.new.message && 
+                      notification.created_at === payload.new.created_at
+                  );
 
-              return isDuplicate 
-                ? prev 
-                : [payload.new, ...prev];
-            });
+                  return isDuplicate 
+                    ? prev 
+                    : [payload.new, ...prev];
+                });
+              }
+              break;
+            
+            // Optionally handle other event types if needed
+            case 'UPDATE':
+              // Handle updates if necessary
+              break;
           }
-          break;
-        
-        // Optionally handle other event types if needed
-        case 'UPDATE':
-          // Handle updates if necessary
-          break;
-      }
-    }
-  )
-  .subscribe();
+        }
+      )
+      .subscribe();
+    
     // Cleanup subscription
     return () => {
       supabase.removeChannel(channel);
@@ -171,8 +172,6 @@ function useCustomerNotifications() {
   };
 }
 
-
-
 export function NotificationBell() {
   const { notifications, markNotificationsAsRead, error } = useCustomerNotifications();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -183,7 +182,11 @@ export function NotificationBell() {
 
   const handleDismiss = (notification: any) => {
     markNotificationsAsRead(notification);
-    setIsDropdownOpen(false);
+    
+    // If this was the last notification, close the dropdown
+    if (notifications.length <= 1) {
+      setIsDropdownOpen(false);
+    }
   };
 
   // Format date to dd/mm/yy
@@ -217,27 +220,47 @@ export function NotificationBell() {
         )}
       </button>
       {isDropdownOpen && notifications.length > 0 && (
-        <div className="absolute right-8 mt-2 w-128 bg-white border rounded shadow-lg z-50">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className="p-4 border-b flex justify-between items-center"
+        <div className="absolute right-0 mt-2 w-96 max-h-[500px] bg-white border rounded shadow-lg z-50 overflow-y-auto">
+          <div className="sticky top-0 bg-white border-b p-4 font-semibold text-lg">
+            Notifications
+            <button 
+              onClick={() => setIsDropdownOpen(false)} 
+              className="float-right text-gray-500 hover:text-gray-800"
             >
-              <div>
-                <span><strong>{notification.customer_name}</strong></span>
-                <div className="text-sm text-gray-500">
-                  {formatDate(notification.created_at)}
-                </div>
-                <p>{notification.message}</p>
-              </div>
-              <button
-                onClick={() => handleDismiss(notification)}
-                className="text-sm text-gray-500 cursor-pointer"
+              ✕
+            </button>
+          </div>
+          {notifications.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">No notifications</div>
+          ) : (
+            notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className="p-4 border-b flex justify-between items-center hover:bg-gray-50 transition-colors duration-200"
               >
-                Dismiss
-              </button>
+                <div className="flex-grow mr-4">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-medium text-gray-800">{notification.customer_name}</span>
+                    <div className="text-xs text-gray-500">
+                      {formatDate(notification.created_at)}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">{notification.message}</p>
+                </div>
+                <button
+                  onClick={() => handleDismiss(notification)}
+                  className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer ml-2"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ))
+          )}
+          {notifications.length > 0 && (
+            <div className="sticky bottom-0 bg-white border-t p-2 text-center text-xs text-gray-500">
+              {notifications.length} unread notification{notifications.length !== 1 ? 's' : ''}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
