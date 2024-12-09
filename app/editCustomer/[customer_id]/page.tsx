@@ -82,6 +82,7 @@ interface DeviceData {
   device_id: number;
   device_type_id: number;
   device_name: string;
+  [key: string]: any;
   // Add other device properties
 }
 
@@ -104,9 +105,9 @@ interface PortDeviceData {
 }
 interface CustomerRouterData {
   router_device_id: number | null;
-  Device?: {
+  Device: {
     device_name: string;
-  };
+  } | null;
 }
 interface UserData {
   user_type: string;
@@ -149,7 +150,8 @@ export default function Page() {
     ont_id: 0,
     port_type: '',
     switch_port: 0,
-    router_device_id: 0,
+    router_device_id: null,  // Explicitly set to null
+    router_name: '', 
     capacity_bandwidth: '',
     subnet: '',
     
@@ -178,6 +180,7 @@ export default function Page() {
     start_date: '', 
     end_date: '',
   });
+  
   const closeModal = () => {
       setIsModalOpen(false);
       console.log('Modal Closed');
@@ -192,28 +195,39 @@ export default function Page() {
           .from('customerrouter')
           .select(`
             router_device_id,
-            Device(device_name)
+            Device (device_name)
           `)
           .eq('customer_id', customer_id)
-          .single() as { 
-            data: CustomerRouterData | null, 
-            error: any 
-          };
+          .single();
     
-        if (error) {
-          if (error.code !== 'PGRST116') {
-            throw error;
-          }
-        }
+        console.log('Customer Router Fetch Debug:', {
+          customerRouter,
+          error,
+          customer_id,
+          routerDeviceId: customerRouter?.router_device_id,
+          // Safely access device name
+          deviceName: customerRouter?.Device?.[0]?.device_name
+        });
     
+        // More robust null/undefined handling
+        const routerDeviceId = customerRouter?.router_device_id ?? null;
+        const routerName = customerRouter?.Device?.[0]?.device_name ?? '';
+
         setCustomer(prev => ({
           ...prev,
-          router_device_id: customerRouter?.router_device_id ?? null,
-          router_name: customerRouter?.Device?.device_name ?? ''
+          router_device_id: routerDeviceId,
+          router_name: routerName
         }));
     
       } catch (error) {
         console.error('Error fetching customer router:', error instanceof Error ? error.message : String(error));
+        
+        // Ensure router_device_id is set to null in case of error
+        setCustomer(prev => ({
+          ...prev,
+          router_device_id: null,
+          router_name: ''
+        }));
       } finally {
         setIsLoading(false);
       }
@@ -244,13 +258,24 @@ export default function Page() {
           const { data, error } = await supabase
             .from('Device')
             .select('*')
-            .eq('device_type_id', 1);  // Specifically fetching routers
-      
+            .eq('device_type_id', 1)  // Specifically fetching routers
+            .order('device_name');  // Optional: sort by name
+        
           if (error) throw error;
-          setRouters(data as DeviceData[]);
+          
+          // Ensure data is not null or undefined
+          const routerData = data || [];
+          setRouters(routerData as DeviceData[]);
+          
+          console.log('Routers fetched:', {
+            routerCount: routerData.length,
+            firstRouter: routerData[0]
+          });
         } catch (error) {
           console.error('Error fetching routers:', (error as Error).message);
           setError((error as Error).message);
+          // Set routers to an empty array to prevent undefined issues
+          setRouters([]);
         } finally {
           setIsRoutersLoading(false);
         }
@@ -405,16 +430,53 @@ export default function Page() {
         fetchRouters();
         fetchStatusHistory();
     }, [customer_id]);
+
     const handleRouterChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
       const newRouterId = e.target.value;
+      
+      console.log('Router Change Debug:', {
+        newRouterId,
+        isNewRouterIdPresent: !!newRouterId,
+        newRouterIdType: typeof newRouterId,
+        convertedRouterId: newRouterId ? Number(newRouterId) : null
+      });
+
       try {
-        // Update the customer state
-        setCustomer(prev => ({
-          ...prev,
-          router_device_id: newRouterId ? Number(newRouterId) : null // Convert to number or null if empty
-        }));
+        const routerDeviceId = newRouterId ? Number(newRouterId) : null;
+        
+        console.log('Router Device ID:', {
+          routerDeviceId,
+          routerDeviceIdType: typeof routerDeviceId
+        });
+        
+        // Rest of the existing code...
+        const { error: upsertError } = await supabase
+          .from('customerrouter')
+          .upsert({
+            customer_id: customer_id,
+            router_device_id: routerDeviceId
+          }, {
+            onConflict: 'customer_id'
+          });
+
+        if (upsertError) {
+          console.error('Router upsert error:', upsertError);
+          return;
+        }
+
+        setCustomer(prev => {
+          console.log('Previous Customer State:', prev);
+          const updatedCustomer = {
+            ...prev,
+            router_device_id: routerDeviceId,
+            router_name: routers.find(r => r.device_id === routerDeviceId)?.device_name || ''
+          };
+          console.log('Updated Customer State:', updatedCustomer);
+          return updatedCustomer;
+        });
+
       } catch (error) {
-        console.error('Error updating customer router:', error instanceof Error ? error.message : String(error));
+        console.error('Router change error:', error);
       }
     };
     const updateStatusTimestamp = (status: CustomerStatus, customerData: CustomerData) => {
@@ -885,31 +947,50 @@ export default function Page() {
                 </select>
               </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
-              <label htmlFor="router" className="block mb-2">
-                Router:
-              </label>
-              {routers && routers.length > 0 ? (
-                <select
-                  id="router"
-                  value={customer.router_device_id ?? ''}
-                  onChange={handleRouterChange}
-                  className="w-full p-2 border rounded"
-              >
-                  <option value="">Select Router</option>
-                  {routers.map((router) => (
-                      <option 
+                <label htmlFor="router" className="block mb-2">
+                  Router:
+                </label>
+                {(() => {
+                  // Detailed logging
+                  console.log('Router Debug:', {
+                    routers: routers,
+                    routersLength: routers?.length,
+                    currentRouterId: customer.router_device_id,
+                    isRoutersLoading
+                  });
+
+                  // Handle loading state
+                  if (isRoutersLoading) return <LoadingSpinner/>;
+                  
+                  // Handle no routers case
+                  if (!routers || routers.length === 0) {
+                    return (
+                      <div className="p-2 bg-yellow-100 text-yellow-800 rounded">
+                        No routers available. Please contact support.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <select
+                      id="router"
+                      value={customer.router_device_id === null ? '' : customer.router_device_id} 
+                      onChange={handleRouterChange}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Select Router</option>
+                      {routers.map((router) => (
+                        <option 
                           key={router.device_id} 
-                          value={router.device_id}
-                          selected={router.device_id === customer.router_device_id}
-                      >
-                          {router.device_name}
-                      </option>
-                  ))}
-              </select>
-            ) : (
-                <LoadingSpinner/>
-            )}
-            </div>
+                          value={router.device_id.toString()}
+                        >
+                          {router.device_name || `Router ${router.device_id}`}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
+              </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
                 <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
                 <select
