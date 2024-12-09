@@ -141,6 +141,22 @@ export default function Dashboard() {
                 };
             }
     
+            // Helper function to format date in Cambodian locale
+            const formatDateForCambodia = (dateStr: string | number | Date) => {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                return date.toLocaleString('km-KH', {
+                    timeZone: 'Asia/Phnom_Penh',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+            };
+    
             return {
                 'No.': customer.rowNumber,
                 'Name': customer.customer_name,
@@ -151,7 +167,6 @@ export default function Dashboard() {
                 'Port': customer.port,
                 'Frame': customer.frame,
                 'Service Port': customer.service_port,
-                // 'ONU ID': customer.onu_id,
                 'ONT ID': customer.ont_id,
                 'ACL': customer.ACL,
                 'Switch Port': customer.switch_port,
@@ -162,8 +177,10 @@ export default function Dashboard() {
                 'Interface': customer.interface_name,
                 'Device': customer.device_name,
                 'Status': relevantStatus.status_type,
-                'Status Start Date': relevantStatus.start_date,
-                'Status End Date': relevantStatus.end_date ? relevantStatus.end_date : 'Current',
+                'Status Start Date': formatDateForCambodia(relevantStatus.start_date),
+                'Status End Date': relevantStatus.end_date 
+                    ? formatDateForCambodia(relevantStatus.end_date) 
+                    : 'Current',
             };
         });
     
@@ -182,8 +199,23 @@ export default function Dashboard() {
         // Create a Blob from the buffer
         const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
     
+        // Save the file with Cambodian locale date and time
+        const now = new Date();
+        const formattedDateTime = now.toLocaleString('km-KH', {
+            timeZone: 'Asia/Phnom_Penh',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/[/:\s]/g, '-');
+    
+        const filename = `customer_dashboard_${formattedDateTime}.xlsx`;
+    
         // Save the file
-        saveAs(data, 'customer_dashboard.xlsx');
+        saveAs(data, filename);
     };
     const toggleRow = (customerId: string) => {
         setExpandedRows((prevState) => ({
