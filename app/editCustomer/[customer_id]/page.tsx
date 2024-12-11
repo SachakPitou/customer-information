@@ -988,6 +988,7 @@ export default function Page() {
                       value={customer.router_device_id === null ? '' : customer.router_device_id} 
                       onChange={handleRouterChange}
                       className="w-full p-2 border rounded"
+                      required
                     >
                       <option value="">Select Router</option>
                       {routers.map((router) => (
