@@ -52,6 +52,8 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const [packageName, setPackageName] = useState<string>('');
   const [registeredDate, setRegisteredDate] = useState<string>('');
   const [subnet, setSubnet] = useState<string>('');
+  const [networkDiagramPdf, setNetworkDiagramPdf] = useState<File | null>(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -172,11 +174,48 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const handleBack = () => {
     setStep(1);
   };
+  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type and size
+      if (file.type !== 'application/pdf') {
+        alert('Please upload only PDF files.');
+        return;
+      }
 
+      // Optional: Add file size limit (e.g., 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size should not exceed 10MB.');
+        return;
+      }
+
+      setNetworkDiagramPdf(file);
+      setPdfPreviewUrl(URL.createObjectURL(file));
+    }
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const currentDate = new Date().toISOString();
+      let pdfUrl = null;
+      if (networkDiagramPdf) {
+        const fileExt = networkDiagramPdf.name.split('.').pop();
+        const fileName = `${customerId}_network_diagram_${Date.now()}.${fileExt}`;
+        const filePath = `network-diagrams/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('customer-documents')
+          .upload(filePath, networkDiagramPdf);
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('customer-documents')
+          .getPublicUrl(filePath);
+
+        pdfUrl = urlData?.publicUrl;
+      }
       const { data: customerData, error: customerError } = await supabase
         .from('Customer')
         .update({
@@ -208,6 +247,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
           package_id: parseInt(packageId, 10),
           registered_date: currentDate,
           subnet: subnet || null,
+          network_diagram_url: pdfUrl,
         })
         .eq('customer_id', customerId);
   
@@ -515,6 +555,30 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className="w-full p-2">
+                  <div className="mb-4">
+                    <label className="block mb-2">Network Diagram PDF (Optional):</label>
+                    <input 
+                      type="file" 
+                      accept=".pdf"
+                      onChange={handlePdfUpload}
+                      className="w-full p-2 border"
+                    />
+                    {pdfPreviewUrl && (
+                      <div className="mt-2">
+                        <p>Uploaded PDF: {networkDiagramPdf?.name}</p>
+                        <a 
+                          href={pdfPreviewUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          Preview PDF
+                        </a>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="mb-4">
                   <label className="block mb-2">Langtitude:</label>

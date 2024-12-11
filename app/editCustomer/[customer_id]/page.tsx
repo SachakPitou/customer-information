@@ -8,6 +8,7 @@ import PopUpModal from '@/app/component/popUpmodal';
 import { useSupabase } from '@/app/context/SupabaseProvider';
 import { Session } from '@supabase/supabase-js';
 import LoadingSpinner from '@/app/component/LoadingSpinner';
+import PDFUpload from '@/app/component/PDFUpload'; 
 
 type CustomerStatus = 'ACTIVE' | 'INACTIVE' | 'REACTIVE' | 'TERMINATE' | '';
 interface CustomerData {
@@ -945,6 +946,16 @@ export default function Page() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="w-full md:w-1/2 px-2 mb-4">
+                <h3 className="text-lg font-semibold mb-2">Customer Documents</h3>
+                <PDFUpload 
+                  customerId={customer_id} 
+                  onPDFUploaded={(url) => {
+                    console.log('PDF uploaded:', url);
+                    // Optional: Do something with the uploaded PDF URL if needed
+                  }} 
+                />
               </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
                 <label htmlFor="router" className="block mb-2">
