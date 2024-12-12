@@ -4,6 +4,18 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/app/supabaseClient';
 import LoadingSpinner from '@/app/component/LoadingSpinner';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+    ChevronLeft, 
+    Edit2, 
+    Save, 
+    Upload, 
+    MapPin, 
+    Server, 
+    Package, 
+    TrendingUp, 
+    ImagePlus,
+    XCircle 
+} from 'lucide-react';
 
 interface Rack {
     rack_id: string;
@@ -67,6 +79,7 @@ export default function ViewRack() {
     const router = useRouter();
     const params = useParams();
     const rack_id = params.rack_id as string;
+
     const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
@@ -157,6 +170,7 @@ export default function ViewRack() {
             alert('Failed to save image');
         }
     };
+
     useEffect(() => {
         async function fetchRack() {
             try {
@@ -247,8 +261,13 @@ export default function ViewRack() {
         setEditingField(field);
         if (field === 'location_name') {
             setEditedValue(rack?.location_id.toString() || '');
+            const popsInLocation = allPops.filter(pop => 
+                pop.location_id === rack?.location_id
+            );
+            setFilteredPops(popsInLocation);
+            setEditedPop('');
         } else if (field === 'pop_name') {
-            setEditedValue(rack?.pop_id.toString() || '');
+            setEditedPop(rack?.pop_id.toString() || '');
         } else if (field === 'ups_name') {
             setEditedUps(rack?.ups_id.toString() || '');
         } else {
@@ -258,41 +277,72 @@ export default function ViewRack() {
 
     const handleLocationChange = (selectedLocationId: string) => {
         setEditedValue(selectedLocationId);
-        const popsInLocation = allPops.filter(pop => pop.location_id === parseInt(selectedLocationId));
+        const popsInLocation = allPops.filter(pop => 
+            pop.location_id === parseInt(selectedLocationId)
+        );
         setFilteredPops(popsInLocation);
         setEditedPop('');
     };
 
     const handleSaveField = async () => {
         try {
+            if (!editingField) return;
+
             let updateData: Record<string, string | number> = {};
-            if (editingField === 'location_name') {
-                updateData = { location_id: parseInt(editedValue) };
-                if (editedPop) {
-                    updateData.pop_id = parseInt(editedPop);
-                }
-            } else if (editingField === 'pop_name') {
-                updateData = { pop_id: parseInt(editedPop) };
-            } else if (editingField === 'ups_name') {
-                updateData = { ups_id: parseInt(editedUps) };
-            } else if (editingField) {
-                updateData = { [editingField]: editedValue };
+            
+            switch (editingField) {
+                case 'location_name':
+                    if (!editedValue) {
+                        alert('Please select a location');
+                        return;
+                    }
+                    updateData = { 
+                        location_id: parseInt(editedValue),
+                        // If a new POP is selected, update that too
+                        ...(editedPop && { pop_id: parseInt(editedPop) })
+                    };
+                    break;
+                
+                case 'pop_name':
+                    if (!editedPop) {
+                        alert('Please select a POP');
+                        return;
+                    }
+                    updateData = { pop_id: parseInt(editedPop) };
+                    break;
+                
+                case 'ups_name':
+                    if (!editedUps) {
+                        alert('Please select a UPS');
+                        return;
+                    }
+                    updateData = { ups_id: parseInt(editedUps) };
+                    break;
+                
+                default:
+                    if (!editedValue.trim()) {
+                        alert('Field cannot be empty');
+                        return;
+                    }
+                    updateData = { [editingField]: editedValue };
             }
-    
+
             const { error } = await supabase
                 .from('Rack')
                 .update(updateData)
                 .eq('rack_id', rack_id);
-    
+
             if (error) throw error;
-    
+
+            // Refetch the updated rack data to ensure consistency
             const { data: updatedRackData, error: rackError } = await supabase
                 .from('Rack')
                 .select('*')
                 .eq('rack_id', rack_id)
                 .single();
+            
             if (rackError) throw rackError;
-    
+
             if (rack && updatedRackData) {
                 setRack({
                     ...rack,
@@ -302,10 +352,11 @@ export default function ViewRack() {
                     ups_name: allUPSs.find(ups => ups.ups_id === updatedRackData.ups_id)?.ups_name || 'Unknown UPS'
                 });
             }
-    
+
             setEditingField(null);
         } catch (error) {
             console.error('Error updating rack information:', (error as Error).message);
+            alert('Failed to update rack information');
         }
     };
 
@@ -318,338 +369,459 @@ export default function ViewRack() {
     if (loading) {
         return <LoadingSpinner />;
     }
-
     return (
-        <div className="relative overflow-x-auto shadow-md">
-            <div className="p-5 text-lg font-semibold text-left rtl:text-right text-gray-900 bg-white dark:text-white dark:bg-gray-800 flex items-center">
-                <button
-                    onClick={() => router.back()}
-                    type="button"
-                    className="flex-shrink-0 w-8 h-8 ml-1 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-gray-700 dark:bg-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700"
-                >
-                    <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
-                    </svg>
-                </button>
-                <span>Rack Information</span>
-            </div>
-            <table className="w-full text-sm text-left rtl:text-right text-black-500 dark:text-black-400">
-                <thead className="text-xs text-white uppercase bg-gray-50 dark:bg-gray-700 dark:text-white">
-                    <tr>
-                        <th scope="col" className="px-6 py-3">Rack Details</th>
-                        <th scope="col" className="px-6 py-3">Additional Information</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr className="bg-white border-b dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-400">
-                        <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                                <span className="font-semibold mr-2">Rack Name:</span>
-                                {editingField === 'rack_name' ? (
-                                    <div className="flex items-center">
-                                        <input
-                                            type="text"
-                                            className="border border-gray-300 p-1 rounded-md mr-2"
-                                            value={editedValue}
-                                            onChange={(e) => setEditedValue(e.target.value)}
-                                        />
-                                        <button
-                                            className="bg-red-500 text-white px-2 py-1 rounded-md"
-                                            onClick={handleSaveField}
+        
+        <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+            {editingField === 'location_name' && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h2 className="text-xl font-semibold mb-4">Edit Location</h2>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Location</label>
+                            <select
+                                value={editedValue}
+                                onChange={(e) => handleLocationChange(e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                            >
+                                <option value="">Select Location</option>
+                                {allLocations.map((location) => (
+                                    <option 
+                                        key={location.location_id} 
+                                        value={location.location_id.toString()}
+                                    >
+                                        {location.location_name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        {editedValue && (
+                            <div className="mb-4">
+                                <label className="block text-gray-700 mb-2">Point of Presence</label>
+                                <select
+                                    value={editedPop}
+                                    onChange={(e) => setEditedPop(e.target.value)}
+                                    className="w-full p-2 border rounded-md"
+                                >
+                                    <option value="">Select POP</option>
+                                    {filteredPops.map((pop) => (
+                                        <option 
+                                            key={pop.pop_id} 
+                                            value={pop.pop_id.toString()}
                                         >
-                                            Save
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center">
-                                        <span>{rack?.rack_name}</span>
-                                        <button
-                                            className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
-                                            onClick={() => handleEditField('rack_name')}
-                                        >
-                                            Edit
-                                        </button>
-                                    </div>
-                                )}
+                                            {pop.pop_name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-                            {rack?.image_url && (
-                                <div className="flex flex-col mt-4">
-                                    <span className="font-semibold mr-2">Rack Image:</span>
-                                    {editingField === 'image_url' ? (
-                                        <div className="flex flex-col items-start">
-                                            <input
-                                                type="file"
-                                                accept="image/jpeg,image/png,image/gif"
-                                                onChange={handleImageUpload}
-                                                className="mb-2"
-                                            />
-                                            {imagePreview && (
-                                                <img 
-                                                    src={imagePreview} 
-                                                    alt="Preview" 
-                                                    className="w-32 h-32 object-cover mb-2"
-                                                />
-                                            )}
-                                            {imageFile && (
-                                                <button
-                                                    className="bg-green-500 text-white px-2 py-1 rounded-md"
-                                                    onClick={handleSaveImage}
-                                                >
-                                                    Save Image
-                                                </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center">
-                                            <img 
-                                                src={rack.image_url} 
-                                                alt="Rack" 
-                                                className="w-32 h-32 object-cover mr-2"
-                                            />
-                                            <button
-                                                className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={() => setEditingField('image_url')}
-                                            >
-                                                Upload New Image
-                                            </button>
-                                        </div>
-                                    )}
+                        )}
+                        <div className="flex justify-end space-x-2">
+                            <button 
+                                onClick={() => setEditingField(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSaveField}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {editingField === 'pop_name' && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h2 className="text-xl font-semibold mb-4">Edit Point of Presence</h2>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Point of Presence</label>
+                            <select
+                                value={editedPop}
+                                onChange={(e) => setEditedPop(e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                            >
+                                <option value="">Select POP</option>
+                                {allPops.map((pop) => (
+                                    <option 
+                                        key={pop.pop_id} 
+                                        value={pop.pop_id.toString()}
+                                    >
+                                        {pop.pop_name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <button 
+                                onClick={() => setEditingField(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSaveField}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {editingField === 'ups_name' && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h2 className="text-xl font-semibold mb-4">Edit UPS</h2>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">UPS</label>
+                            <select
+                                value={editedUps}
+                                onChange={(e) => setEditedUps(e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                            >
+                                <option value="">Select UPS</option>
+                                {allUPSs.map((ups) => (
+                                    <option 
+                                        key={ups.ups_id} 
+                                        value={ups.ups_id.toString()}
+                                    >
+                                        {ups.ups_name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <button 
+                                onClick={() => setEditingField(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSaveField}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {editingField === 'rack_type' && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h2 className="text-xl font-semibold mb-4">Edit Rack Type</h2>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Rack Type</label>
+                            <input
+                                type="text"
+                                value={editedValue}
+                                onChange={(e) => setEditedValue(e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                                placeholder="Enter Rack Type"
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <button 
+                                onClick={() => setEditingField(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSaveField}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {editingField === 'rack_brand' && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h2 className="text-xl font-semibold mb-4">Edit Rack Brand</h2>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Rack Brand</label>
+                            <input
+                                type="text"
+                                value={editedValue}
+                                onChange={(e) => setEditedValue(e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                                placeholder="Enter Rack brand"
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <button 
+                                onClick={() => setEditingField(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSaveField}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {editingField === 'dimension' && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h2 className="text-xl font-semibold mb-4">Edit Rack Dimension</h2>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Rack Dimension</label>
+                            <input
+                                type="text"
+                                value={editedValue}
+                                onChange={(e) => setEditedValue(e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                                placeholder="e.g., 42U, 45U, 48U"
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <button 
+                                onClick={() => setEditingField(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSaveField}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {editingField === 'image_url' && (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+                    onClick={(e) => {
+                        // Check if the click is directly on the overlay (not on the modal content)
+                        if (e.target === e.currentTarget) {
+                            setImagePreview(null);
+                            setImageFile(null);
+                            setEditingField(null);
+                        }
+                    }}
+                >
+                    <div 
+                        className="bg-white p-6 rounded-lg shadow-xl w-96"
+                        // Prevent clicks on the modal from triggering the overlay click handler
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-semibold mb-4">Upload Rack Image</h2>
+                        <div className="mb-4">
+                            <input 
+                                type="file" 
+                                accept="image/jpeg,image/png,image/gif"
+                                onChange={handleImageUpload}
+                                className="w-full p-2 border rounded-md"
+                            />
+                            {imagePreview && (
+                                <div className="mt-4 flex flex-col items-center">
+                                    <img 
+                                        src={imagePreview} 
+                                        alt="Preview" 
+                                        className="w-48 h-48 object-cover rounded-lg mb-4"
+                                    />
+                                    <button 
+                                        onClick={handleSaveImage}
+                                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        Confirm Upload
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setImagePreview(null);
+                                            setImageFile(null);
+                                            setEditingField(null);
+                                        }}
+                                        className="mt-2 text-red-600 hover:text-red-800 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
                                 </div>
                             )}
-                            <div className="flex flex-col mt-4">
-                                <span className="font-semibold mr-2">Location:</span>
-                                {editingField === 'location_name' ? (
-                                    <div className="flex items-center">
-                                        <select
-                                            className="border border-gray-300 p-1 rounded-md mr-2"
-                                            value={editedValue} 
-                                            onChange={(e) => handleLocationChange(e.target.value)}
-                                        >
-                                            {allLocations.map(location => (
-                                                <option key={location.location_id} value={location.location_id}>
-                                                    {location.location_name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <button
-                                            className="bg-red-500 text-white px-2 py-1 rounded-md"
-                                            onClick={handleSaveField}
-                                        >
-                                            Save
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center">
-                                        <span>{rack?.location_name}</span>
-                                        <button
-                                            className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
-                                            onClick={() => handleEditField('location_name')}
-                                        >
-                                            Edit
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex flex-col mt-4">
-                                <span className="font-semibold mr-2">POP Name:</span>
-                                {editingField === 'pop_name' ? (
-                                    <div className="flex items-center">
-                                        <select
-                                            className="border border-gray-300 p-1 rounded-md mr-2"
-                                            value={editedPop}
-                                            onChange={(e) => setEditedPop(e.target.value)}
-                                            disabled={!editedValue}  // Disable until a location is selected
-                                        >
-                                            <option value="">Select POP</option>
-                                            {filteredPops.map(pop => (
-                                                <option key={pop.pop_id} value={pop.pop_id}>
-                                                    {pop.pop_name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <button
-                                            className="bg-red-500 text-white px-2 py-1 rounded-md"
-                                            onClick={handleSaveField}
-                                        >
-                                            Save
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center">
-                                        <span>{rack?.pop_name}</span>
-                                        <button
-                                            className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
-                                            onClick={() => handleEditField('pop_name')}
-                                            disabled={!rack?.location_id}  // Disable if no location is set
-                                        >
-                                            Edit
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                        </td>
-                        <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                                {/* <span className="font-semibold mr-2">Additional Information:</span> */}
-                                <div className="flex flex-col mt-4">
-                                    <span className="font-semibold mr-2">Rack Type:</span>
-                                    {editingField === 'rack_type' ? (
-                                        <div className="flex items-center">
-                                            <input
-                                                type="text"
-                                                className="border border-gray-300 p-1 rounded-md mr-2"
-                                                value={editedValue}
-                                                onChange={(e) => setEditedValue(e.target.value)}
-                                            />
-                                            <button
-                                                className="bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={handleSaveField}
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center">
-                                            <span>{rack?.rack_type}</span>
-                                            <button
-                                                className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={() => handleEditField('rack_type')}
-                                            >
-                                                Edit
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex flex-col mt-4">
-                                    <span className="font-semibold mr-2">Rack Brand:</span>
-                                    {editingField === 'rack_brand' ? (
-                                        <div className="flex items-center">
-                                            <input
-                                                type="text"
-                                                className="border border-gray-300 p-1 rounded-md mr-2"
-                                                value={editedValue}
-                                                onChange={(e) => setEditedValue(e.target.value)}
-                                            />
-                                            <button
-                                                className="bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={handleSaveField}
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center">
-                                            <span>{rack?.rack_brand}</span>
-                                            <button
-                                                className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={() => handleEditField('rack_brand')}
-                                            >
-                                            Edit
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex flex-col mt-4">
-                                    <span className="font-semibold mr-2">Dimension:</span>
-                                    {editingField === 'dimension' ? (
-                                        <div className="flex items-center">
-                                            <input
-                                                type="text"
-                                                className="border border-gray-300 p-1 rounded-md mr-2"
-                                                value={editedValue}
-                                                onChange={(e) => setEditedValue(e.target.value)}
-                                            />
-                                            <button
-                                                className="bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={handleSaveField}
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center">
-                                            <span>{rack?.dimension}</span>
-                                            <button
-                                                className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={() => handleEditField('dimension')}
-                                            >
-                                                Edit
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex flex-col mt-4">
-                                    <span className="font-semibold mr-2">UPS Name:</span>
-                                    {editingField === 'ups_name' ? (
-                                        <div className="flex items-center">
-                                            <select
-                                                className="border border-gray-300 p-1 rounded-md mr-2"
-                                                value={editedUps}
-                                                onChange={(e) => setEditedUps(e.target.value)}
-                                            >
-                                                <option value="">Select UPS</option>
-                                                {allUPSs.map(ups => (
-                                                    <option key={ups.ups_id} value={ups.ups_id}>
-                                                        {ups.ups_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                className="bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={handleSaveField}
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center">
-                                            <span>{rack?.ups_name}</span>
-                                            <button
-                                                className="ml-2 bg-red-500 text-white px-2 py-1 rounded-md"
-                                                onClick={() => handleEditField('ups_name')}
-                                            >
-                                                Edit
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-    
-            {/* Rack Devices Table */}
-            <div className="mt-6">
-                <div className="p-5 text-lg font-semibold text-left rtl:text-right text-gray-900 bg-white dark:text-white dark:bg-gray-800">
-                    <span>Rack Devices</span>
+                        </div>
+                    </div>
                 </div>
-                <table className="w-full text-sm text-left rtl:text-right text-black-500 dark:text-black-400">
-                    <thead className="text-xs text-white uppercase bg-gray-50 dark:bg-gray-700 dark:text-white">
-                        <tr>
-                            <th scope="col" className="px-6 py-3">U Position</th>
-                            <th scope="col" className="px-6 py-3">Device Name</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {[...Array(rack?.numberOfU)].map((_, index) => {
-                        const deviceName = deviceMap[index + 1] || 'Empty';
+            )}
+            <div className="bg-white shadow-2xl rounded-2xl overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-red-600 to-indigo-700 text-white p-6 flex items-center space-x-4">
+                    <button 
+                        onClick={() => router.back()} 
+                        className="hover:bg-red-700 p-2 rounded-full transition-colors"
+                    >
+                        <ChevronLeft className="h-6 w-6" />
+                    </button>
+                    <h1 className="text-2xl font-bold">Rack Details: {rack?.rack_name}</h1>
+                </div>
 
-                        return (
-                            <tr key={index} className="bg-white border-b dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-400">
-                                <td className="px-6 py-4">{index + 1}</td>
-                                <td className="px-6 py-4">
-                                    {deviceName}
-                                </td>
-                                </tr>
-                            );
-                        })}
+                {/* Main Content Grid */}
+                <div className="grid md:grid-cols-2 gap-8 p-8">
+                    {/* Left Column - Rack Details */}
+                    <div className="space-y-6">
+                        <div className="bg-gray-100 rounded-lg p-6 shadow-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                                    <MapPin className="mr-2 text-red-600" />
+                                    Location & POP
+                                </h2>
+                            </div>
 
+                            {/* Location */}
+                            <div className="mb-4 flex justify-between items-center">
+                                <div>
+                                    <span className="text-gray-600">Location</span>
+                                    <p className="font-medium text-gray-900">{rack?.location_name}</p>
+                                </div>
+                                <button 
+                                    onClick={() => handleEditField('location_name')}
+                                    className="text-red-600 hover:text-red-800 transition-colors"
+                                >
+                                    <Edit2 className="h-5 w-5" />
+                                </button>
+                            </div>
 
-                    </tbody>
-                </table>
+                            {/* POP */}
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <span className="text-gray-600">Point of Presence</span>
+                                    <p className="font-medium text-gray-900">{rack?.pop_name}</p>
+                                </div>
+                                {/* <button 
+                                    onClick={() => handleEditField('pop_name')}
+                                    className="text-red-600 hover:text-red-800 transition-colors"
+                                >
+                                    <Edit2 className="h-5 w-5" />
+                                </button> */}
+                            </div>
+                        </div>
+
+                        {/* Rack Image */}
+                        <div className="bg-gray-100 rounded-lg p-6 shadow-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                                    <ImagePlus className="mr-2 text-red-600" />
+                                    Rack Image
+                                </h2>
+                            </div>
+                            {rack?.image_url ? (
+                                <div className="flex flex-col items-center">
+                                    <img 
+                                        src={rack.image_url} 
+                                        alt="Rack" 
+                                        className="w-64 h-64 object-cover rounded-lg mb-4 shadow-md"
+                                    />
+                                    <button 
+                                        onClick={() => setEditingField('image_url')}
+                                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        Change Image
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="text-center">
+                                    <p className="text-gray-500 mb-4">No image uploaded</p>
+                                    <button 
+                                        onClick={() => setEditingField('image_url')}
+                                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        Upload Image
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right Column - Additional Details */}
+                    <div className="space-y-6">
+                        <div className="bg-gray-100 rounded-lg p-6 shadow-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                                    <Server className="mr-2 text-red-600" />
+                                    Rack Specifications
+                                </h2>
+                            </div>
+
+                            {/* Rack Details Grid */}
+                            <div className="grid grid-cols-2 gap-4">
+                                {[
+                                    { label: 'Rack Type', field: 'rack_type', icon: Package },
+                                    { label: 'Rack Brand', field: 'rack_brand', icon: TrendingUp },
+                                    { label: 'Dimension', field: 'dimension', icon: Server },
+                                    { label: 'UPS Name', field: 'ups_name', icon: Package }
+                                ].map(({ label, field, icon: Icon }) => (
+                                    <div key={field} className="bg-white rounded-lg p-3 shadow-sm">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <span className="text-xs text-gray-500">{label}</span>
+                                                <p className="font-medium text-gray-900">
+                                                    {rack?.[field as keyof Rack] || 'Not Set'}
+                                                </p>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleEditField(field)}
+                                                className="text-red-600 hover:text-red-800"
+                                            >
+                                                <Edit2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Devices Section */}
+                        <div className="bg-gray-100 rounded-lg p-6 shadow-md">
+                            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                                <Server className="mr-2 text-red-600" />
+                                Rack Devices
+                            </h2>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="bg-red-100 text-red-800">
+                                            <th className="p-3 text-left">U Position</th>
+                                            <th className="p-3 text-left">Device</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {[...Array(rack?.numberOfU)].map((_, index) => {
+                                            const deviceName = deviceMap[index + 1] || 'Empty';
+                                            return (
+                                                <tr 
+                                                    key={index} 
+                                                    className="border-b last:border-b-0 hover:bg-red-50 transition-colors"
+                                                >
+                                                    <td className="p-3">{index + 1}</td>
+                                                    <td className="p-3">{deviceName}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
