@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import LoadingSpinner from '@/app/component/LoadingSpinner';
 import PopUpModal from '@/app/component/popUpmodal';
+import { 
+    ChevronLeft, 
+    Camera, 
+    Plus, 
+    Save, 
+    Trash2 
+} from 'lucide-react';
 
 type Device = {
     device_id: string;
@@ -459,69 +466,102 @@ export default function ViewDevice() {
         return <LoadingSpinner />;
     }
     return (
-        <div className="relative overflow-x-auto shadow-md">
-            <div className="p-5 text-lg font-semibold text-left rtl:text-right text-gray-900 bg-white dark:text-white dark:bg-gray-800 flex items-center">
-                <button onClick={() => router.back()} type="button" className="flex-shrink-0 w-8 h-8 ml-1 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-gray-700 dark:bg-gray-800 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700">
-                    <svg className="w-5 h-5 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
-                    </svg>
-                </button>
-                <span>Device Details: {device.device_name}</span>
-            </div>
-            
-            <div className="p-5">
-                <div className="mt-6">
-                    <h3 className="text-xl font-semibold mb-2">Device Image</h3>
-                    {device && device.image_url && (
-                        <img
-                            src={device.image_url}
-                            alt="Device"
-                            className="mt-2 max-w-xs h-auto mb-4"
-                            onError={(e) => {
-                                console.error("Error loading image:", e);
-                                e.currentTarget.style.display = 'none';
-                            }}
-                        />
-                    )}
-                    <input 
-                        type="file" 
-                        accept="image/*"  // Note: Fixed the accept attribute
-                        onChange={handleImageUpload} 
-                        className="mb-4"
-                    />
+        <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
+            <div className="bg-white shadow-xl rounded-xl overflow-hidden">
+                {/* Header Section */}
+                <div className="bg-gradient-to-r from-red-500 to-purple-600 text-white p-6 flex items-center">
+                    <button 
+                        onClick={() => router.back()} 
+                        className="hover:bg-red-600/30 rounded-full p-2 transition-colors mr-4"
+                    >
+                        <ChevronLeft className="h-6 w-6" />
+                    </button>
+                    <h1 className="text-2xl font-bold flex-grow">
+                        {device?.device_name || 'Device Details'}
+                    </h1>
+                    <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
+                        {deviceType?.device_type || 'Unknown Type'}
+                    </span>
                 </div>
 
-                <div className="mt-6">
-                    <h3 className="text-xl font-semibold mb-2">Ports</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {interfaces.map((iface, index) => (
-                            <div key={index} className="bg-white border rounded-lg shadow-md p-4 dark:bg-gray-300 dark:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-400">
-                                <h4 className="text-lg font-semibold">Port {iface.port_number}</h4>
-                                {renderInterfaceFields(iface, index)}
-                                <p className="mt-2">Interface Name: {iface.interface_name}</p>
+                {/* Content Grid */}
+                <div className="grid md:grid-cols-2 gap-8 p-8">
+                    {/* Device Image Section */}
+                    <div className="bg-gray-100 rounded-lg p-6 flex flex-col items-center">
+                        <h3 className="text-xl font-semibold mb-4 text-gray-700">Device Image</h3>
+                        {device?.image_url ? (
+                            <img
+                                src={device.image_url}
+                                alt="Device"
+                                className="max-w-full h-64 object-cover rounded-lg shadow-md mb-4"
+                            />
+                        ) : (
+                            <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <Camera className="h-12 w-12 text-gray-400" />
+                            </div>
+                        )}
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleImageUpload} 
+                            className="mt-4 w-full text-sm text-gray-500 
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-red-50 file:text-red-700
+                            hover:file:bg-red-100"
+                        />
+                    </div>
+
+                    {/* Ports Section */}
+                    <div>
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-semibold text-gray-700">Ports</h3>
+                            <div className="flex space-x-2">
                                 <button
-                                    onClick={() => handleDeleteInterface(index)}
-                                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                    onClick={handleAddInterface}
+                                    className="bg-green-500 text-white p-2 rounded-full hover:bg-green-600 transition-colors"
+                                    title="Add Port"
                                 >
-                                    Delete
+                                    <Plus className="h-5 w-5" />
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                                    title="Save Changes"
+                                >
+                                    <Save className="h-5 w-5" />
                                 </button>
                             </div>
-                        ))}
+                        </div>
+
+                        <div className="space-y-4">
+                            {interfaces.map((iface, index) => (
+                                <div 
+                                    key={index} 
+                                    className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                                >
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h4 className="text-lg font-medium text-gray-800">
+                                            Port {iface.port_number}
+                                        </h4>
+                                        <button
+                                            onClick={() => handleDeleteInterface(index)}
+                                            className="text-red-500 hover:text-red-700 transition-colors"
+                                            title="Delete Port"
+                                        >
+                                            <Trash2 className="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                    
+                                    {renderInterfaceFields(iface, index)}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <button
-                        onClick={handleAddInterface}
-                        className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                        Add Port
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        className="mt-4 ml-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                        Save Changes
-                    </button>
                 </div>
             </div>
+
             <PopUpModal
                 isOpen={isModalOpen}
                 onClose={closeModal}
