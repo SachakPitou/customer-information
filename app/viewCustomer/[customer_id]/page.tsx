@@ -68,6 +68,7 @@ type Customer = {
     end_date: string | null;
     sale_name: string;
     pdfUrl?: string | null;
+    ip_type: string;
 };
   
 type EditHistory = {
@@ -306,6 +307,7 @@ export default function ViewCustomer() {
                         <InfoRow label="Customer ID" value={customer.cid} bold />
                         <InfoRow label="Phone Number" value={customer.phone_number} />
                         <InfoRow label="Address" value={customer.address} />
+                        <InfoRow label="IP Type" value={customer.ip_type} />
                         <InfoRow label="Package" value={customer.package_name} />
                         <InfoRow label="Service" value={customer.service_name} />
                         <InfoRow label="Location" value={customer.location_name} />
@@ -331,22 +333,23 @@ export default function ViewCustomer() {
                         <InfoRow label="Device Type" value={customer.device_type} />
                         <InfoRow label="Longitude" value={customer.longtitude} />
                         <InfoRow label="Latitude" value={customer.langtitude} />
+                        {customer.device_type_id !== 3 && (
+                            <InfoRow label="Interface Name" value={customer.interface_info} />
+                        )}
                         <InfoRow label="VLAN" value={customer.VLan} />
                         <InfoRow label="Description" value={customer.description} />
                         <InfoRow label="IP Address" value={customer.ip_address} />
                         <InfoRow label="Capacity Bandwidth" value={customer.capacity_bandwidth} />
                         
                         {/* Conditional Rendering for Device-Specific Information */}
-                        {customer.device_type_id !== 3 && (
-                            <InfoRow label="Interface Name" value={customer.interface_info} />
-                        )}
+                        
 
                         {(customer.device_type_id === 1 || customer.device_type_id === 2) && (
                             <>
                                 <InfoRow label="Switch Port" value={customer.switch_port} />
                                 <InfoRow label="Port Type" value={customer.port_type} />
-                                <InfoRow label="Service Port" value={customer.service_port} />
-                                <InfoRow label="Camera IP" value={customer.camera_ip} />
+                                {/* <InfoRow label="Service Port" value={customer.service_port} />
+                                <InfoRow label="Camera IP" value={customer.camera_ip} /> */}
                                 <InfoRow label="ACL" value={customer.ACL} />
                             </>
                         )}

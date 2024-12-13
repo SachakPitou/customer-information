@@ -493,6 +493,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                       <label className="block mb-2">Service Port:</label>
                       <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="w-full p-2 border" />
                     </div>
+                    <div className="mb-4">
+                      <label className="block mb-2">Camera IP:</label>
+                      <input type="text" value={cameraIP} onChange={e => setCameraIP(e.target.value)} className="w-full p-2 border" />
+                    </div>
                     {/* <div className="mb-4">
                       <label className="block mb-2">ONU ID:</label>
                       <input type="text" value={onuID} onChange={e => setOnuID(e.target.value)} className="w-full p-2 border" />
@@ -518,14 +522,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                       <label className="block mb-2">ACL:</label>
                       <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
                     </div>
-                    <div className="mb-4">
+                    {/* <div className="mb-4">
                       <label className="block mb-2">Service Port:</label>
                       <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">Camera IP:</label>
-                      <input type="text" value={cameraIP} onChange={e => setCameraIP(e.target.value)} className="w-full p-2 border" />
-                    </div>
+                    </div> */}
                     <div className="mb-4">
                       <label className="block mb-2">Switch Port:</label>
                       <input type="text" value={switchPort} onChange={e => setSwitchPort(e.target.value)} className="w-full p-2 border" />

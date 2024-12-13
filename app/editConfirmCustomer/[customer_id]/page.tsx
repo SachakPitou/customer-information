@@ -17,6 +17,7 @@ interface Customer {
     service_id: string;
     package_id: string;
     isActive: boolean;
+    ip_type: string;
 }
 
 interface Service {
@@ -42,6 +43,7 @@ export default function EditConfirmCustomer() {
         service_id: '',
         package_id: '',
         isActive: false,
+        ip_type: '',
     });
     const [services, setServices] = useState<Service[]>([]);
     const [packages, setPackages] = useState<Package[]>([]);
@@ -210,6 +212,18 @@ export default function EditConfirmCustomer() {
                             placeholder="Enter Address"
                             value={customer.address}
                             onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded" 
+                        />
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="ipType" className="block mb-2">IP Type:</label>
+                        <input
+                            type="text"
+                            id="ipType"
+                            placeholder="Enter IP Type"
+                            value={customer.ip_type}
+                            onChange={(e) => setCustomer({ ...customer, ip_type: e.target.value })}
                             required
                             className="w-full p-2 border rounded" 
                         />

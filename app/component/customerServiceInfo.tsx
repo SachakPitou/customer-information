@@ -19,6 +19,7 @@ type Customer = {
   package_id: string;
   location_id: string;
   status: string;
+  ip_type: string;
   active_timestamp?: string;
   inactive_timestamp?: string;
   reactive_timestamp?: string;
@@ -71,6 +72,7 @@ export default function CustomerServiceInfoForm({ customerId }: CustomerServiceI
     inactive_timestamp: '',
     reactive_timestamp: '',
     terminate_timestamp: '',
+    ip_type: '',
 
   });
   const [services, setServices] = useState<Service[]>([]);
@@ -224,6 +226,15 @@ export default function CustomerServiceInfoForm({ customerId }: CustomerServiceI
               <input
                 type="text"
                 value={customer.address}
+                readOnly={true}
+                className="block w-full border rounded p-2 mb-2"
+              />
+            </div>
+            <div>
+              <label className="block">IP Type:</label>
+              <input
+                type="text"
+                value={customer.ip_type}
                 readOnly={true}
                 className="block w-full border rounded p-2 mb-2"
               />

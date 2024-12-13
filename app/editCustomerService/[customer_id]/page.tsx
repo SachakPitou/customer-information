@@ -13,6 +13,7 @@ interface CustomerData {
     address: string;
     longtitude: string;
     langtitude: string;
+    ip_type: string;
     activation_date: string;
     service_id: string;
     package_id: string;
@@ -52,6 +53,7 @@ export default function Page() {
         service_id: '',
         package_id: '',
         isActive: '',
+        ip_type: '',
     });
     const [services, setServices] = useState<ServiceData[]>([]);
     const [packages, setPackages] = useState<PackageData[]>([]);
@@ -285,6 +287,15 @@ export default function Page() {
                                 id="Address"
                                 value={customer.address}
                                 readOnly
+                                className="w-full p-2 border rounded bg-gray-100" 
+                            />
+                        </div>
+                        <div className="w-full md:w-1/2 px-2 mb-4">
+                            <label htmlFor="Address" className="block mb-2">IP Type:</label>
+                            <input
+                                type="text"
+                                id="ipType"
+                                value={customer.ip_type}
                                 className="w-full p-2 border rounded bg-gray-100" 
                             />
                         </div>

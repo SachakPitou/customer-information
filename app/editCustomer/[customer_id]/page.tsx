@@ -948,7 +948,7 @@ export default function Page() {
                 </select>
               </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
-                <h3 className="text-lg font-semibold mb-2">Customer Documents</h3>
+                <h3 className="text-lg font-semibold mb-2">Network Diagrams</h3>
                 <PDFUpload 
                   customerId={customer_id} 
                   onPDFUploaded={(url) => {
@@ -1140,7 +1140,7 @@ export default function Page() {
                       className="w-full p-2 border rounded"
                     />
                   </div>
-                  <div className="w-full md:w-1/2 px-2 mb-4">
+                  {/* <div className="w-full md:w-1/2 px-2 mb-4">
                     <label htmlFor="servicePort" className="block mb-2">Service Port:</label>
                     <input
                       type="text"
@@ -1151,19 +1151,7 @@ export default function Page() {
                       required
                       className="w-full p-2 border rounded"
                     />
-                  </div>
-                  <div className="w-full md:w-1/2 px-2 mb-4">
-                    <label htmlFor="cameraIP" className="block mb-2">Camera IP:</label>
-                    <input
-                      type="text"
-                      id="cameraIP"
-                      placeholder="Enter Camera IP"
-                      value={customer.camera_ip}
-                      onChange={(e) => setCustomer({ ...customer, camera_ip: e.target.value })}
-                      required
-                      className="w-full p-2 border rounded"
-                    />
-                  </div>
+                  </div> */}
                   <div className="w-full md:w-1/2 px-2 mb-4">
                     <label htmlFor="ACL" className="block mb-2">ACL:</label>
                     <input
@@ -1276,6 +1264,18 @@ export default function Page() {
                     className="w-full p-2 border rounded"
                   />
                 </div>
+                <div className="w-full md:w-1/2 px-2 mb-4">
+                    <label htmlFor="cameraIP" className="block mb-2">Camera IP:</label>
+                    <input
+                      type="text"
+                      id="cameraIP"
+                      placeholder="Enter Camera IP"
+                      value={customer.camera_ip}
+                      onChange={(e) => setCustomer({ ...customer, camera_ip: e.target.value })}
+                      required
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
               </>
             )}
             <br />

@@ -8,8 +8,10 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import StatusChangeFilter from '../component/statusChangeFilter';
 import LoadingSpinner from '../component/LoadingSpinner';
+import LocationChangeFilter from '../component/LocationChangeFilter';
 
 interface Customer {
+    location_id: number;
     ONU_mac_address: string;
     customer_id: string;
     customer_name: string;
@@ -70,6 +72,7 @@ export default function Dashboard() {
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
     const [statusChangeFilter, setStatusChangeFilter] = useState<{
         startDate: string;
         endDate: string;
@@ -567,7 +570,12 @@ export default function Dashboard() {
     
         const searchTerm = searchValue.toLowerCase();
         let statusChangeFilterPass = true;
-    
+        if (selectedLocation !== null) {
+            // Ensure the customer's location matches the selected location
+            if (customer.location_id !== selectedLocation) {
+                return false;
+            }
+        }
         // Date range and status type filter logic
         if (statusChangeFilter.startDate && statusChangeFilter.endDate) {
             console.log('Applying date filter:', statusChangeFilter.startDate, 'to', statusChangeFilter.endDate);
@@ -681,7 +689,10 @@ export default function Dashboard() {
     const handlePageChange = (pageNumber: number) => {
         setCurrentPage(pageNumber);
     };
-
+    const handleLocationChange = (locationId: number | null) => {
+        setSelectedLocation(locationId);
+        // Perform filtering or other actions based on selected location
+    };
     // Calculate the packages to be displayed on the current page
     const totalPages = Math.ceil(filteredCustomers.length / packagesPerPage);
     const startIndex = (currentPage - 1) * packagesPerPage;
@@ -722,13 +733,16 @@ export default function Dashboard() {
                                 Download Excel
                                 </button>
                             </div>
+                            <LocationChangeFilter 
+                                    onLocationChange={handleLocationChange} 
+                            />
                         </div>
 
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
                             {/* Filters */}
                             <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
                                 <StatusChangeFilter onFilter={handleStatusChangeFilter} />
-
+                                
                                 <select 
                                 value={searchField} 
                                 onChange={handleSearchFieldChange} 

@@ -18,6 +18,7 @@ interface CustomerData {
   status_type: string | null;
   status: string;
   sale_name: string;
+  ip_type: string;
   active_timestamp?: string;
   inactive_timestamp?: string;
   reactive_timestamp?: string;
@@ -45,6 +46,7 @@ export default function CustomerServiceForm() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [CID, setCID] = useState('');
   const [Address, setAddress] = useState('');
+  const [ipType, setipType] = useState('');
   const [activationDate, setActivationDate] = useState('');
   const [salesName, setsalesName] = useState('');
   const [services, setServices] = useState<Service[]>([]);
@@ -97,6 +99,7 @@ export default function CustomerServiceForm() {
         cid: CID,
         address: Address,
         activation_date: activationDate,
+        ip_type: ipType,
         service_id: parseInt(selectedServiceId),
         package_id: parseInt(selectedPackageId),
         location_id: parseInt(selectedLocationId),
@@ -246,6 +249,15 @@ export default function CustomerServiceForm() {
                 type="text"
                 value={Address}
                 onChange={(e) => setAddress(e.target.value)}
+                className="block w-full border rounded p-2 mb-2"
+              />
+            </div>
+            <div>
+              <label className="block">IP Type:</label>
+              <input
+                type="text"
+                value={ipType}
+                onChange={(e) => setipType(e.target.value)}
                 className="block w-full border rounded p-2 mb-2"
               />
             </div>
