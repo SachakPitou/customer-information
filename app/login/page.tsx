@@ -2,6 +2,7 @@ import Header from '@/components/Header/Header';
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import PasswordInput from '../component/PasswordInput'; // Adjust the import path as needed
 
 export default async function Login({
   searchParams,
@@ -65,13 +66,7 @@ export default async function Login({
           <label className="text-md" htmlFor="password">
             Password
           </label>
-          <input
-            className="rounded-md px-4 py-2 bg-inherit border mb-6"
-            type="password"
-            name="password"
-            placeholder="••••••••"
-            required
-          />
+          <PasswordInput />
           <button className="bg-red-700 rounded-md px-4 py-2 text-white mb-2">
             Sign In
           </button>
