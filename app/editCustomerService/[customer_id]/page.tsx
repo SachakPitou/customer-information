@@ -291,11 +291,22 @@ export default function Page() {
                             />
                         </div>
                         <div className="w-full md:w-1/2 px-2 mb-4">
+                            <label htmlFor="CID" className="block mb-2">CID:</label>
+                            <input
+                                type="text"
+                                id="CID"
+                                value={customer.cid}
+                                onChange={(e) => setCustomer(prev => ({ ...prev, cid: e.target.value }))}
+                                className="w-full p-2 border rounded bg-gray-100" 
+                            />
+                        </div>
+                        <div className="w-full md:w-1/2 px-2 mb-4">
                             <label htmlFor="Address" className="block mb-2">IP Type:</label>
                             <input
                                 type="text"
                                 id="ipType"
                                 value={customer.ip_type}
+                                onChange={(e) => setCustomer(prev => ({ ...prev, ip_type: e.target.value }))}
                                 className="w-full p-2 border rounded bg-gray-100" 
                             />
                         </div>
