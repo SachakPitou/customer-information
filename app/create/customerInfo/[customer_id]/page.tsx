@@ -10,6 +10,6 @@ export default function CustomerInfoPage() {
   return customer_id ? (
     <CustomerServiceInfoForm customerId={customer_id} />
   ) : (
-    <div><LoadingSpinner /></div>
+    <LoadingSpinner />
   );
 }

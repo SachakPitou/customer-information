@@ -30,6 +30,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const [ipAddress, setIPAddress] = useState<string>('');
   const [locations, setLocations] = useState<any[]>([]);
   const [devices, setDevices] = useState<any[]>([]);
+  const [surveyId, setSurveyId] = useState<string>('');
   const [deviceTypes, setDeviceTypes] = useState<any[]>([]);
   const [interfaces, setInterfaces] = useState<any[]>([]);
   const [selectedInterfaceId, setSelectedInterfaceId] = useState<string>('');
@@ -248,6 +249,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
           registered_date: currentDate,
           subnet: subnet || null,
           network_diagram_url: pdfUrl,
+          survey_id: surveyId || null,
         })
         .eq('customer_id', customerId);
   
@@ -508,6 +510,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                     <div className="mb-4">
                       <label className="block mb-2">SERIAL NUMBER:</label>
                       <input type="text" value={serialNumber} onChange={e => setSerialNumber(e.target.value)} className="w-full p-2 border" />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block mb-2">Survey ID:</label>
+                      <input type="text" value={surveyId} onChange={e => setSurveyId(e.target.value)} className="w-full p-2 border" />
                     </div>
                   </>
                 )}

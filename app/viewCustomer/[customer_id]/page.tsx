@@ -69,6 +69,7 @@ type Customer = {
     sale_name: string;
     pdfUrl?: string | null;
     ip_type: string;
+    survey_id: string;
 };
   
 type EditHistory = {
@@ -363,6 +364,7 @@ export default function ViewCustomer() {
                                 <InfoRow label="ONU MAC Address" value={customer.ONU_mac_address} />
                                 <InfoRow label="ONT ID" value={customer.ont_id} />
                                 <InfoRow label="Serial Number" value={customer.serial_number} />
+                                <InfoRow label="Survey ID" value={customer.survey_id} />
                             </>
                         )}
                     </InfoCard>

@@ -938,17 +938,46 @@ export default function Dashboard() {
                     Showing {startIndex + 1} to {Math.min(startIndex + packagesPerPage, filteredCustomers.length)} of {filteredCustomers.length} Customers
                 </span>
                 <div className="flex space-x-2">
-                    {Array.from({ length: totalPages }, (_, i) => (
-                        <button
-                            key={i + 1}
-                            onClick={() => handlePageChange(i + 1)}
-                            className={`px-3 py-1 border ${currentPage === i + 1 ? 'bg-red-500 text-white' : 'bg-white text-gray-700'} hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
-                        >
-                            {i + 1}
-                        </button>
-                    ))}
+                    {/* Previous Button */}
+                    <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 border bg-white text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                        Previous
+                    </button>
+                    
+                    {/* Pagination Numbers */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(page => 
+                            page === 1 || 
+                            page === totalPages || 
+                            (page >= currentPage - 2 && page <= currentPage + 2)
+                        )
+                        .map(page => (
+                            <button
+                                key={page}
+                                onClick={() => handlePageChange(page)}
+                                className={`px-3 py-1 border ${currentPage === page ? 'bg-red-500 text-white' : 'bg-white text-gray-700'} hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                    
+                    {/* Ellipsis for Skipped Pages */}
+                    {currentPage < totalPages - 3 && <span className="px-3 py-1 text-gray-700 dark:text-gray-400">...</span>}
+                    
+                    {/* Next Button */}
+                    <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 border bg-white text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                        Next
+                    </button>
                 </div>
             </div>
+
             {showModal && (
                 <div className="fixed top-0 left-0 z-50 w-full h-full flex items-center justify-center bg-black bg-opacity-50">
                 <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">

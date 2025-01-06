@@ -46,6 +46,7 @@ interface CustomerData {
   router_device_id: number| null;
   capacity_bandwidth: string;
   subnet: string;
+  survey_id: string;
   // status_type: CustomerStatus;
   // active_timestamp: string | null;
   // inactive_timestamp: string | null;
@@ -155,7 +156,7 @@ export default function Page() {
     router_name: '', 
     capacity_bandwidth: '',
     subnet: '',
-    
+    survey_id: '',
     serial_number: '',
     sale_name: '',
     // active_timestamp: null,
@@ -562,7 +563,7 @@ export default function Page() {
           'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
           'location_id', 'olt_id', 'isActive', 'interface_id', 'switch_port', 'port_type',
           'ACL', 'VLan', 'description', 'frame', 'ont_id', 'capacity_bandwidth', 'status_type',
-          'subnet', 'sale_name', 'serial number',
+          'subnet', 'sale_name', 'serial number', 'survey_id',
         ];
     
         const historyRecords = fieldsToCheck.map(field => {
@@ -726,7 +727,7 @@ export default function Page() {
             onu_id: customer.onu_id,
             camera_ip: customer.camera_ip,
             ip_address: customer.ip_address,
-                    // isActive: customer.isActive,
+            survey_id: customer.survey_id,
             activation_date: customer.activation_date,
             switch_port: customer.switch_port,
             port_type: customer.port_type,
@@ -1252,6 +1253,7 @@ export default function Page() {
                     className="w-full p-2 border rounded"
                   />
                 </div>
+                
                 <div className="w-full md:w-1/2 px-2 mb-4">
                   <label htmlFor="ontId" className="block mb-2">SERIAL NUMBER:</label>
                   <input
@@ -1276,6 +1278,17 @@ export default function Page() {
                       className="w-full p-2 border rounded"
                     />
                   </div>
+                  <div className="w-full md:w-1/2 px-2 mb-4">
+                  <label htmlFor="surveyId" className="block mb-2">Survey ID:</label>
+                  <input
+                    type="text"
+                    id="surveyId"
+                    placeholder="Enter Survey ID"
+                    value={customer.survey_id ?? ""}
+                    onChange={(e) => setCustomer({ ...customer, survey_id: e.target.value })}
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
               </>
             )}
             <br />
