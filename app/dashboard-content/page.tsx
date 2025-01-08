@@ -56,6 +56,10 @@ interface StatusChangeFilter {
     endDate: Date | null;
     statusType: string;
 }
+interface FetchResponse {
+    data: any;
+    error: any;
+}
 
 export default function Dashboard() {
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -73,6 +77,11 @@ export default function Dashboard() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
+    const [customerCount, setCustomerCount] = useState(0);const [pendingEditCount, setPendingEditCount] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+    const BATCH_SIZE = 50; // Number of customers to process at once
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; 
     const [statusChangeFilter, setStatusChangeFilter] = useState<{
         startDate: string;
         endDate: string;
@@ -85,26 +94,36 @@ export default function Dashboard() {
 
     const router = useRouter();
     const packagesPerPage = 15;
-
+    const handleFailedFetch = (error: any, customerId: string, entityType: string) => {
+        console.error(`Error fetching ${entityType} for customer ${customerId}:`, error);
+        return null;
+    };
+    
+    // Retry logic for failed fetches
+    const fetchWithRetry = async (
+        fetchPromise: Promise<FetchResponse>,
+        retries = 3,
+        delay = 1000
+    ): Promise<FetchResponse> => {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetchPromise;
+                if (!response.error) return response;
+                
+                console.warn(`Attempt ${i + 1} failed, retrying...`);
+                if (i < retries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+                }
+            } catch (error) {
+                if (i === retries - 1) throw error;
+                await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+            }
+        }
+        throw new Error(`Failed after ${retries} retries`);
+    };
     const handleStatusChangeFilter = (params: { startDate: string; endDate: string; statusType: string }) => {
         setStatusChangeFilter(params);
     };
-
-    const getStatusTimestamp = (customer: Customer): string | null => {
-        switch(customer.status_type) {
-            case 'ACTIVE':
-                return customer.active_timestamp || null;
-            case 'INACTIVE':
-                return customer.inactive_timestamp || null;
-            case 'REACTIVE':
-                return customer.reactive_timestamp || null;
-            case 'TERMINATE':
-                return customer.terminate_timestamp || null;
-            default:
-                return null;
-        }
-    };
-
     const downloadExcel = () => {
         const excelData = filteredCustomers.map(customer => {
             let relevantStatus = null;
@@ -251,160 +270,30 @@ export default function Dashboard() {
     };
 
     const handleFetchHistory = async (customerId: string) => {
+        if (editHistories[customerId]) {
+            // If we already have the history, just toggle the visibility
+            setExpandedRows(prev => ({
+                ...prev,
+                [customerId]: !prev[customerId]
+            }));
+            return;
+        }
+
         try {
-            console.log(`Fetching history for customer ${customerId}`);
-            
-            // Fetch history data without joining Users table
-            const { data: historyData, error: historyError } = await supabase
-                .from('CustomerHistory')
-                .select('*')
-                .eq('customer_id', customerId);
-    
-            if (historyError) throw historyError;
-    
-            if (!historyData || historyData.length === 0) {
-                console.log(`No history data found for customer ${customerId}`);
-                setEditHistories((prevHistories) => ({
-                    ...prevHistories,
-                    [customerId]: [],
-                }));
-                return;
-            }
-    
-            console.log(`Fetched ${historyData.length} history records for customer ${customerId}`);
-
-            const { data: testUserData, error: testUserError } = await supabase
-                .from('userAccount')
-                .select('id, user_name');
-
-            if (testUserError) {
-                console.error('Error in test query for userAccount:', testUserError);
-            } else {
-                console.log('Test query returned:', testUserData);
-            }
-        
-            // Collect all the IDs that need to be fetched
-            const locationIds = historyData.flatMap((history) =>
-                history.field_changed === 'location_id' ? [history.old_value, history.new_value] : []
-            );
-            const oltIds = historyData.flatMap((history) =>
-                history.field_changed === 'olt_id' ? [history.old_value, history.new_value] : []
-            );
-            const deviceIds = historyData.flatMap((history) =>
-                history.field_changed === 'device_id' ? [history.old_value, history.new_value] : []
-            );
-            const serviceIds = historyData.flatMap((history) =>
-                history.field_changed === 'service_id' ? [history.old_value, history.new_value] : []
-            );
-            const packageIds = historyData.flatMap((history) =>
-                history.field_changed === 'package_id' ? [history.old_value, history.new_value] : []
-            );
-            const interfaceIds = historyData.flatMap((history) =>
-                history.field_changed === 'interface_id' ? [history.old_value, history.new_value] : []
-            );
-    
-            // Collect unique user IDs
-            const userIdsSet = new Set<string>();
-            historyData.forEach(history => {
-                const editedBy = history.editedBy;
-                if (editedBy !== null && 
-                    typeof editedBy === 'string' && 
-                    editedBy.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
-                    userIdsSet.add(editedBy);
-                }
-            });
-            const userIds = Array.from(userIdsSet);
-    
-            console.log('Fetching details for related entities...');
-            // Fetch user data
-            // Fetch details for all relevant entities
-            const [locationsData, oltsData, devicesData, servicesData, packagesData, interfacesData, usersData] = await Promise.all([
-                supabase.from('Location').select('location_id, location_name').in('location_id', locationIds),
-                supabase.from('OLT').select('olt_id, olt_name').in('olt_id', oltIds),
-                supabase.from('Device').select('device_id, device_name').in('device_id', deviceIds),
-                supabase.from('Service').select('service_id, service_name').in('service_id', serviceIds),
-                supabase.from('Package').select('package_id, package_name').in('package_id', packageIds),
-                supabase.from('Interface').select('interface_id, interface_name').in('interface_id', interfaceIds),
-                supabase.from('userAccount').select('id, user_name').in('id', userIds)
+            const [
+                { data: historyData },
+                { data: userData }
+            ] = await Promise.all([
+                supabase.from('CustomerHistory').select('*').eq('customer_id', customerId),
+                supabase.from('userAccount').select('id, user_name')
             ]);
-    
-            // Check for null results and log them
-            [
-                { name: 'Location', data: locationsData },
-                { name: 'OLT', data: oltsData },
-                { name: 'Device', data: devicesData },
-                { name: 'Service', data: servicesData },
-                { name: 'Package', data: packagesData },
-                { name: 'Interface', data: interfacesData },
-                { name: 'userAccount', data: usersData }
-            ].forEach(({ name, data }) => {
-                if (data.error) {
-                    console.error(`Error fetching ${name} data:`, data.error);
-                }
-                if (!data.data) {
-                    console.error(`No data returned for ${name}`);
-                } else {
-                    console.log(`Fetched ${data.data.length} ${name} records`);
-                }
-            });
-    
-            // Create maps for easy lookup
-            const createMap = (data: any) => data && data.data ? Object.fromEntries(data.data.map((item: any) => [item[`${Object.keys(item)[0]}`], item[`${Object.keys(item)[1]}`]])) : {};
-            const locationMap = createMap(locationsData);
-            const oltMap = createMap(oltsData);
-            const deviceMap = createMap(devicesData);
-            const serviceMap = createMap(servicesData);
-            const packageMap = createMap(packagesData);
-            const interfaceMap = createMap(interfacesData);
-            const userMap = usersData && usersData.data
-                ? Object.fromEntries(
-                    usersData.data.map((user: any) => [
-                        user.id, 
-                        { name: user.user_name || 'Unknown User' }
-                    ])
-                )
-                : {};
-    
-            console.log('User map:', userMap);
-            console.log('Processing history data...');
-    
-            const historyWithDetails = historyData.map((history: any) => {
-                let changeDescription;
-    
-                // Generate change descriptions based on the field changed
-                if (history.field_changed === 'location_id') {
-                    const oldLocationName = locationMap[history.old_value] || 'Unknown Location';
-                    const newLocationName = locationMap[history.new_value] || 'Unknown Location';
-                    changeDescription = `Location changed from "${oldLocationName}" to "${newLocationName}"`;
-                } else if (history.field_changed === 'olt_id') {
-                    const oldOltName = oltMap[history.old_value] || 'Unknown OLT';
-                    const newOltName = oltMap[history.new_value] || 'Unknown OLT';
-                    changeDescription = `OLT changed from "${oldOltName}" to "${newOltName}"`;
-                } else if (history.field_changed === 'device_id') {
-                    const oldDeviceName = deviceMap[history.old_value] || 'Unknown Device';
-                    const newDeviceName = deviceMap[history.new_value] || 'Unknown Device';
-                    changeDescription = `Device changed from "${oldDeviceName}" to "${newDeviceName}"`;
-                } else if (history.field_changed === 'service_id') {
-                    const oldServiceName = serviceMap[history.old_value] || 'Unknown Service';
-                    const newServiceName = serviceMap[history.new_value] || 'Unknown Service';
-                    changeDescription = `Service changed from "${oldServiceName}" to "${newServiceName}"`;
-                } else if (history.field_changed === 'package_id') {
-                    const oldPackageName = packageMap[history.old_value] || 'Unknown Package';
-                    const newPackageName = packageMap[history.new_value] || 'Unknown Package';
-                    changeDescription = `Package changed from "${oldPackageName}" to "${newPackageName}"`;
-                } else if (history.field_changed === 'interface_id') {
-                    const oldInterfaceName = interfaceMap[history.old_value] || 'Unknown Interface';
-                    const newInterfaceName = interfaceMap[history.new_value] || 'Unknown Interface';
-                    changeDescription = `Interface changed from "${oldInterfaceName}" to "${newInterfaceName}"`;
-                } else if (history.field_changed === 'isActive') {
-                    const oldStatusName = history.old_value === 'true' ? 'Active' : 'Inactive';
-                    const newStatusName = history.new_value === 'true' ? 'Active' : 'Inactive';
-                    changeDescription = `Status changed from "${oldStatusName}" to "${newStatusName}"`;
-                } else {
-                    changeDescription = `${history.field_changed} changed from "${history.old_value}" to "${history.new_value}"`;
-                }
-    
-                // Format the date
+
+            if (!historyData) return;
+
+            // Create user map for quick lookups
+            const userMap = new Map(userData?.map(user => [user.id, user.user_name]) || []);
+
+            const processedHistory = historyData.map(history => {
                 const formattedDate = new Date(history.timestamp.replace(',', '')).toLocaleString('en-GB', {
                     timeZone: 'Asia/Phnom_Penh',
                     day: '2-digit',
@@ -414,42 +303,31 @@ export default function Dashboard() {
                     minute: '2-digit',
                     hour12: true
                 });
-    
-                const userInfo = userMap[history.editedBy] || { name: 'Unknown User'};
+
+                const userName = userMap.get(history.editedBy) || 'Unknown User';
 
                 return {
                     ...history,
-                    changeDescription,
                     formattedDate,
-                    editedBy: userInfo.name,
-                    displayString: `${formattedDate} edited by ${userInfo.name}`
+                    editedBy: userName,
+                    displayString: `${formattedDate} edited by ${userName}`,
+                    changeDescription: `${history.field_changed} changed from "${history.old_value}" to "${history.new_value}"`
                 };
             });
-    
-            console.log(`Processed ${historyWithDetails.length} history records`);
-    
-            setEditHistories((prevHistories) => ({
-                ...prevHistories,
-                [customerId]: historyWithDetails,
+
+            setEditHistories(prev => ({
+                ...prev,
+                [customerId]: processedHistory
             }));
-    
-            // Toggle visibility of edit history
-            setExpandedRows((prevExpanded) => ({
-                ...prevExpanded,
-                [customerId]: !prevExpanded[customerId], // Toggle visibility
+
+            setExpandedRows(prev => ({
+                ...prev,
+                [customerId]: true
             }));
-    
-            console.log('History fetch and processing completed successfully');
         } catch (error) {
-            console.error('Error in handleFetchHistory:', error);
-            // Set an empty array for this customer in case of error
-            setEditHistories((prevHistories) => ({
-                ...prevHistories,
-                [customerId]: [],
-            }));
+            console.error('Error fetching history:', error);
         }
     };
-    
     const handleDeleteCustomer = async () => {
         try {
             if (!customerToDelete) return;
@@ -474,47 +352,61 @@ export default function Dashboard() {
     
 
     useEffect(() => {
-        const fetchCustomers = async () => {
+        const fetchAllData = async () => {
+            setIsLoading(true);
             try {
-                const { data: customersData, error: customerError } = await supabase
-                    .from('Customer')
-                    .select('*');
-    
-                if (customerError) throw customerError;
-    
-                const customerPromises = customersData.map(async (customer: Customer, index: number) => {
-                    const [
-                        { data: packageData },
-                        { data: deviceData },
-                        { data: oltData },
-                        { data: interfaceData },
-                        { data: statusData },
-                        { data: statusHistoryData }
-                    ] = await Promise.all([
-                        supabase.from('Package').select('package_name').eq('package_id', customer.package_id).single(),
-                        supabase.from('Device').select('device_name').eq('device_id', customer.device_id).single(),
-                        supabase.from('OLT').select('olt_name').eq('olt_id', customer.olt_id).single(),
-                        supabase.from('Interface').select('interface_name').eq('interface_id', customer.interface_id).single(),
-                        supabase.from('Customer').select('*').eq('status', 'Completed').eq('customer_id', customer.customer_id).single(),
-                        supabase.from('statushistory').select('*').eq('customer_id', customer.customer_id)
-                    ]);
-    
-                    return {
-                        ...customer,
-                        rowNumber: index + 1,
-                        package_name: packageData?.package_name || 'Unknown Package',
-                        device_name: deviceData?.device_name || 'Unknown Device',
-                        interface_name: interfaceData?.interface_name || 'Unknown Interface',
-                        olt_name: oltData?.olt_name || 'Unknown OLT',
-                        status: statusData?.status,
-                        statusHistory: statusHistoryData || []
-                    };
+                // Fetch all required data in parallel
+                const [
+                    { data: customersData, error: customersError },
+                    { data: packageData, error: packageError },
+                    { data: deviceData, error: deviceError },
+                    { data: interfaceData, error: interfaceError },
+                    { data: statusData, error: statusError },
+                    { data: statusHistoryData, error: historyError }
+                ] = await Promise.all([
+                    supabase.from('Customer').select('*'),
+                    supabase.from('Package').select('package_id, package_name'),
+                    supabase.from('Device').select('device_id, device_name'),
+                    supabase.from('Interface').select('interface_id, interface_name'),
+                    supabase.from('Customer').select('customer_id, status').eq('status', 'Completed'),
+                    supabase.from('statushistory').select('*')
+                ]);
+
+                if (customersError) throw customersError;
+
+                // Create lookup maps for faster access
+                const packageMap = new Map(packageData?.map(p => [p.package_id, p.package_name]));
+                const deviceMap = new Map(deviceData?.map(d => [d.device_id, d.device_name]));
+                const interfaceMap = new Map(interfaceData?.map(i => [i.interface_id, i.interface_name]));
+                const statusMap = new Map(statusData?.map(s => [s.customer_id, s.status]));
+                const statusHistoryMap = new Map();
+                
+                // Group status history by customer_id
+                statusHistoryData?.forEach(history => {
+                    if (!statusHistoryMap.has(history.customer_id)) {
+                        statusHistoryMap.set(history.customer_id, []);
+                    }
+                    statusHistoryMap.get(history.customer_id).push(history);
                 });
-    
-                const customersWithDetails = await Promise.all(customerPromises);
-                setCustomers(customersWithDetails);
+
+                // Process customer data with the lookup maps
+                const processedCustomers = customersData?.map((customer, index) => ({
+                    ...customer,
+                    rowNumber: index + 1,
+                    package_name: packageMap.get(customer.package_id) || 'Unknown Package',
+                    device_name: deviceMap.get(customer.device_id) || 'Unknown Device',
+                    interface_name: interfaceMap.get(customer.interface_id) || 'Unknown Interface',
+                    status: statusMap.get(customer.customer_id),
+                    statusHistory: statusHistoryMap.get(customer.customer_id) || []
+                }));
+
+                setCustomers(processedCustomers || []);
+                setCustomerCount(statusData?.length || 0);
+                setPendingEditCount((customersData?.length || 0) - (statusData?.length || 0));
             } catch (error) {
-                console.error('Error fetching customers:', error);
+                console.error('Error fetching data:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
         const fetchUserType = async () => {
@@ -550,8 +442,36 @@ export default function Dashboard() {
                 console.error('Error fetching user type:', error);
             }
         };
-        
-        fetchCustomers();
+        const fetchCounts = async () => {
+            try {
+                setIsLoading(true);
+                const [customerData, pendingEditData] = await Promise.all([
+                    supabase
+                        .from('Customer')
+                        .select('customer_id')
+                        .eq('status', 'Completed'),
+                    supabase
+                        .from('Customer')
+                        .select('customer_id')
+                        .eq('status', 'Pending Technical Review'),
+                ]);
+    
+                // Error handling
+                if (customerData.error) throw customerData.error;
+                if (pendingEditData.error) throw pendingEditData.error;
+    
+                // Set states
+                setCustomerCount(customerData.data?.length || 0);
+                setPendingEditCount(pendingEditData.data?.length || 0);
+            } catch (error) {
+                console.error('Error fetching counts:', error);
+                // Handle error appropriately
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchCounts();
+        fetchAllData();
         fetchUserType();
     }, [customerToDelete, showModal]);
     
@@ -663,11 +583,6 @@ export default function Dashboard() {
         // Perform search logic if needed
     };
 
-    const handleStatusFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        setStatusFilter(event.target.value);
-        // Consider adding logic to trigger re-rendering or data fetching here
-    };
-
     const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchValue(event.target.value); // Update the search input value
     };
@@ -678,10 +593,6 @@ export default function Dashboard() {
         }
     };
     
-    const toggleDropdown = () => {
-        setDropdownOpen(!dropdownOpen);
-    };
-
     const handleSearchFieldChange = (e: { target: { value: React.SetStateAction<string>; }; }) => {
         setSearchField(e.target.value);
     };
@@ -698,10 +609,10 @@ export default function Dashboard() {
     const startIndex = (currentPage - 1) * packagesPerPage;
     const displayedCustomers = filteredCustomers.slice(startIndex, startIndex + packagesPerPage);
 
-    if (customers.length === 0) {
+    if (customers.length === 0 || (customers.length - pendingEditCount) !== customerCount) {
+        console.log("customer:", customers.length); // Log first to debug
         return <LoadingSpinner />;
     }
-    
     return (
         <div className="w-full relative overflow-x-auto shadow-md dark:bg-gray-900">
             <div className="w-full bg-gray-100 p-4 dark:bg-gray-800 !bg-gray-200 dark:!bg-gray-800">
@@ -1002,72 +913,4 @@ export default function Dashboard() {
         </div>
     );
 }
- {/* {dropdownOpen && (
-                                <div
-                                    id="dropdownRadio"
-                                    className="z-10 absolute top-full left-0 mt-1 w-48 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600"
-                                    data-popper-reference-hidden=""
-                                    data-popper-escaped=""
-                                    data-popper-placement="top"
-                                >
-                                    <ul
-                                        className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
-                                        aria-labelledby="dropdownRadioButton"
-                                    >
-                                        <li>
-                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                <input
-                                                    type="radio"
-                                                    value=""
-                                                    name="status-filter"
-                                                    checked={statusFilter === ""}
-                                                    onChange={handleStatusFilterChange}
-                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                                />
-                                                <label
-                                                    htmlFor="filter-radio-example-1"
-                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                                >
-                                                    All
-                                                </label>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                <input
-                                                    type="radio"
-                                                    value="active"
-                                                    name="status-filter"
-                                                    checked={statusFilter === "active"}
-                                                    onChange={handleStatusFilterChange}
-                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                                />
-                                                <label
-                                                    htmlFor="filter-radio-example-2"
-                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                                >
-                                                    Active
-                                                </label>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div className="flex items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                <input
-                                                    type="radio"
-                                                    value="inactive"
-                                                    name="status-filter"
-                                                    checked={statusFilter === "inactive"}
-                                                    onChange={handleStatusFilterChange}
-                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                                />
-                                                <label
-                                                    htmlFor="filter-radio-example-3"
-                                                    className="w-full ms-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                                                >
-                                                    Inactive
-                                                </label>
-                                            </div>
-                                        </li>
-                                    </ul>
-                                </div>
-                            )} */}
+ 
