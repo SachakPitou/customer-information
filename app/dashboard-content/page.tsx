@@ -93,7 +93,7 @@ export default function Dashboard() {
     });
 
     const router = useRouter();
-    const packagesPerPage = 15;
+    const packagesPerPage = 20;
     const handleFailedFetch = (error: any, customerId: string, entityType: string) => {
         console.error(`Error fetching ${entityType} for customer ${customerId}:`, error);
         return null;
@@ -103,7 +103,7 @@ export default function Dashboard() {
     const fetchWithRetry = async (
         fetchPromise: Promise<FetchResponse>,
         retries = 3,
-        delay = 1000
+        delay = 2000
     ): Promise<FetchResponse> => {
         for (let i = 0; i < retries; i++) {
             try {
@@ -364,7 +364,7 @@ export default function Dashboard() {
                     { data: statusData, error: statusError },
                     { data: statusHistoryData, error: historyError }
                 ] = await Promise.all([
-                    supabase.from('Customer').select('*'),
+                    supabase.from('Customer').select('*').limit(10000),
                     supabase.from('Package').select('package_id, package_name'),
                     supabase.from('Device').select('device_id, device_name'),
                     supabase.from('Interface').select('interface_id, interface_name'),
@@ -479,13 +479,14 @@ export default function Dashboard() {
     console.log("Filtering customers...");
     
     const filteredCustomers = customers.filter((customer) => {
+        console.log("Customer total: ", customerCount)
         console.log('Processing customer:', customer.customer_name, 'ID:', customer.customer_id);
         console.log('Customer statusHistory:', customer.statusHistory);
     
         // First, check if the customer status is "Completed"
         if (customer.status !== "Completed") {
             console.log('Customer status not Completed:', customer.status);
-            return false; // Immediately exclude customers who are not "Completed"
+            return false;
         }
     
         const searchTerm = searchValue.toLowerCase();
@@ -858,25 +859,66 @@ export default function Dashboard() {
                         Previous
                     </button>
                     
-                    {/* Pagination Numbers */}
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                        .filter(page => 
-                            page === 1 || 
-                            page === totalPages || 
-                            (page >= currentPage - 2 && page <= currentPage + 2)
-                        )
-                        .map(page => (
-                            <button
-                                key={page}
-                                onClick={() => handlePageChange(page)}
-                                className={`px-3 py-1 border ${currentPage === page ? 'bg-red-500 text-white' : 'bg-white text-gray-700'} hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
-                            >
-                                {page}
-                            </button>
-                        ))}
-                    
-                    {/* Ellipsis for Skipped Pages */}
-                    {currentPage < totalPages - 3 && <span className="px-3 py-1 text-gray-700 dark:text-gray-400">...</span>}
+                    {/* Dynamic Pagination Numbers */}
+                    {(() => {
+                        const pages = [];
+                        const maxVisiblePages = 5; // Number of page buttons to show
+                        
+                        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                        
+                        // Adjust start if we're near the end
+                        if (endPage - startPage + 1 < maxVisiblePages) {
+                            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                        }
+                        
+                        // Always show first page
+                        if (startPage > 1) {
+                            pages.push(
+                                <button
+                                    key={1}
+                                    onClick={() => handlePageChange(1)}
+                                    className="px-3 py-1 border bg-white text-gray-700 hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                    1
+                                </button>
+                            );
+                            if (startPage > 2) {
+                                pages.push(<span key="ellipsis1" className="px-3 py-1">...</span>);
+                            }
+                        }
+                        
+                        // Add visible page numbers
+                        for (let i = startPage; i <= endPage; i++) {
+                            pages.push(
+                                <button
+                                    key={i}
+                                    onClick={() => handlePageChange(i)}
+                                    className={`px-3 py-1 border ${currentPage === i ? 'bg-red-500 text-white' : 'bg-white text-gray-700'} hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
+                                >
+                                    {i}
+                                </button>
+                            );
+                        }
+                        
+                        // Always show last page
+                        if (endPage < totalPages) {
+                            if (endPage < totalPages - 1) {
+                                pages.push(<span key="ellipsis2" className="px-3 py-1">...</span>);
+                            }
+                            pages.push(
+                                <button
+                                    key={totalPages}
+                                    onClick={() => handlePageChange(totalPages)}
+                                    className="px-3 py-1 border bg-white text-gray-700 hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                    {totalPages}
+                                </button>
+                            );
+                        }
+                        
+                        return pages;
+                    })()}
                     
                     {/* Next Button */}
                     <button
