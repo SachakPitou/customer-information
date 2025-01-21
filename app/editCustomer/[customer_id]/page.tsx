@@ -105,11 +105,11 @@ interface PortDeviceData {
   port_number: number;
   // Add other port device properties
 }
-interface CustomerRouterData {
+interface CustomerRouter {
   router_device_id: number | null;
   Device: {
     device_name: string;
-  } | null;
+  };
 }
 interface UserData {
   user_type: string;
@@ -189,71 +189,55 @@ export default function Page() {
   };
 
   useEffect(() => {
-    const fetchCustomerRouter = async () => {
+    const fetchCustomerData = async () => {
       try {
         setIsLoading(true);
         
-        const { data: customerRouter, error } = await supabase
+        // Fetch customer router with proper type annotation
+        const { data: customerRouter, error: routerError } = await supabase
           .from('customerrouter')
           .select(`
             router_device_id,
-            Device (device_name)
+            Device:router_device_id (
+              device_name
+            )
           `)
           .eq('customer_id', customer_id)
           .single();
     
-        console.log('Customer Router Fetch Debug:', {
-          customerRouter,
-          error,
-          customer_id,
-          routerDeviceId: customerRouter?.router_device_id,
-          // Safely access device name
-          deviceName: customerRouter?.Device?.[0]?.device_name
+        if (routerError) throw routerError;
+    
+        // Fetch main customer data
+        const { data: customerData, error: customerError } = await supabase
+          .from('Customer')
+          .select('*')
+          .eq('customer_id', customer_id)
+          .single();
+    
+        if (customerError) throw customerError;
+    
+        // Transform the data to match the CustomerRouter interface
+        const transformedRouterData: CustomerRouter = {
+          router_device_id: customerRouter?.router_device_id ?? null,
+          Device: {
+            device_name: customerRouter?.Device?.[0]?.device_name ?? ''
+          }
+        };
+        
+        // Combine the data
+        setCustomer({
+          ...customerData,
+          router_device_id: transformedRouterData.router_device_id,
+          router_name: transformedRouterData.Device.device_name
         });
     
-        // More robust null/undefined handling
-        const routerDeviceId = customerRouter?.router_device_id ?? null;
-        const routerName = customerRouter?.Device?.[0]?.device_name ?? '';
-
-        setCustomer(prev => ({
-          ...prev,
-          router_device_id: routerDeviceId,
-          router_name: routerName
-        }));
-    
       } catch (error) {
-        console.error('Error fetching customer router:', error instanceof Error ? error.message : String(error));
-        
-        // Ensure router_device_id is set to null in case of error
-        setCustomer(prev => ({
-          ...prev,
-          router_device_id: null,
-          router_name: ''
-        }));
+        console.error('Error fetching customer data:', error instanceof Error ? error.message : String(error));
+        setError(error instanceof Error ? error.message : String(error));
       } finally {
         setIsLoading(false);
       }
     };
-    
-    if (customer_id) {
-      fetchCustomerRouter();
-    }
-      const fetchCustomer = async () => {
-          try {
-              const { data: customerData, error } = await supabase
-                  .from('Customer')
-                  .select('*')
-                  .eq('customer_id', customer_id)
-                  .single();
-              if (error) throw new Error(error.message);
-              setCustomer(customerData as CustomerData);
-              updateStatusTimestamp(customerData.status_type, customerData);
-          } catch (error) {
-              console.error('Error fetching customer:', (error as Error).message);
-              setError((error as Error).message);
-          }
-      };
-
       const fetchRouters = async () => {
         try {
           setIsRoutersLoading(true);
@@ -420,7 +404,7 @@ export default function Page() {
         }
       };
 
-        fetchCustomer();
+        fetchCustomerData();
         // fetchRouterDeviceId(); // Fetch the router device ID for the customer
         fetchDevice();
         fetchLocation();
@@ -963,47 +947,46 @@ export default function Page() {
                 <label htmlFor="router" className="block mb-2">
                   Router:
                 </label>
-                {(() => {
-                  // Detailed logging
-                  console.log('Router Debug:', {
-                    routers: routers,
-                    routersLength: routers?.length,
-                    currentRouterId: customer.router_device_id,
-                    isRoutersLoading
-                  });
+                
+                {error && (
+                  <div className="p-2 mb-2 bg-red-100 text-red-800 rounded">
+                    {error}
+                  </div>
+                )}
 
-                  // Handle loading state
-                  if (isRoutersLoading) return <LoadingSpinner/>;
-                  
-                  // Handle no routers case
-                  if (!routers || routers.length === 0) {
-                    return (
-                      <div className="p-2 bg-yellow-100 text-yellow-800 rounded">
-                        No routers available. Please contact support.
-                      </div>
-                    );
-                  }
+                {isRoutersLoading ? (
+                  <div className="p-2">Loading routers...</div>
+                ) : !routers.length ? (
+                  <div className="p-2 bg-yellow-100 text-yellow-800 rounded">
+                    No routers available. Please contact support.
+                  </div>
+                ) : (
+                  <select
+                    id="router"
+                    value={customer?.router_device_id ?? ''}
+                    onChange={handleRouterChange}
+                    className="w-full p-2 border rounded"
+                    required
+                  >
+                    <option value="">Select Router</option>
+                    {routers.map((router) => (
+                      <option 
+                        key={router.device_id} 
+                        value={router.device_id}
+                      >
+                        {router.device_name}
+                      </option>
+                    ))}
+                  </select>
+                )}
 
-                  return (
-                    <select
-                      id="router"
-                      value={customer.router_device_id === null ? '' : customer.router_device_id} 
-                      onChange={handleRouterChange}
-                      className="w-full p-2 border rounded"
-                      required
-                    >
-                      <option value="">Select Router</option>
-                      {routers.map((router) => (
-                        <option 
-                          key={router.device_id} 
-                          value={router.device_id.toString()}
-                        >
-                          {router.device_name || `Router ${router.device_id}`}
-                        </option>
-                      ))}
-                    </select>
-                  );
-                })()}
+                {/* Debug info */}
+                {/* {process.env.NODE_ENV === 'development' && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Current Router ID: {customer?.router_device_id || 'none'}<br />
+                    Current Router Name: {customer?.router_name || 'none'}
+                  </div>
+                )} */}
               </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
                 <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
