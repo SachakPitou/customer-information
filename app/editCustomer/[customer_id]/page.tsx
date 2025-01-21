@@ -563,7 +563,7 @@ export default function Page() {
           'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
           'location_id', 'olt_id', 'isActive', 'interface_id', 'switch_port', 'port_type',
           'ACL', 'VLan', 'description', 'frame', 'ont_id', 'capacity_bandwidth', 'status_type',
-          'subnet', 'sale_name', 'serial number', 'survey_id',
+          'subnet', 'sale_name', 'serial number', 'survey_id', 'service_type',
         ];
     
         const historyRecords = fieldsToCheck.map(field => {
@@ -739,6 +739,7 @@ export default function Page() {
             subnet: customer.subnet,
             description: customer.description ? String(customer.description) : null,                
             sale_name: customer.sale_name,
+            service_type: customer.service_type,
             })
             .eq('customer_id', customer_id);
                 
@@ -1068,17 +1069,36 @@ export default function Page() {
               {customer.ip_address && (
                 <div className="w-full md:w-1/2 px-2 mb-4">
                   <label htmlFor="subnet" className="block mb-2">Subnet:</label>
-                  <input
-                    type="text"
+                  <select
                     id="subnet"
-                    placeholder="Enter subnet"
                     value={customer.subnet}
                     onChange={(e) => setCustomer({ ...customer, subnet: e.target.value })}
                     className="w-full p-2 border rounded"
-                  />
+                  >
+                    <option value="">Select Subnet</option>
+                    <option value="255.255.255.0">255.255.255.0 </option>
+                    <option value="255.255.255.128">255.255.255.128</option>
+                    <option value="255.255.255.192">255.255.255.192</option>
+                    <option value="255.255.255.224">255.255.255.224</option>
+                    <option value="255.255.255.240">255.255.255.240</option>
+                    <option value="255.255.255.248">255.255.255.248</option>
+                    <option value="255.255.255.252">255.255.255.252</option>
+                  </select>
                 </div>
               )}
-              
+              <div className="w-full md:w-1/2 px-2 mb-4">
+                <label htmlFor="serviceType" className="block mb-2">Service Type:</label>
+                <select
+                  id="serviceType"
+                  value={customer.service_type}
+                  onChange={(e) => setCustomer({ ...customer, service_type: e.target.value })}
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="">Select Service Type</option>
+                  <option value="PPPoE">PPPoE</option>
+                  <option value="Static">Static</option>
+                </select>
+              </div>
               <div className="w-full md:w-1/2 px-2 mb-4">
                     <label htmlFor="description" className="block mb-2">Description:</label>
                     <input

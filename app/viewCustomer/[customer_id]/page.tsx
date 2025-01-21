@@ -70,6 +70,8 @@ type Customer = {
     pdfUrl?: string | null;
     ip_type: string;
     survey_id: string;
+    subnet: string;
+    service_type: string;
 };
   
 type EditHistory = {
@@ -340,7 +342,10 @@ export default function ViewCustomer() {
                         <InfoRow label="VLAN" value={customer.VLan} />
                         <InfoRow label="Description" value={customer.description} />
                         <InfoRow label="IP Address" value={customer.ip_address} />
+                        <InfoRow label="Subnet" value={customer.subnet} />
                         <InfoRow label="Capacity Bandwidth" value={customer.capacity_bandwidth} />
+                        
+                        <InfoRow label="Service Type" value={customer.service_type} />
                         
                         {/* Conditional Rendering for Device-Specific Information */}
                         
@@ -357,6 +362,7 @@ export default function ViewCustomer() {
 
                         {customer.device_type_id === 3 && (
                             <>
+
                                 <InfoRow label="Frame" value={customer.frame} />
                                 <InfoRow label="Slot" value={customer.slot} />
                                 <InfoRow label="Port" value={customer.port} />

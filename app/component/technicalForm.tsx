@@ -15,6 +15,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const [onuMacAddress, setOnuMacAddress] = useState<string>('');
   const [slots, setSlot] = useState<string>('');
   const [ports, setPorts] = useState<string>('');
+  const [serviceType, setServiceTypes] = useState<string>('');
   const [servicePort, setServicePort] = useState<string>('');
   const [onuID, setOnuID] = useState<string>('');
   const [cameraIP, setCameraIP] = useState<string>('');
@@ -250,6 +251,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
           subnet: subnet || null,
           network_diagram_url: pdfUrl,
           survey_id: surveyId || null,
+          service_type: serviceType || null,
         })
         .eq('customer_id', customerId);
   
@@ -378,12 +380,20 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                 {ipAddress && (
                   <div className="mb-4">
                     <label className="block mb-2">Subnet:</label>
-                    <input 
-                      type="text" 
+                    <select 
                       value={subnet} 
                       onChange={e => setSubnet(e.target.value)} 
-                      className="w-full p-2 border" 
-                    />
+                      className="w-full p-2 border"
+                  >
+                    <option value="">Select Subnet</option>
+                    <option value="255.255.255.0">255.255.255.0 </option>
+                    <option value="255.255.255.128">255.255.255.128</option>
+                    <option value="255.255.255.192">255.255.255.192</option>
+                    <option value="255.255.255.224">255.255.255.224</option>
+                    <option value="255.255.255.240">255.255.255.240</option>
+                    <option value="255.255.255.248">255.255.255.248</option>
+                    <option value="255.255.255.252">255.255.255.252</option>
+                  </select>
                   </div>
                   )}
                 <div className="mb-4">
@@ -589,6 +599,18 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                 <div className="mb-4">
                   <label className="block mb-2">Langtitude:</label>
                   <input type="text" value={langtitude} onChange={e => setLangtitudes(e.target.value)} className="w-full p-2 border" />
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">Service Type:</label>
+                  <select 
+                    value={serviceType} 
+                    onChange={e => setServiceTypes(e.target.value)} 
+                    className="w-full p-2 border"
+                  >
+                    <option value="">Select Service Type</option>
+                    <option value="PPPoE">PPPoE</option>
+                    <option value="Static">Static</option>
+                  </select>
                 </div>
                 <div className="mb-4">
                   <label htmlFor="saleName" className="block mb-2">Sale Name:</label>
