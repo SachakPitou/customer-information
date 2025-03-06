@@ -10,6 +10,7 @@ interface CustomerData {
   customer_name: string;
   phone_number: string;
   cid: string;
+  contract_id: string;
   address: string;
   activation_date: string;
   service_id: number;
@@ -45,6 +46,7 @@ export default function CustomerServiceForm() {
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [CID, setCID] = useState('');
+  const [contractID, setContractID] = useState('');
   const [Address, setAddress] = useState('');
   const [ipType, setipType] = useState('');
   const [activationDate, setActivationDate] = useState('');
@@ -97,6 +99,7 @@ export default function CustomerServiceForm() {
         customer_name: customerName,
         phone_number: phoneNumber,
         cid: CID,
+        contract_id: contractID,
         address: Address,
         activation_date: activationDate,
         ip_type: ipType,
@@ -240,6 +243,15 @@ export default function CustomerServiceForm() {
                 type="text"
                 value={CID}
                 onChange={(e) => setCID(e.target.value)}
+                className="block w-full border rounded p-2 mb-2"
+              />
+            </div>
+            <div>
+              <label className="block">Contract ID:</label>
+              <input
+                type="text"
+                value={contractID}
+                onChange={(e) => setContractID(e.target.value)}
                 className="block w-full border rounded p-2 mb-2"
               />
             </div>

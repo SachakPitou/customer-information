@@ -10,6 +10,7 @@ type Customer = {
   customer_name: string;
   phone_number: string;
   cid: string;
+  contract_id: string;
   address: string;
   longtitude: string;
   langtitude: string;
@@ -58,6 +59,7 @@ export default function CustomerServiceInfoForm({ customerId }: CustomerServiceI
     customer_name: '',
     phone_number: '',
     cid: '',
+    contract_id: '',
     address: '',
     longtitude: '',
     langtitude: '',
@@ -217,6 +219,15 @@ export default function CustomerServiceInfoForm({ customerId }: CustomerServiceI
               <input
                 type="text"
                 value={customer.cid}
+                readOnly={true}
+                className="block w-full border rounded p-2 mb-2"
+              />
+            </div>
+            <div>
+              <label className="block">Contract ID:</label>
+              <input
+                type="text"
+                value={customer.contract_id}
                 readOnly={true}
                 className="block w-full border rounded p-2 mb-2"
               />

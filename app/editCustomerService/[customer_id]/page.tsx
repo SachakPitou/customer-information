@@ -10,6 +10,7 @@ interface CustomerData {
     customer_name: string;
     phone_number: string;
     cid: string;
+    contract_id: string;
     address: string;
     longtitude: string;
     langtitude: string;
@@ -46,6 +47,7 @@ export default function Page() {
         customer_name: '',
         phone_number: '',
         cid: '',
+        contract_id: '',
         address: '',
         longtitude: '',
         langtitude: '',
@@ -207,7 +209,20 @@ export default function Page() {
                 setError('Please select a status type');
                 return;
             }
-
+    
+            // Update Customer table with the new values for cid, contract_id, and ip_type
+            const { error: updateCustomerError } = await supabase
+                .from('Customer')
+                .update({
+                    cid: customer.cid,
+                    contract_id: customer.contract_id,
+                    ip_type: customer.ip_type,
+                    status_type: statusHistory.status_type // Also update the status_type in the Customer table
+                })
+                .eq('customer_id', customer_id);
+    
+            if (updateCustomerError) throw new Error(updateCustomerError.message);
+    
             // Insert new status history record
             const { error: insertError } = await supabase
                 .from('statushistory')
@@ -217,25 +232,16 @@ export default function Page() {
                     start_date: statusHistory.start_date,
                     end_date: statusHistory.end_date || null
                 });
-
+    
             if (insertError) throw new Error(insertError.message);
-
-            // Update Customer table with the latest status type
-            const { error: updateError } = await supabase
-                .from('Customer')
-                .update({ status_type: statusHistory.status_type })
-                .eq('customer_id', customer_id);
-
-            if (updateError) throw new Error(updateError.message);
-
+    
             setIsModalOpen(true);
-            console.log('Customer status updated successfully');
+            console.log('Customer status and details updated successfully');
         } catch (error) {
-            console.error('Error updating customer status:', (error as Error).message);
+            console.error('Error updating customer status and details:', (error as Error).message);
             setError((error as Error).message);
         }
     };
-
     const filteredPackages = packages.filter((pkg) => pkg.service_id === parseInt(customer.service_id, 10));
 
     return (
@@ -297,6 +303,16 @@ export default function Page() {
                                 id="CID"
                                 value={customer.cid}
                                 onChange={(e) => setCustomer(prev => ({ ...prev, cid: e.target.value }))}
+                                className="w-full p-2 border rounded bg-gray-100" 
+                            />
+                        </div>
+                        <div className="w-full md:w-1/2 px-2 mb-4">
+                            <label htmlFor="contractID" className="block mb-2">Contract ID:</label>
+                            <input
+                                type="text"
+                                id="contractID"
+                                value={customer.contract_id}
+                                onChange={(e) => setCustomer(prev => ({ ...prev, contract_id: e.target.value }))}
                                 className="w-full p-2 border rounded bg-gray-100" 
                             />
                         </div>

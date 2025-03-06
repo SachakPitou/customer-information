@@ -24,6 +24,7 @@ type CustomerStatus = 'ACTIVE' | 'INACTIVE' | 'REACTIVE' | 'TERMINATE' | '';
 type Customer = {
     customer_name: string;
     cid: string;
+    contract_id: string;
     phone_number: string;
     address: string;
     activation_date: string;
@@ -308,6 +309,7 @@ export default function ViewCustomer() {
                     {/* Customer Information */}
                     <InfoCard title="Personal Information" icon={PhoneIcon}>
                         <InfoRow label="Customer ID" value={customer.cid} bold />
+                        <InfoRow label="Contract ID" value={customer.contract_id} bold />
                         <InfoRow label="Phone Number" value={customer.phone_number} />
                         <InfoRow label="Address" value={customer.address} />
                         <InfoRow label="IP Type" value={customer.ip_type} />

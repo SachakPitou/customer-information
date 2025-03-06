@@ -10,6 +10,7 @@ interface Customer {
     customer_name: string;
     phone_number: string;
     cid: string;
+    contract_id: string;
     address: string;
     longtitude: string;
     langtitude: string;
@@ -36,6 +37,7 @@ export default function EditConfirmCustomer() {
         customer_name: '',
         phone_number: '',
         cid: '',
+        contract_id: '',
         address: '',
         longtitude: '',
         langtitude: '',
@@ -111,7 +113,7 @@ export default function EditConfirmCustomer() {
 
             const fieldsToCheck: (keyof Customer)[] = [
                 'customer_name', 'phone_number', 'cid', 'address', 'longtitude', 'langtitude',
-                'activation_date', 'service_id', 'package_id', 'isActive'
+                'activation_date', 'service_id', 'package_id', 'isActive', 'contract_id', 'ip_type'
             ];
 
             const historyRecords = fieldsToCheck.map(field => {
@@ -236,6 +238,18 @@ export default function EditConfirmCustomer() {
                             placeholder="Enter CID"
                             value={customer.cid}
                             onChange={(e) => setCustomer({ ...customer, cid: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded" 
+                        />
+                    </div>
+                    <div className="w-full md:w-1/2 px-2 mb-4">
+                        <label htmlFor="contractId" className="block mb-2">Contract ID:</label>
+                        <input
+                            type="text"
+                            id="contractID"
+                            placeholder="Enter Contract ID"
+                            value={customer.contract_id}
+                            onChange={(e) => setCustomer({ ...customer, contract_id: e.target.value })}
                             required
                             className="w-full p-2 border rounded" 
                         />

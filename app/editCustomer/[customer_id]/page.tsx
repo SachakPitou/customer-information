@@ -16,6 +16,7 @@ interface CustomerData {
   customer_name: string;
   phone_number: string;
   cid: string;
+  contract_id: string;
   address: string;
   longtitude: string | null;
   langtitude: string | null;
@@ -126,6 +127,7 @@ export default function Page() {
     customer_name: '',
     phone_number: '',
     cid: '',
+    contract_id: '',
     address: '',
     longtitude: null,
     langtitude: null,
@@ -542,7 +544,7 @@ export default function Page() {
         if (fetchError) throw fetchError;
     
         const fieldsToCheck = [
-          'customer_name', 'phone_number', 'cid', 'address', 'longtitude', 'langtitude',
+          'customer_name', 'phone_number', 'cid', 'contract_id', 'address', 'longtitude', 'langtitude',
           'ONU_mac_address', 'slot', 'port', 'service_port', 'onu_id', 'camera_ip',
           'ip_address', 'activation_date', 'device_id', 'service_id', 'package_id',
           'location_id', 'olt_id', 'isActive', 'interface_id', 'switch_port', 'port_type',
@@ -701,6 +703,7 @@ export default function Page() {
             customer_name: customer.customer_name,
             phone_number: customer.phone_number,
             cid: customer.cid,
+            contract_id: customer.contract_id,
             address: customer.address,
             longtitude: customer.longtitude ? String(customer.longtitude) : null,
             langtitude: customer.langtitude ? String(customer.langtitude) : null,
@@ -813,6 +816,18 @@ export default function Page() {
                   placeholder="Enter CID"
                   value={customer.cid}
                   onChange={(e) => setCustomer({ ...customer, cid: e.target.value })}
+                  required
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div className="w-full md:w-1/2 px-2 mb-4">
+                <label htmlFor="contractID" className="block mb-2">Contract ID:</label>
+                <input
+                  type="text"
+                  id="contractID"
+                  placeholder="Enter Contract ID"
+                  value={customer.contract_id}
+                  onChange={(e) => setCustomer({ ...customer, contract_id: e.target.value })}
                   required
                   className="w-full p-2 border rounded"
                 />

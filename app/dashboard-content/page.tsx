@@ -17,6 +17,7 @@ interface Customer {
     customer_name: string;
     phone_number: string;
     cid: string;
+    contract_id: string;
     package_name: string;
     service_port?: number;
     status_type: string;
@@ -184,6 +185,7 @@ export default function Dashboard() {
                 'Name': customer.customer_name,
                 'Phone Number': customer.phone_number,
                 'CID': customer.cid,
+                'ContractID': customer.contract_id,
                 'Internet Package': customer.package_name,
                 'Slot': customer.slot,
                 'Port': customer.port,
@@ -556,7 +558,8 @@ export default function Dashboard() {
                 (customer.customer_name?.toLowerCase().includes(searchTerm) || false) ||
                 (customer.phone_number?.toLowerCase().includes(searchTerm) || false) ||
                 (customer.cid?.toLowerCase().includes(searchTerm) || false) ||
-                (customer.package_name?.toLowerCase().includes(searchTerm) || false) 
+                (customer.contract_id?.toLowerCase().includes(searchTerm) || false) || // Add contract_id here
+                (customer.package_name?.toLowerCase().includes(searchTerm) || false)
             );
         } else if (searchField === 'name') {
             isMatchingSearch = customer.customer_name?.toLowerCase().includes(searchTerm) || false;
@@ -566,6 +569,9 @@ export default function Dashboard() {
         } else if (searchField === 'cid') {
             const cidString = customer.cid?.toString().toLowerCase() || '';
             isMatchingSearch = cidString.startsWith(searchTerm.toLowerCase());
+        } else if (searchField === 'contract_id') {
+            const contractIdString = customer.contract_id?.toString().toLowerCase() || '';
+            isMatchingSearch = contractIdString.startsWith(searchTerm.toLowerCase()); // Add contract_id search logic
         } else if (searchField === 'internet_package') {
             const internetPackageString = customer.package_name?.toString().toLowerCase() || '';
             isMatchingSearch = internetPackageString.startsWith(searchTerm.toLowerCase());
@@ -715,6 +721,9 @@ export default function Dashboard() {
                             CID
                         </th>
                         <th scope="col" className="px-6 py-3">
+                            Contract ID
+                        </th>
+                        <th scope="col" className="px-6 py-3">
                             Internet Package
                         </th>
                         <th scope="col" className="px-6 py-3">
@@ -768,6 +777,7 @@ export default function Dashboard() {
                                 </td>
                                 <td className="px-6 py-4">{customer.phone_number}</td>
                                 <td className="px-6 py-4">{customer.cid}</td>
+                                <td className="px-6 py-4">{customer.contract_id}</td>
                                 <td className="px-6 py-4">{customer.package_name}</td>
                                 <td className="px-6 py-4">{customer.ip_address}</td>
                                 <td className="px-6 py-4">
