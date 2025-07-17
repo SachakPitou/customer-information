@@ -78,12 +78,12 @@ export default async function Login({
           )}
         </form>
 
-        <Link
+        {/* <Link
           href="/forgot-password"
           className="rounded-md no-underline text-red-400 text-sm "
         >
           Forgotten Password.
-        </Link>
+        </Link> */}
 
         <br />
         <br />

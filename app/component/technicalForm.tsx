@@ -10,6 +10,7 @@ interface TechnicalFormProps {
 }
 
 export default function TechnicalForm({ customerId }: TechnicalFormProps) {
+  // State declarations remain unchanged
   const [step, setStep] = useState<number>(1);
   const [customerData, setCustomerData] = useState<any>(null);
   const [onuMacAddress, setOnuMacAddress] = useState<string>('');
@@ -128,13 +129,13 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
           setPackageId(customerData?.package_id || '');
 
           if (customerData?.service_id) {
-            const { data: serviceData, error: serviceError } = await supabase
+            const { data: serviceData, error: serviceNotError } = await supabase
               .from('Service')
               .select('service_name')
               .eq('service_id', customerData.service_id)
               .single();
 
-            if (serviceError) throw new Error(serviceError.message);
+            if (serviceNotError) throw new Error(serviceNotError.message);
             setServiceName(serviceData?.service_name || '');
           }
 
@@ -162,10 +163,16 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const handleRouterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const routerId = e.target.value;
     setSelectedRouterId(routerId);
-    const selectedRouter = routers.find(r => r.device_id === parseInt(routerId, 10));
-    setDescription(selectedRouter?.description || '');
-    setIPAddress(selectedRouter?.ip_address || '');
-    setVLan(selectedRouter?.vlan || '');
+    if (routerId === '') {
+      setDescription('');
+      setIPAddress('');
+      setVLan('');
+    } else {
+      const selectedRouter = routers.find(r => r.device_id === parseInt(routerId, 10));
+      setDescription(selectedRouter?.description || '');
+      setIPAddress(selectedRouter?.ip_address || '');
+      setVLan(selectedRouter?.vlan || '');
+    }
   };
 
   const handleContinue = (e: React.FormEvent) => {
@@ -176,25 +183,23 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   const handleBack = () => {
     setStep(1);
   };
+
   const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type and size
       if (file.type !== 'application/pdf') {
         alert('Please upload only PDF files.');
         return;
       }
-
-      // Optional: Add file size limit (e.g., 10MB)
       if (file.size > 10 * 1024 * 1024) {
         alert('File size should not exceed 10MB.');
         return;
       }
-
       setNetworkDiagramPdf(file);
       setPdfPreviewUrl(URL.createObjectURL(file));
     }
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -211,13 +216,13 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
 
         if (uploadError) throw new Error(uploadError.message);
 
-        // Get public URL
         const { data: urlData } = supabase.storage
           .from('customer-documents')
           .getPublicUrl(filePath);
 
         pdfUrl = urlData?.publicUrl;
       }
+
       const { data: customerData, error: customerError } = await supabase
         .from('Customer')
         .update({
@@ -241,10 +246,10 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
           longtitude: longtitude || null,
           langtitude: langtitude || null,
           capacity_bandwidth: capacityBandwidth,
-          device_id: parseInt(selectedDeviceId, 10),
-          location_id: parseInt(selectedLocationId, 10),
-          device_type_id: parseInt(selectedDeviceTypeId, 10),
-          interface_id: parseInt(selectedInterfaceId, 10),
+          device_id: selectedDeviceId ? parseInt(selectedDeviceId, 10) : null,
+          location_id: selectedLocationId ? parseInt(selectedLocationId, 10) : null,
+          device_type_id: selectedDeviceTypeId ? parseInt(selectedDeviceTypeId, 10) : null,
+          interface_id: selectedInterfaceId ? parseInt(selectedInterfaceId, 10) : null,
           service_id: parseInt(serviceId, 10),
           package_id: parseInt(packageId, 10),
           registered_date: currentDate,
@@ -254,20 +259,20 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
           service_type: serviceType || null,
         })
         .eq('customer_id', customerId);
-  
+
       if (customerError) throw new Error(customerError.message);
-  
+
       const { data: routerData, error: routerError } = await supabase
         .from('customerrouter')
         .upsert({
           customer_id: customerId,
-          router_device_id: parseInt(selectedRouterId, 10),
+          router_device_id: selectedRouterId ? parseInt(selectedRouterId, 10) : null,
         }, {
           onConflict: 'customer_id'
         });
-  
+
       if (routerError) throw new Error(routerError.message);
-        
+
       setRegisteredDate(currentDate);
       setInsertedCustomerId(customerId);
       router.push('/dashboard');
@@ -275,7 +280,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
       setError(error instanceof Error ? error.message : String(error));
     }
   };
-  
+
   const filteredDevices = devices.filter(device => device.device_type_id === parseInt(selectedDeviceTypeId, 10));
   const filteredInterfaces = interfaces.filter((inf) => inf.device_id === parseInt(selectedDeviceId, 10));
 
@@ -284,109 +289,114 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
-      <div className="font-raleway-black w-full max-w-4xl p-5">
-        {error && <p className="text-red-500">{error}</p>}
-        <button
-          onClick={() => router.back()}
-          type="button"
-          className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-red-700 dark:bg-red-500 hover:bg-red-100 dark:text-red-200 dark:border-red-700"
+  <div className="flex flex-col items-center justify-center min-h-screen dark:bg-gray-200">
+    <div className="font-raleway-black w-full max-w-4xl p-5">
+      {error && <p className="text-red-500">{error}</p>}
+      <button
+        onClick={() => router.back()}
+        type="button"
+        className="flex-shrink-0 w-8 h-8 mr-8 px-2 py-1 text-sm text-gray-700 transition-colors duration-200 gap-x-2 sm:w-auto dark:hover:bg-red-700 dark:bg-red-500 hover:bg-red-100 dark:text-red-200 dark:border-red-700"
+      >
+        <svg
+          className="w-5 h-5 rtl:rotate-180"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="1.5"
+          stroke="currentColor"
         >
-          <svg
-            className="w-5 h-5 rtl:rotate-180"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth="1.5"
-            stroke="currentColor"
-          >
-            <path d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
-          </svg>
-        </button>
-        <span>New Customer: </span>
-        
-        {step === 1 && (
-          <form onSubmit={handleContinue} className="mt-10">
-            <div className="flex">
-              <div className="w-1/2 pr-4 space-y-4">
-                <div className='mb-4'>
-                  <label className="block">Customer Name:</label>
-                  <input
-                    type="text"
-                    value={customerName}
-                    readOnly={true}
-                    className="block w-full border rounded p-2 mb-2 bg-gray-100"
-                  />
-                </div>
-                <div className='mb-4'>
-                  <label className="block">CID:</label>
-                  <input
-                    type="text"
-                    value={cid}
-                    readOnly={true}
-                    className="block w-full border rounded p-2 mb-2 bg-gray-100"
-                  />
-                </div>
-                <div className='mb-4'>
-                  <label className="block">Service:</label>
-                  <input
-                    type="text"
-                    value={serviceName}
-                    readOnly={true}
-                    className="block w-full border rounded p-2 mb-2 bg-gray-100"
-                  />
-                </div>
-                <div className='mb-4'>
-                  <label className="block">Package:</label>
-                  <input
-                    type="text"
-                    value={packageName}
-                    readOnly={true}
-                    className="block w-full border rounded p-2 mb-2 bg-gray-100"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="routerName" className="block mb-2">Select Router:</label>
-                  <select
-                    id="routerName"
-                    value={selectedRouterId}
-                    onChange={handleRouterChange}
-                    required
-                    className="font-raleway-black w-full p-2 border"
-                  >
-                    <option value="">Select Router...</option>
-                    {routers.map((router) => (
-                      <option key={router.device_id} value={router.device_id}>
-                        {router.device_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          <path d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
+        </svg>
+      </button>
+      <span>New Customer: </span>
+
+      {step === 1 && (
+        <form onSubmit={handleContinue} className="mt-10">
+          <div className="flex">
+            <div className="w-1/2 pr-4 space-y-4">
+              <div className="mb-4">
+                <label className="block">Customer Name:</label>
+                <input
+                  type="text"
+                  value={customerName}
+                  readOnly={true}
+                  className="block w-full border rounded p-2 mb-2 bg-gray-100"
+                />
               </div>
-              <div className="w-1/2 pl-4 space-y-4">
+              <div className="mb-4">
+                <label className="block">CID:</label>
+                <input
+                  type="text"
+                  value={cid}
+                  readOnly={true}
+                  className="block w-full border rounded p-2 mb-2 bg-gray-100"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block">Service:</label>
+                <input
+                  type="text"
+                  value={serviceName}
+                  readOnly={true}
+                  className="block w-full border rounded p-2 mb-2 bg-gray-100"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block">Package:</label>
+                <input
+                  type="text"
+                  value={packageName}
+                  readOnly={true}
+                  className="block w-full border rounded p-2 mb-2 bg-gray-100"
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="routerName" className="block mb-2">Select Router:</label>
+                <select
+                  id="routerName"
+                  value={selectedRouterId}
+                  onChange={handleRouterChange}
+                  required
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">N/A</option>
+                  {routers.map((router) => (
+                    <option key={router.device_id} value={router.device_id}>
+                      {router.device_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="w-1/2 pl-4 space-y-4">
+              <div className="mb-4">
+                <label className="block mb-2">Description:</label>
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full p-2 border"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-2">IP Address:</label>
+                <input
+                  type="text"
+                  value={ipAddress}
+                  onChange={(e) => setIPAddress(e.target.value)}
+                  className="w-full p-2 border"
+                />
+              </div>
+              {ipAddress && (
                 <div className="mb-4">
-                  <label className="block mb-2">Description:</label>
-                  <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full p-2 border" />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-2">IP Address:</label>
-                  <input 
-                    type="text" 
-                    value={ipAddress} 
-                    onChange={e => setIPAddress(e.target.value)} 
-                    className="w-full p-2 border" 
-                  />
-                </div>
-                {ipAddress && (
-                  <div className="mb-4">
-                    <label className="block mb-2">Subnet:</label>
-                    <select 
-                      value={subnet} 
-                      onChange={e => setSubnet(e.target.value)} 
-                      className="w-full p-2 border"
+                  <label className="block mb-2">Subnet:</label>
+                  <select
+                    value={subnet}
+                    onChange={(e) => setSubnet(e.target.value)}
+                    className="w-full p-2 border"
                   >
-                    <option value="">Select Subnet</option>
-                    <option value="255.255.255.0">255.255.255.0 </option>
+                    <option value="">N/A</option>
+                    <option value="255.255.255.0">255.255.255.0</option>
                     <option value="255.255.255.128">255.255.255.128</option>
                     <option value="255.255.255.192">255.255.255.192</option>
                     <option value="255.255.255.224">255.255.255.224</option>
@@ -394,229 +404,293 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                     <option value="255.255.255.248">255.255.255.248</option>
                     <option value="255.255.255.252">255.255.255.252</option>
                   </select>
-                  </div>
-                  )}
-                <div className="mb-4">
-                  <label className="block mb-2">VLAN:</label>
-                  <input 
-                    type="text" 
-                    value={vLan} 
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      const value = e.target.value;
-                      if (value === '' || (value.length <= 4 && /^\d+$/.test(value))) {
-                        setVLan(value);
-                      }
-                    }} 
-                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
-                      const value = e.target.value;
-                      if (value.length !== 4) {
-                        setVLan('');
-                      }
-                    }}
-                    placeholder="Enter 4-digit VLAN"
-                    maxLength={4}
-                    className="w-full p-2 border" 
-                  />
                 </div>
-                <div className="mb-4">
-                  <label className="block mb-2">Capacity Bandwidth:</label>
-                  <input 
-                    type="text" 
-                    value={capacityBandwidth} 
-                    readOnly 
-                    className="w-full p-2 border bg-gray-100" 
-                  />
-                </div>
+              )}
+              <div className="mb-4">
+                <label className="block mb-2">VLAN:</label>
+                <input
+                  type="text"
+                  value={vLan}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const value = e.target.value;
+                    if (value === '' || (value.length <= 4 && /^\d+$/.test(value))) {
+                      setVLan(value);
+                    }
+                  }}
+                  onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
+                    const value = e.target.value;
+                    if (value.length !== 4) {
+                      setVLan('');
+                    }
+                  }}
+                  placeholder="Enter 4-digit VLAN"
+                  maxLength={4}
+                  className="w-full p-2 border"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-2">Capacity Bandwidth:</label>
+                <input
+                  type="text"
+                  value={capacityBandwidth}
+                  readOnly
+                  className="w-full p-2 border bg-gray-100"
+                />
               </div>
             </div>
-            <div className="flex justify-center mt-10">
-              <button type="submit" className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600">
-                Continue
-              </button>
-            </div>
-          </form>
-        )}
-        
-        {step === 2 && (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex flex-wrap">
-              <div className="w-full lg:w-1/2 p-2">
-                <div className="mb-4">
-                  <label htmlFor="deviceType" className="block mb-2">Select Device Type:</label>
-                  <select
-                    id="deviceType"
-                    value={selectedDeviceTypeId}
-                    onChange={(e) => setSelectedDeviceTypeId(e.target.value)}
-                    required
-                    className="font-raleway-black w-full p-2 border"
-                  >
-                    <option value="">Select Device Type...</option>
-                    {deviceTypes.map((dvct) => (
-                      <option key={dvct.device_type_id} value={dvct.device_type_id}>
-                        {dvct.device_type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
-                  <select
-                    id="deviceName"
-                    value={selectedDeviceId}
-                    onChange={(e) => setSelectedDeviceId(e.target.value)}
-                    required
-                    className="font-raleway-black w-full p-2 border"
-                  >
-                    <option value="">Select Device...</option>
-                    {filteredDevices.map((dvc) => (
-                      <option key={dvc.device_id} value={dvc.device_id}>
-                        {dvc.device_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-2">Longtitude:</label>
-                  <input type="text" value={longtitude} onChange={e => setLongtitudes(e.target.value)} className="w-full p-2 border" />
-                </div>
-                {/* <div className="mb-4">
-                  <label className="block mb-2">ACL:</label>
-                  <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
-                </div> */}
-                {selectedDeviceTypeId === '3' && ( // Assuming 3 is for OLT
-                  <>
-                    <div className="mb-4">
-                      <label className="block mb-2">Frame:</label>
-                      <input type="text" value={frame} onChange={e => setFrame(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">Slot:</label>
-                      <input type="text" value={slots} onChange={e => setSlot(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">Port:</label>
-                      <input type="text" value={ports} onChange={e => setPorts(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">ONT ID:</label>
-                      <input type="text" value={ontId} onChange={e => setOntId(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">Service Port:</label>
-                      <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">Camera IP:</label>
-                      <input type="text" value={cameraIP} onChange={e => setCameraIP(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    {/* <div className="mb-4">
-                      <label className="block mb-2">ONU ID:</label>
-                      <input type="text" value={onuID} onChange={e => setOnuID(e.target.value)} className="w-full p-2 border" />
-                    </div> */}
-                    <div className="mb-4">
-                      <label className="block mb-2">ONU MAC ADDRESS:</label>
-                      <input type="text" value={onuMacAddress} onChange={e => setOnuMacAddress(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">SERIAL NUMBER:</label>
-                      <input type="text" value={serialNumber} onChange={e => setSerialNumber(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">Survey ID:</label>
-                      <input type="text" value={surveyId} onChange={e => setSurveyId(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                  </>
-                )}
-                {selectedDeviceTypeId === '2' && ( // Assuming 3 is for OLT
-                  <>
-                    
-                    {/* <div className="mb-4">
-                      <label className="block mb-2">VLan:</label>
-                      <input type="text" value={vLan} onChange={e => setVLan(e.target.value)} className="w-full p-2 border" />
-                    </div> */}
-                    <div className="mb-4">
-                      <label className="block mb-2">ACL:</label>
-                      <input type="text" value={ACL} onChange={e => setACL(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    {/* <div className="mb-4">
-                      <label className="block mb-2">Service Port:</label>
-                      <input type="text" value={servicePort} onChange={e => setServicePort(e.target.value)} className="w-full p-2 border" />
-                    </div> */}
-                    <div className="mb-4">
-                      <label className="block mb-2">Switch Port:</label>
-                      <input type="text" value={switchPort} onChange={e => setSwitchPort(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                    <div className="mb-4">
-                      <label className="block mb-2">Port Type:</label>
-                      <input type="text" value={portType} onChange={e => setPortType(e.target.value)} className="w-full p-2 border" />
-                    </div>
-                  </>
-                )}
-              </div>
+          </div>
+          <div className="flex justify-center mt-10">
+            <button
+              type="submit"
+              className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600"
+            >
+              Continue
+            </button>
+          </div>
+        </form>
+      )}
 
-              <div className="w-full lg:w-1/2 p-2">
-                <div className="mb-4">
-                  <label htmlFor="locationName" className="block mb-2">Location Name:</label>
-                  <select
-                    id="locationName"
-                    value={selectedLocationId}
-                    onChange={(e) => setSelectedLocationId(e.target.value)}
-                    required
-                    className="font-raleway-black w-full p-2 border"
-                  >
-                    <option value="">Select Location...</option>
-                    {locations.map((location_location) => (
-                      <option key={location_location.location_id} value={location_location.location_id}>
-                        {location_location.location_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="w-full p-2">
+      {step === 2 && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex flex-wrap">
+            <div className="w-full lg:w-1/2 p-2">
+              <div className="mb-4">
+                <label htmlFor="deviceType" className="block mb-2">Select Device Type:</label>
+                <select
+                  id="deviceType"
+                  value={selectedDeviceTypeId}
+                  onChange={(e) => setSelectedDeviceTypeId(e.target.value)}
+                  required
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">N/A</option>
+                  {deviceTypes.map((dvct) => (
+                    <option key={dvct.device_type_id} value={dvct.device_type_id}>
+                      {dvct.device_type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-4">
+                <label htmlFor="deviceName" className="block mb-2">Device Name:</label>
+                <select
+                  id="deviceName"
+                  value={selectedDeviceId}
+                  onChange={(e) => setSelectedDeviceId(e.target.value)}
+                  required
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">N/A</option>
+                  {filteredDevices.map((dvc) => (
+                    <option key={dvc.device_id} value={dvc.device_id}>
+                      {dvc.device_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-4">
+                <label className="block mb-2">Longtitude:</label>
+                <input
+                  type="text"
+                  value={longtitude}
+                  onChange={(e) => setLongtitudes(e.target.value)}
+                  className="w-full p-2 border"
+                />
+              </div>
+              {selectedDeviceTypeId === '3' && (
+                <>
                   <div className="mb-4">
-                    <label className="block mb-2">Network Diagram PDF (Optional):</label>
-                    <input 
-                      type="file" 
-                      accept=".pdf"
-                      onChange={handlePdfUpload}
+                    <label className="block mb-2">Frame:</label>
+                    <input
+                      type="text"
+                      value={frame}
+                      onChange={(e) => setFrame(e.target.value)}
                       className="w-full p-2 border"
                     />
-                    {pdfPreviewUrl && (
-                      <div className="mt-2">
-                        <p>Uploaded PDF: {networkDiagramPdf?.name}</p>
-                        <a 
-                          href={pdfPreviewUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Preview PDF
-                        </a>
-                      </div>
-                    )}
                   </div>
-                </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">Slot:</label>
+                    <input
+                      type="text"
+                      value={slots}
+                      onChange={(e) => setSlot(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">Port:</label>
+                    <input
+                      type="text"
+                      value={ports}
+                      onChange={(e) => setPorts(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">ONT ID:</label>
+                    <input
+                      type="text"
+                      value={ontId}
+                      onChange={(e) => setOntId(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">Service Port:</label>
+                    <input
+                      type="text"
+                      value={servicePort}
+                      onChange={(e) => setServicePort(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">Camera IP:</label>
+                    <input
+                      type="text"
+                      value={cameraIP}
+                      onChange={(e) => setCameraIP(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">ONU MAC ADDRESS:</label>
+                    <input
+                      type="text"
+                      value={onuMacAddress}
+                      onChange={(e) => setOnuMacAddress(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">SERIAL NUMBER:</label>
+                    <input
+                      type="text"
+                      value={serialNumber}
+                      onChange={(e) => setSerialNumber(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">Survey ID:</label>
+                    <input
+                      type="text"
+                      value={surveyId}
+                      onChange={(e) => setSurveyId(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                </>
+              )}
+              {selectedDeviceTypeId === '2' && (
+                <>
+                  <div className="mb-4">
+                    <label className="block mb-2">ACL:</label>
+                    <input
+                      type="text"
+                      value={ACL}
+                      onChange={(e) => setACL(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">Switch Port:</label>
+                    <input
+                      type="text"
+                      value={switchPort}
+                      onChange={(e) => setSwitchPort(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">Port Type:</label>
+                    <input
+                      type="text"
+                      value={portType}
+                      onChange={(e) => setPortType(e.target.value)}
+                      className="w-full p-2 border"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="w-full lg:w-1/2 p-2">
+              <div className="mb-4">
+                <label htmlFor="locationName" className="block mb-2">Location Name:</label>
+                <select
+                  id="locationName"
+                  value={selectedLocationId}
+                  onChange={(e) => setSelectedLocationId(e.target.value)}
+                  required
+                  className="font-raleway-black w-full p-2 border"
+                >
+                  <option value="">N/A</option>
+                  {locations.map((location_location) => (
+                    <option
+                      key={location_location.location_id}
+                      value={location_location.location_id}
+                    >
+                      {location_location.location_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-full p-2">
                 <div className="mb-4">
-                  <label className="block mb-2">Langtitude:</label>
-                  <input type="text" value={langtitude} onChange={e => setLangtitudes(e.target.value)} className="w-full p-2 border" />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-2">Service Type:</label>
-                  <select 
-                    value={serviceType} 
-                    onChange={e => setServiceTypes(e.target.value)} 
+                  <label className="block mb-2">Network Diagram PDF (Optional):</label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handlePdfUpload}
                     className="w-full p-2 border"
-                  >
-                    <option value="">Select Service Type</option>
-                    <option value="PPPoE">PPPoE</option>
-                    <option value="Static">Static</option>
-                  </select>
+                  />
+                  {pdfPreviewUrl && (
+                    <div className="mt-2">
+                      <p>Uploaded PDF: {networkDiagramPdf?.name}</p>
+                      <a
+                        href={pdfPreviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        Preview PDF
+                      </a>
+                    </div>
+                  )}
                 </div>
-                <div className="mb-4">
-                  <label htmlFor="saleName" className="block mb-2">Sale Name:</label>
-                  <input type="text" value={saleName} onChange={e => setSaleName(e.target.value)} className="w-full p-2 border" />
-                </div>
-                {selectedDeviceTypeId === '2' && (
+              </div>
+              <div className="mb-4">
+                <label className="block mb-2">Langtitude:</label>
+                <input
+                  type="text"
+                  value={langtitude}
+                  onChange={(e) => setLangtitudes(e.target.value)}
+                  className="w-full p-2 border"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-2">Service Type:</label>
+                <select
+                  value={serviceType}
+                  onChange={(e) => setServiceTypes(e.target.value)}
+                  className="w-full p-2 border"
+                >
+                  <option value="">N/A</option>
+                  <option value="PPPoE">PPPoE</option>
+                  <option value="Static">Static</option>
+                </select>
+              </div>
+              <div className="mb-4">
+                <label htmlFor="saleName" className="block mb-2">Sale Name:</label>
+                <input
+                  type="text"
+                  value={saleName}
+                  onChange={(e) => setSaleName(e.target.value)}
+                  className="w-full p-2 border"
+                />
+              </div>
+              {selectedDeviceTypeId === '2' && (
                 <div className="mb-4">
                   <label htmlFor="interfaceName" className="block mb-2">Interface Name:</label>
                   <select
@@ -626,7 +700,7 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                     required
                     className="font-raleway-black w-full p-2 border"
                   >
-                    <option value="">Select Interface...</option>
+                    <option value="">N/A</option>
                     {filteredInterfaces.map((inf) => (
                       <option key={inf.interface_id} value={inf.interface_id}>
                         {inf.interface_name}
@@ -634,43 +708,50 @@ export default function TechnicalForm({ customerId }: TechnicalFormProps) {
                     ))}
                   </select>
                 </div>
-                )}
-              </div>
-            </div>
-            <div className="w-full p-2 text-center">
-              <button type="button" onClick={handleBack} className="px-4 py-2 mt-4 text-white bg-gray-500 rounded hover:bg-gray-600 mr-2">
-                Back
-              </button>
-              <button type="submit" className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600">
-                Add Customer
-              </button>
-            </div>
-          </form>
-        )}
-        
-        <PopUpModal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          title={insertCustomerId ? 'Success' : 'Error'}
-          content={
-            <>
-              {insertCustomerId && (
-                <>
-                  <p className="text-center text-green-700 mt-4">
-                    Customer is added successfully with ID: {insertCustomerId}
-                  </p>
-                  <p className="text-center text-green-700 mt-2">
-                    Registered Date: {new Date(registeredDate).toLocaleString()}
-                  </p>
-                </>
               )}
-              {error && (
-                <p className="text-center text-red-700 mt-4">Error adding customer: {error}</p>
-              )}
-            </>
-          }
-        />
-      </div>
+            </div>
+          </div>
+          <div className="w-full p-2 text-center">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="px-4 py-2 mt-4 text-white bg-gray-500 rounded hover:bg-gray-600 mr-2"
+            >
+              Back
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 mt-4 text-white bg-red-500 rounded hover:bg-red-600"
+            >
+              Add Customer
+            </button>
+          </div>
+        </form>
+      )}
+
+      <PopUpModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={insertCustomerId ? 'Success' : 'Error'}
+        content={
+          <>
+            {insertCustomerId && (
+              <>
+                <p className="text-center text-green-700 mt-4">
+                  Customer is added successfully with ID: {insertCustomerId}
+                </p>
+                <p className="text-center text-green-700 mt-2">
+                  Registered Date: {new Date(registeredDate).toLocaleString()}
+                </p>
+              </>
+            )}
+            {error && (
+              <p className="text-center text-red-700 mt-4">Error adding customer: {error}</p>
+            )}
+          </>
+        }
+      />
     </div>
-  );
+  </div>
+);
 }

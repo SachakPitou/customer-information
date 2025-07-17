@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -9,960 +9,689 @@ import { saveAs } from 'file-saver';
 import StatusChangeFilter from '../component/statusChangeFilter';
 import LoadingSpinner from '../component/LoadingSpinner';
 import LocationChangeFilter from '../component/LocationChangeFilter';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from 'react-hot-toast';
+import { debounce } from 'lodash';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, Download, Home, Search, Eye, Edit, Trash } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Customer {
-    location_id: number;
-    ONU_mac_address: string;
-    customer_id: string;
-    customer_name: string;
-    phone_number: string;
-    cid: string;
-    contract_id: string;
-    package_name: string;
-    service_port?: number;
+  location_id: number;
+  ONU_mac_address: string;
+  customer_id: string;
+  customer_name: string;
+  phone_number: string;
+  cid: string;
+  contract_id: string;
+  package_name: string;
+  service_port?: number;
+  status_type: string;
+  active_timestamp?: string;
+  inactive_timestamp?: string;
+  reactive_timestamp?: string;
+  terminate_timestamp?: string;
+  isActive: boolean;
+  rowNumber: number;
+  device_name: string;
+  interface_name: string;
+  olt_name: string;
+  status: string;
+  slot?: string;
+  port?: string;
+  onu_id?: string;
+  ip_address?: string;
+  package_id: string;
+  device_id: string;
+  olt_id: string;
+  interface_id: string;
+  ACL: string;
+  switch_port: string;
+  port_type: string;
+  ont_id: string;
+  serial_number: string;
+  frame: number;
+  statusHistory: Array<{
     status_type: string;
-    active_timestamp?: string;
-    inactive_timestamp?: string;
-    reactive_timestamp?: string;
-    terminate_timestamp?: string;
-    isActive: boolean;
-    rowNumber: number;
-    device_name: string;
-    interface_name: string;
-    olt_name: string;
-    status: string;
-    slot?: string;
-    port?: string;
-    onu_id?: string;
-    ip_address?: string;
-    package_id: string;
-    device_id: string;
-    olt_id: string;
-    interface_id: string;
-    ACL: string; 
-    switch_port: string;
-    port_type: string;
-    ont_id: string;
-    serial_number: string;
-    frame: number,
-    statusHistory: Array<{
-        status_type: string;
-        start_date: string;
-        end_date: string | null;
-    }>;
+    start_date: string;
+    end_date: string | null;
+  }>;
 }
 
-interface StatusChangeFilter {
-    startDate: Date | null;
-    endDate: Date | null;
-    statusType: string;
-}
-interface FetchResponse {
-    data: any;
-    error: any;
+interface StatusChangeFilterParams {
+  startDate: string;
+  endDate: string;
+  statusType: string;
 }
 
-export default function Dashboard() {
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [showModal, setShowModal] = useState(false);
-    const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
-    const [searchValue, setSearchValue] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [searchField, setSearchField] = useState('all');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [userType, setUserType] = useState('');
-    const [session, setSession] = useState<any>(null);
-    const [editHistories, setEditHistories] = useState<Record<string, any[]>>({});
-    const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
-    const [customerCount, setCustomerCount] = useState(0);const [pendingEditCount, setPendingEditCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const BATCH_SIZE = 50; // Number of customers to process at once
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY = 1000; 
-    const [statusChangeFilter, setStatusChangeFilter] = useState<{
-        startDate: string;
-        endDate: string;
-        statusType: string;
-      }>({
-        startDate: '',
-        endDate: '',
-        statusType: 'ALL',
-    });
+const Dashboard = () => {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
+  const [searchValue, setSearchValue] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [userType, setUserType] = useState('');
+  const [editHistories, setEditHistories] = useState<Record<string, any[]>>({});
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
+  const [customerCount, setCustomerCount] = useState(0);
+  const [pendingEditCount, setPendingEditCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusChangeFilter, setStatusChangeFilter] = useState<StatusChangeFilterParams>({
+    startDate: '',
+    endDate: '',
+    statusType: 'ALL',
+  });
 
-    const router = useRouter();
-    const packagesPerPage = 20;
-    const handleFailedFetch = (error: any, customerId: string, entityType: string) => {
-        console.error(`Error fetching ${entityType} for customer ${customerId}:`, error);
-        return null;
-    };
-    
-    // Retry logic for failed fetches
-    const fetchWithRetry = async (
-        fetchPromise: Promise<FetchResponse>,
-        retries = 3,
-        delay = 2000
-    ): Promise<FetchResponse> => {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const response = await fetchPromise;
-                if (!response.error) return response;
-                
-                console.warn(`Attempt ${i + 1} failed, retrying...`);
-                if (i < retries - 1) {
-                    await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-                }
-            } catch (error) {
-                if (i === retries - 1) throw error;
-                await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-            }
+  const router = useRouter();
+  const packagesPerPage = 20;
+
+  // Debounced search handler
+  const debouncedSearch = useMemo(
+    () => debounce((value: string) => setSearchValue(value), 300),
+    []
+  );
+
+  // Fetch all data
+  const fetchAllData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [
+        { data: customersData, error: customersError },
+        { data: packageData, error: packageError },
+        { data: deviceData, error: deviceError },
+        { data: interfaceData, error: interfaceError },
+        { data: statusData, error: statusError },
+        { data: statusHistoryData, error: historyError },
+      ] = await Promise.all([
+        supabase.from('Customer').select('*').limit(10000),
+        supabase.from('Package').select('package_id, package_name'),
+        supabase.from('Device').select('device_id, device_name'),
+        supabase.from('Interface').select('interface_id, interface_name'),
+        supabase.from('Customer').select('customer_id, status').eq('status', 'Completed'),
+        supabase.from('statushistory').select('*'),
+      ]);
+
+      if (customersError || packageError || deviceError || interfaceError || statusError || historyError) {
+        throw new Error('Failed to fetch data');
+      }
+
+      const packageMap = new Map(packageData?.map(p => [p.package_id, p.package_name]));
+      const deviceMap = new Map(deviceData?.map(d => [d.device_id, d.device_name]));
+      const interfaceMap = new Map(interfaceData?.map(i => [i.interface_id, i.interface_name]));
+      const statusMap = new Map(statusData?.map(s => [s.customer_id, s.status]));
+      const statusHistoryMap = new Map();
+
+      statusHistoryData?.forEach(history => {
+        if (!statusHistoryMap.has(history.customer_id)) {
+          statusHistoryMap.set(history.customer_id, []);
         }
-        throw new Error(`Failed after ${retries} retries`);
-    };
-    const handleStatusChangeFilter = (params: { startDate: string; endDate: string; statusType: string }) => {
-        setStatusChangeFilter(params);
-    };
-    const downloadExcel = () => {
-        const excelData = filteredCustomers.map(customer => {
-            let relevantStatus = null;
-            
-            // Check if statusHistory exists and is an array
-            if (Array.isArray(customer.statusHistory) && customer.statusHistory.length > 0) {
-                // Always sort the status history to get the latest status first
-                const sortedStatusHistory = customer.statusHistory
-                    .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
-    
-                if (statusChangeFilter.startDate && statusChangeFilter.endDate) {
-                    const filterStartDate = new Date(statusChangeFilter.startDate);
-                    const filterEndDate = new Date(statusChangeFilter.endDate);
-                    filterStartDate.setHours(0, 0, 0, 0);
-                    filterEndDate.setHours(23, 59, 59, 999);
-    
-                    // Find the most recent status within the filter date range
-                    relevantStatus = sortedStatusHistory.find(status => {
-                        const statusStartDate = new Date(status.start_date);
-                        const statusEndDate = status.end_date ? new Date(status.end_date) : new Date();
-                        return (statusStartDate <= filterEndDate && statusEndDate >= filterStartDate);
-                    });
-                }
-    
-                // If no relevant status found within the date range or no date filter applied, use the latest status
-                if (!relevantStatus) {
-                    relevantStatus = sortedStatusHistory[0];
-                }
-            }
-    
-            // If no relevant status found in history, use the current status
-            if (!relevantStatus) {
-                relevantStatus = {
-                    status_type: customer.status_type || 'Unknown',
-                    start_date: customer.active_timestamp || '',
-                    end_date: null
-                };
-            }
-    
-            // Helper function to format date in Cambodian locale
-            const formatDateForCambodia = (dateStr: string | number | Date) => {
-                if (!dateStr) return '';
-                const date = new Date(dateStr);
-                return date.toLocaleString('km-KH', {
-                    timeZone: 'Asia/Phnom_Penh',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false
-                });
-            };
-    
-            return {
-                'No.': customer.rowNumber,
-                'Name': customer.customer_name,
-                'Phone Number': customer.phone_number,
-                'CID': customer.cid,
-                'ContractID': customer.contract_id,
-                'Internet Package': customer.package_name,
-                'Slot': customer.slot,
-                'Port': customer.port,
-                'Frame': customer.frame,
-                'Service Port': customer.service_port,
-                'ONT ID': customer.ont_id,
-                'ACL': customer.ACL,
-                'Switch Port': customer.switch_port,
-                'Port Type': customer.port_type,
-                'ONU MAC Address': customer.ONU_mac_address,
-                'Serial Number': customer.serial_number,
-                'IP Address': customer.ip_address,
-                'Interface': customer.interface_name,
-                'Device': customer.device_name,
-                'Status': relevantStatus.status_type,
-                'Status Start Date': formatDateForCambodia(relevantStatus.start_date),
-                'Status End Date': relevantStatus.end_date 
-                    ? formatDateForCambodia(relevantStatus.end_date) 
-                    : 'Current',
-            };
-        });
-    
-        // Create a new workbook
-        const workbook = XLSX.utils.book_new();
-    
-        // Create a worksheet
-        const worksheet = XLSX.utils.json_to_sheet(excelData);
-    
-        // Add the worksheet to the workbook
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
-    
-        // Generate Excel file buffer
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    
-        // Create a Blob from the buffer
-        const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-    
-        // Save the file with Cambodian locale date and time
-        const now = new Date();
-        const formattedDateTime = now.toLocaleString('km-KH', {
-            timeZone: 'Asia/Phnom_Penh',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        }).replace(/[/:\s]/g, '-');
-    
-        const filename = `customer_dashboard_${formattedDateTime}.xlsx`;
-    
-        // Save the file
-        saveAs(data, filename);
-    };
-    const toggleRow = (customerId: string) => {
-        setExpandedRows((prevState) => ({
-            ...prevState,
-            [customerId]: !prevState[customerId],
-        }));
-    };
+        statusHistoryMap.get(history.customer_id).push(history);
+      });
 
-    const toggleUserStatus = async (customer: Customer) => {
-        try {
-            const updatedStatus = !customer.isActive;
+      const processedCustomers = customersData?.map((customer, index) => ({
+        ...customer,
+        rowNumber: index + 1,
+        package_name: packageMap.get(customer.package_id) || 'Unknown Package',
+        device_name: deviceMap.get(customer.device_id) || 'Unknown Device',
+        interface_name: interfaceMap.get(customer.interface_id) || 'Unknown Interface',
+        status: statusMap.get(customer.customer_id),
+        statusHistory: statusHistoryMap.get(customer.customer_id) || [],
+      }));
 
-            // Update the status in the database
-            await supabase
-                .from('Customer')
-                .update({ isActive: updatedStatus })
-                .eq('customer_id', customer.customer_id);
-
-            // Update the local state to reflect the change
-            setCustomers((prevCustomers) =>
-                prevCustomers.map((c) =>
-                    c.customer_id === customer.customer_id ? { ...c, isActive: updatedStatus } : c
-                )
-            );
-
-            console.log(`Customer with ID ${customer.customer_id} is now ${updatedStatus ? 'active' : 'inactive'}`);
-        } catch (error) {
-            console.error('Error toggling user status:', error);
-        }
-    };
-
-    const handleFetchHistory = async (customerId: string) => {
-        if (editHistories[customerId]) {
-            // If we already have the history, just toggle the visibility
-            setExpandedRows(prev => ({
-                ...prev,
-                [customerId]: !prev[customerId]
-            }));
-            return;
-        }
-
-        try {
-            const [
-                { data: historyData },
-                { data: userData }
-            ] = await Promise.all([
-                supabase.from('CustomerHistory').select('*').eq('customer_id', customerId),
-                supabase.from('userAccount').select('id, user_name')
-            ]);
-
-            if (!historyData) return;
-
-            // Create user map for quick lookups
-            const userMap = new Map(userData?.map(user => [user.id, user.user_name]) || []);
-
-            const processedHistory = historyData.map(history => {
-                const formattedDate = new Date(history.timestamp.replace(',', '')).toLocaleString('en-GB', {
-                    timeZone: 'Asia/Phnom_Penh',
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                });
-
-                const userName = userMap.get(history.editedBy) || 'Unknown User';
-
-                return {
-                    ...history,
-                    formattedDate,
-                    editedBy: userName,
-                    displayString: `${formattedDate} edited by ${userName}`,
-                    changeDescription: `${history.field_changed} changed from "${history.old_value}" to "${history.new_value}"`
-                };
-            });
-
-            setEditHistories(prev => ({
-                ...prev,
-                [customerId]: processedHistory
-            }));
-
-            setExpandedRows(prev => ({
-                ...prev,
-                [customerId]: true
-            }));
-        } catch (error) {
-            console.error('Error fetching history:', error);
-        }
-    };
-    const handleDeleteCustomer = async () => {
-        try {
-            if (!customerToDelete) return;
-
-            // Delete the customer from the database
-            await supabase.from("Customer")
-                .delete()
-                .eq("customer_id", customerToDelete);
-        
-            // Update the state to remove the deleted customer
-            setCustomers(prevCustomers => prevCustomers.filter(customer => customer.customer_id !== customerToDelete));
-        
-            // Log success message
-            console.log(`Customer with ID ${customerToDelete} deleted successfully`);
-        
-            // Close the modal after successful deletion
-            setShowModal(false);
-        } catch (error) {
-            console.error('Error deleting customer:', error);
-        }
-    };
-    
-
-    useEffect(() => {
-        const fetchAllData = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch all required data in parallel
-                const [
-                    { data: customersData, error: customersError },
-                    { data: packageData, error: packageError },
-                    { data: deviceData, error: deviceError },
-                    { data: interfaceData, error: interfaceError },
-                    { data: statusData, error: statusError },
-                    { data: statusHistoryData, error: historyError }
-                ] = await Promise.all([
-                    supabase.from('Customer').select('*').limit(10000),
-                    supabase.from('Package').select('package_id, package_name'),
-                    supabase.from('Device').select('device_id, device_name'),
-                    supabase.from('Interface').select('interface_id, interface_name'),
-                    supabase.from('Customer').select('customer_id, status').eq('status', 'Completed'),
-                    supabase.from('statushistory').select('*')
-                ]);
-
-                if (customersError) throw customersError;
-
-                // Create lookup maps for faster access
-                const packageMap = new Map(packageData?.map(p => [p.package_id, p.package_name]));
-                const deviceMap = new Map(deviceData?.map(d => [d.device_id, d.device_name]));
-                const interfaceMap = new Map(interfaceData?.map(i => [i.interface_id, i.interface_name]));
-                const statusMap = new Map(statusData?.map(s => [s.customer_id, s.status]));
-                const statusHistoryMap = new Map();
-                
-                // Group status history by customer_id
-                statusHistoryData?.forEach(history => {
-                    if (!statusHistoryMap.has(history.customer_id)) {
-                        statusHistoryMap.set(history.customer_id, []);
-                    }
-                    statusHistoryMap.get(history.customer_id).push(history);
-                });
-
-                // Process customer data with the lookup maps
-                const processedCustomers = customersData?.map((customer, index) => ({
-                    ...customer,
-                    rowNumber: index + 1,
-                    package_name: packageMap.get(customer.package_id) || 'Unknown Package',
-                    device_name: deviceMap.get(customer.device_id) || 'Unknown Device',
-                    interface_name: interfaceMap.get(customer.interface_id) || 'Unknown Interface',
-                    status: statusMap.get(customer.customer_id),
-                    statusHistory: statusHistoryMap.get(customer.customer_id) || []
-                }));
-
-                setCustomers(processedCustomers || []);
-                setCustomerCount(statusData?.length || 0);
-                setPendingEditCount((customersData?.length || 0) - (statusData?.length || 0));
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        const fetchUserType = async () => {
-            try {
-                const supabase = createClient();
-                const { data, error } = await supabase.auth.getSession(); // Get session data
-
-                if (error) {
-                    console.error('Error fetching session:', error.message);
-                    return;
-                }
-    
-                const session = data.session;
-                setSession(session); // Set session state
-    
-                if (session) {
-                    const userId = session.user.id; // Extract user ID from session
-                    const { data: userData, error: userError } = await supabase
-                        .from('userAccount')
-                        .select('user_type') 
-                        .eq("id", userId)
-                        .single();
-    
-                    if (userError) {
-                        throw userError;
-                    }
-    
-                    if (userData) {
-                        setUserType(userData.user_type); // Set user type state
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching user type:', error);
-            }
-        };
-        const fetchCounts = async () => {
-            try {
-                setIsLoading(true);
-                const [customerData, pendingEditData] = await Promise.all([
-                    supabase
-                        .from('Customer')
-                        .select('customer_id')
-                        .eq('status', 'Completed'),
-                    supabase
-                        .from('Customer')
-                        .select('customer_id')
-                        .eq('status', 'Pending Technical Review'),
-                ]);
-    
-                // Error handling
-                if (customerData.error) throw customerData.error;
-                if (pendingEditData.error) throw pendingEditData.error;
-    
-                // Set states
-                setCustomerCount(customerData.data?.length || 0);
-                setPendingEditCount(pendingEditData.data?.length || 0);
-            } catch (error) {
-                console.error('Error fetching counts:', error);
-                // Handle error appropriately
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchCounts();
-        fetchAllData();
-        fetchUserType();
-    }, [customerToDelete, showModal]);
-    
-    
-    console.log("Filtering customers...");
-    
-    const filteredCustomers = customers.filter((customer) => {
-        console.log("Customer total: ", customerCount)
-        console.log('Processing customer:', customer.customer_name, 'ID:', customer.customer_id);
-        console.log('Customer statusHistory:', customer.statusHistory);
-    
-        // First, check if the customer status is "Completed"
-        if (customer.status !== "Completed") {
-            console.log('Customer status not Completed:', customer.status);
-            return false;
-        }
-    
-        const searchTerm = searchValue.toLowerCase();
-        let statusChangeFilterPass = true;
-        if (selectedLocation !== null) {
-            // Ensure the customer's location matches the selected location
-            if (customer.location_id !== selectedLocation) {
-                return false;
-            }
-        }
-        // Date range and status type filter logic
-        if (statusChangeFilter.startDate && statusChangeFilter.endDate) {
-            console.log('Applying date filter:', statusChangeFilter.startDate, 'to', statusChangeFilter.endDate);
-            
-            const filterStartDate = new Date(statusChangeFilter.startDate);
-            const filterEndDate = new Date(statusChangeFilter.endDate);
-    
-            filterStartDate.setHours(0, 0, 0, 0);  // Set to beginning of the day
-            filterEndDate.setHours(23, 59, 59, 999);  // Set to end of the day
-    
-            if (Array.isArray(customer.statusHistory) && customer.statusHistory.length > 0) {
-                console.log('Status history found. Entries:', customer.statusHistory.length);
-                
-                // Find the status that was active during the filter date range
-                const relevantStatus = customer.statusHistory.find(status => {
-                    const statusStartDate = new Date(status.start_date);
-                    const statusEndDate = status.end_date ? new Date(status.end_date) : new Date();
-    
-                    return (statusStartDate <= filterEndDate && statusEndDate >= filterStartDate);
-                });
-    
-                console.log('Relevant status:', relevantStatus);
-    
-                if (relevantStatus) {
-                    if (statusChangeFilter.statusType !== 'ALL') {
-                        statusChangeFilterPass = relevantStatus.status_type === statusChangeFilter.statusType;
-                    }
-                } else {
-                    statusChangeFilterPass = false;
-                }
-            } else {
-                console.log('No status history found for customer');
-                statusChangeFilterPass = false;
-            }
-        } else if (statusChangeFilter.statusType !== 'ALL') {
-            // If no date range is specified, use the latest status
-            const latestStatus = customer.statusHistory.length > 0 
-                ? customer.statusHistory[customer.statusHistory.length - 1].status_type 
-                : customer.status_type;
-            
-            statusChangeFilterPass = latestStatus === statusChangeFilter.statusType;
-        }
-    
-        console.log('Status filter pass:', statusChangeFilterPass);
-    
-        // If no search value and the customer passes the status filter, include them
-        if (searchValue === '' && statusChangeFilterPass) {
-            console.log('Customer passes the filter:', customer.customer_name);
-            return true;
-        }
-    
-        let isMatchingSearch = false;
-    
-        // Search filter (existing logic)
-        if (searchField === 'all') {
-            isMatchingSearch = (
-                (customer.customer_name?.toLowerCase().includes(searchTerm) || false) ||
-                (customer.phone_number?.toLowerCase().includes(searchTerm) || false) ||
-                (customer.cid?.toLowerCase().includes(searchTerm) || false) ||
-                (customer.contract_id?.toLowerCase().includes(searchTerm) || false) || // Add contract_id here
-                (customer.package_name?.toLowerCase().includes(searchTerm) || false)
-            );
-        } else if (searchField === 'name') {
-            isMatchingSearch = customer.customer_name?.toLowerCase().includes(searchTerm) || false;
-        } else if (searchField === 'phone_number') {
-            const phoneNumberString = customer.phone_number?.toString() || '';
-            isMatchingSearch = phoneNumberString.includes(searchTerm);
-        } else if (searchField === 'cid') {
-            const cidString = customer.cid?.toString().toLowerCase() || '';
-            isMatchingSearch = cidString.startsWith(searchTerm.toLowerCase());
-        } else if (searchField === 'contract_id') {
-            const contractIdString = customer.contract_id?.toString().toLowerCase() || '';
-            isMatchingSearch = contractIdString.startsWith(searchTerm.toLowerCase()); // Add contract_id search logic
-        } else if (searchField === 'internet_package') {
-            const internetPackageString = customer.package_name?.toString().toLowerCase() || '';
-            isMatchingSearch = internetPackageString.startsWith(searchTerm.toLowerCase());
-        }
-    
-        console.log('Search filter match:', isMatchingSearch);
-    
-        return isMatchingSearch && statusChangeFilterPass;
-    });
-    
-    console.log("Filtered customers:", filteredCustomers);
-        
-    const handleSearch = () => {
-        // Log the search value
-        console.log("Search value:", searchValue);
-        // Perform search logic if needed
-    };
-
-    const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchValue(event.target.value); // Update the search input value
-    };
-
-    const handleSearchInputKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === 'Enter') {
-            handleSearch(); // Call the search function when Enter key is pressed
-        }
-    };
-    
-    const handleSearchFieldChange = (e: { target: { value: React.SetStateAction<string>; }; }) => {
-        setSearchField(e.target.value);
-    };
-
-    const handlePageChange = (pageNumber: number) => {
-        setCurrentPage(pageNumber);
-    };
-    const handleLocationChange = (locationId: number | null) => {
-        setSelectedLocation(locationId);
-        // Perform filtering or other actions based on selected location
-    };
-    // Calculate the packages to be displayed on the current page
-    const totalPages = Math.ceil(filteredCustomers.length / packagesPerPage);
-    const startIndex = (currentPage - 1) * packagesPerPage;
-    const displayedCustomers = filteredCustomers.slice(startIndex, startIndex + packagesPerPage);
-
-    if (customers.length === 0 || (customers.length - pendingEditCount) !== customerCount) {
-        console.log("customer:", customers.length); // Log first to debug
-        return <LoadingSpinner />;
+      setCustomers(processedCustomers || []);
+      setCustomerCount(statusData?.length || 0);
+      setPendingEditCount((customersData?.length || 0) - (statusData?.length || 0));
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load data. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
+  }, []);
+
+  // Fetch user type
+  const fetchUserType = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw new Error('Failed to fetch session');
+
+      const session = data.session;
+      if (session) {
+        const userId = session.user.id;
+        const { data: userData, error: userError } = await supabase
+          .from('userAccount')
+          .select('user_type')
+          .eq('id', userId)
+          .single();
+
+        if (userError) throw userError;
+        setUserType(userData.user_type);
+      }
+    } catch (error) {
+      console.error('Error fetching user type:', error);
+      toast.error('Failed to load user type.');
+    }
+  }, []);
+
+  // Fetch counts
+  const fetchCounts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [customerData, pendingEditData] = await Promise.all([
+        supabase.from('Customer').select('customer_id').eq('status', 'Completed'),
+        supabase.from('Customer').select('customer_id').eq('status', 'Pending Technical Review'),
+      ]);
+
+      if (customerData.error || pendingEditData.error) throw new Error('Failed to fetch counts');
+
+      setCustomerCount(customerData.data?.length || 0);
+      setPendingEditCount(pendingEditData.data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching counts:', error);
+      toast.error('Failed to load counts.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCounts();
+    fetchAllData();
+    fetchUserType();
+  }, [fetchCounts, fetchAllData, fetchUserType]);
+
+  // Filter customers
+  // Filter customers
+const filteredCustomers = useMemo(() => {
+  return customers.filter(customer => {
+    if (customer.status !== 'Completed') return false;
+    if (selectedLocation !== null && customer.location_id !== selectedLocation) return false;
+
+    const searchTerm = searchValue.toLowerCase();
+    let statusChangeFilterPass = true;
+
+    if (statusChangeFilter.startDate && statusChangeFilter.endDate) {
+      const filterStartDate = new Date(statusChangeFilter.startDate);
+      const filterEndDate = new Date(statusChangeFilter.endDate);
+      filterStartDate.setHours(0, 0, 0, 0);
+      filterEndDate.setHours(23, 59, 59, 999);
+
+      if (Array.isArray(customer.statusHistory) && customer.statusHistory.length > 0) {
+        const relevantStatus = customer.statusHistory.find(status => {
+          const statusStartDate = new Date(status.start_date);
+          const statusEndDate = status.end_date ? new Date(status.end_date) : new Date();
+          return statusStartDate <= filterEndDate && statusEndDate >= filterStartDate;
+        });
+
+        if (relevantStatus) {
+          statusChangeFilterPass = statusChangeFilter.statusType === 'ALL' || relevantStatus.status_type === statusChangeFilter.statusType;
+        } else {
+          statusChangeFilterPass = false;
+        }
+      } else {
+        statusChangeFilterPass = false;
+      }
+    } else if (statusChangeFilter.statusType !== 'ALL') {
+      const latestStatus = customer.statusHistory.length > 0
+        ? customer.statusHistory[customer.statusHistory.length - 1].status_type
+        : customer.status_type;
+      statusChangeFilterPass = latestStatus === statusChangeFilter.statusType;
+    }
+
+    if (searchValue === '') return statusChangeFilterPass;
+
+    let isMatchingSearch = false;
+    if (searchField === 'all') {
+      isMatchingSearch = (
+        customer.customer_name?.toLowerCase().includes(searchTerm) ||
+        customer.phone_number?.toLowerCase().includes(searchTerm) ||
+        customer.cid?.toLowerCase().includes(searchTerm) ||
+        customer.contract_id?.toLowerCase().includes(searchTerm) ||
+        customer.package_name?.toLowerCase().includes(searchTerm)
+      );
+    } else if (searchField === 'name') {
+      isMatchingSearch = customer.customer_name?.toLowerCase().includes(searchTerm);
+    } else if (searchField === 'phone_number') {
+      isMatchingSearch = customer.phone_number?.toString().includes(searchTerm);
+    } else if (searchField === 'cid') {
+      isMatchingSearch = customer.cid?.toString().toLowerCase().startsWith(searchTerm);
+    } else if (searchField === 'contract_id') {
+      isMatchingSearch = customer.contract_id?.toString().toLowerCase().startsWith(searchTerm);
+    } else if (searchField === 'internet_package') {
+      isMatchingSearch = customer.package_name?.toString().toLowerCase().startsWith(searchTerm);
+    }
+
+    return isMatchingSearch && statusChangeFilterPass;
+  });
+}, [customers, searchValue, searchField, selectedLocation, statusChangeFilter]);
+
+  // Download Excel
+  const downloadExcel = useCallback(() => {
+    const excelData = filteredCustomers.map(customer => {
+      const latestStatus = customer.statusHistory.length > 0
+        ? [...customer.statusHistory].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())[0]
+        : { status_type: customer.status_type || 'Unknown', start_date: customer.active_timestamp || '', end_date: null };
+
+      const formatDateForCambodia = (dateStr: string | number | Date) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleString('km-KH', { timeZone: 'Asia/Phnom_Penh', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      };
+
+      return {
+        'No.': customer.rowNumber,
+        'Name': customer.customer_name,
+        'Phone Number': customer.phone_number,
+        'CID': customer.cid,
+        'Contract ID': customer.contract_id,
+        'Internet Package': customer.package_name,
+        'Slot': customer.slot,
+        'Port': customer.port,
+        'Frame': customer.frame,
+        'Service Port': customer.service_port,
+        'ONT ID': customer.ont_id,
+        'ACL': customer.ACL,
+        'Switch Port': customer.switch_port,
+        'Port Type': customer.port_type,
+        'ONU MAC Address': customer.ONU_mac_address,
+        'Serial Number': customer.serial_number,
+        'IP Address': customer.ip_address,
+        'Interface': customer.interface_name,
+        'Device': customer.device_name,
+        'Status': latestStatus.status_type,
+        'Status Start Date': formatDateForCambodia(latestStatus.start_date),
+        'Status End Date': latestStatus.end_date ? formatDateForCambodia(latestStatus.end_date) : 'Current',
+      };
+    });
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+    const formattedDateTime = new Date().toLocaleString('km-KH', { timeZone: 'Asia/Phnom_Penh' }).replace(/[/:\s]/g, '-');
+    saveAs(data, `customer_dashboard_${formattedDateTime}.xlsx`);
+  }, [filteredCustomers]);
+
+  // Handle delete customer
+  const handleDeleteCustomer = useCallback(async () => {
+    if (!customerToDelete) return;
+    try {
+      await supabase.from('Customer').delete().eq('customer_id', customerToDelete);
+      setCustomers(prev => prev.filter(customer => customer.customer_id !== customerToDelete));
+      toast.success('Customer deleted successfully');
+      setShowModal(false);
+      setCustomerToDelete(null);
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Failed to delete customer.');
+    }
+  }, [customerToDelete]);
+
+  // Handle fetch history
+  const handleFetchHistory = useCallback(async (customerId: string) => {
+    if (editHistories[customerId]) {
+      setExpandedRows(prev => ({ ...prev, [customerId]: !prev[customerId] }));
+      return;
+    }
+
+    try {
+      const [
+        { data: historyData },
+        { data: userData },
+      ] = await Promise.all([
+        supabase.from('CustomerHistory').select('*').eq('customer_id', customerId),
+        supabase.from('userAccount').select('id, user_name'),
+      ]);
+
+      if (!historyData) return;
+
+      const userMap = new Map(userData?.map(user => [user.id, user.user_name]) || []);
+      const processedHistory = historyData.map(history => {
+        const formattedDate = new Date(history.timestamp.replace(',', '')).toLocaleString('en-GB', {
+          timeZone: 'Asia/Phnom_Penh',
+          day: '2-digit',
+          month: '2-digit',
+          year: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+        const userName = userMap.get(history.editedBy) || 'Unknown User';
+        return {
+          ...history,
+          formattedDate,
+          editedBy: userName,
+          displayString: `${formattedDate} edited by ${userName}`,
+          changeDescription: `${history.field_changed} changed from "${history.old_value}" to "${history.new_value}"`,
+        };
+      });
+
+      setEditHistories(prev => ({ ...prev, [customerId]: processedHistory }));
+      setExpandedRows(prev => ({ ...prev, [customerId]: true }));
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      toast.error('Failed to fetch edit history.');
+    }
+  }, [editHistories]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredCustomers.length / packagesPerPage);
+  const startIndex = (currentPage - 1) * packagesPerPage;
+  const displayedCustomers = filteredCustomers.slice(startIndex, startIndex + packagesPerPage);
+
+  if (isLoading || customers.length === 0 || (customers.length - pendingEditCount) !== customerCount) {
     return (
-        <div className="w-full relative overflow-x-auto shadow-md dark:bg-gray-900">
-            <div className="w-full bg-gray-100 p-4 dark:bg-gray-800 !bg-gray-200 dark:!bg-gray-800">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col space-y-4">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
-                            {/* Navigation Buttons */}
-                            <div className="flex space-x-2">
-                                <button onClick={() => router.back()} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600">
-                                    <svg className="w-5 h-5 mr-2 rtl:rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
-                                    </svg>
-                                    Back
-                                </button>
-                                <button onClick={() => router.push('/')} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600">
-                                    <svg className="w-5 h-5 mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m4 12 8-8 8 8M6 10.5V19a1 1 0 0 0 1 1h3v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h3a1 1 0 0 0 1-1v-8.5"/>
-                                    </svg>
-                                    Home
-                                </button>
-                            </div>
-
-                            {/* Download Excel Button */}
-                            <div>
-                                <button
-                                onClick={downloadExcel}
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm text-white font-medium rounded-md shadow-sm bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                >
-                                Download Excel
-                                </button>
-                            </div>
-                            <LocationChangeFilter 
-                                    onLocationChange={handleLocationChange} 
-                            />
-                        </div>
-
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
-                            {/* Filters */}
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
-                                <StatusChangeFilter onFilter={handleStatusChangeFilter} />
-                                
-                                <select 
-                                value={searchField} 
-                                onChange={handleSearchFieldChange} 
-                                className="mt-1 block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                >
-                                    <option value="all">All Fields</option>
-                                    <option value="name">Name</option>
-                                    <option value="phone_number">Phone Number</option>
-                                    <option value="cid">CID</option>
-                                    <option value="internet_package">Internet Package</option>
-                                </select>
-                            </div>
-
-                            {/* Search Input */}
-                            <div className="relative flex-grow max-w-md w-full">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
-                                <input
-                                type="text"
-                                name="search"
-                                id="search"
-                                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500"
-                                placeholder="Search"
-                                value={searchValue}
-                                onChange={handleSearchInputChange}
-                                onKeyPress={handleSearchInputKeyPress}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                <thead className="title-dashboard text-xs text-gray-700 uppercase bg-gray-150 dark:bg-gray-300 dark:text-gray-700">
-                    <tr>
-                        {/* <th scope="col" className="p-4">
-                            <!-- Adjust as needed -->
-                        </th> */}
-                        <th scope="col" className="px-6 py-3">
-                            No.
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Name
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Status
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Edit History
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Phone Number
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            CID
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Contract ID
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Internet Package
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            IP Address
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            View
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Edit
-                        </th>
-                        <th scope="col" className="px-6 py-3">
-                            Delete
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {displayedCustomers.map((customer) => (
-                        <React.Fragment key={customer.customer_id}>
-                            <tr className="dashboard-text bg-white border-b dark:bg-gray-200 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-300">
-                                <td className="px-6 py-4">{customer.rowNumber}</td>
-                                <td className="px-6 py-4">{customer.customer_name}</td>
-                                <td className="px-6 py-4">
-                                    <button 
-                                        className={`px-4 py-2 font-semibold text-sm text-white rounded-full ${
-                                            customer.status_type === 'ACTIVE' ? 'bg-green-500' :
-                                            customer.status_type === 'REACTIVE' ? 'bg-blue-500' :
-                                            customer.status_type === 'INACTIVE' ? 'bg-yellow-500' :
-                                            customer.status_type === 'TERMINATE' ? 'bg-red-500' :
-                                            'bg-gray-500' // default color if status is unknown
-                                        }`}
-                                    >
-                                        {customer.status_type}
-                                    </button>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <button
-                                        onClick={() => handleFetchHistory(customer.customer_id)}
-                                        className="px-4 py-2 bg-red-700 text-white rounded"
-                                    >
-                                        {expandedRows[customer.customer_id] ? 
-                                            <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 15 7-7 7 7"/>
-                                            </svg>
-                                            : 
-                                            <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
-                                            </svg>
-                                            }
-                                    </button>
-                                </td>
-                                <td className="px-6 py-4">{customer.phone_number}</td>
-                                <td className="px-6 py-4">{customer.cid}</td>
-                                <td className="px-6 py-4">{customer.contract_id}</td>
-                                <td className="px-6 py-4">{customer.package_name}</td>
-                                <td className="px-6 py-4">{customer.ip_address}</td>
-                                <td className="px-6 py-4">
-                                    <Link href={`/viewCustomer/${customer.customer_id}`}>
-                                        <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                <path fillRule="evenodd" d="M19 10c0 3.682-2.914 6-7 6s-7-2.318-7-6 2.914-6 7-6 7 2.318 7 6zm-7 4a4 4 0 100-8 4 4 0 000 8z" clipRule="evenodd" />
-                                            </svg>
-                                            {/* Optionally, you can add a title attribute for accessibility */}
-                                        </div>
-                                    </Link>
-                                </td>
-                                {userType !== "technical" && (
-                                <td className="px-6 py-4">
-                                    <Link href={`/editCustomerService/${customer.customer_id}`}>
-                                        <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                            <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                            </svg>
-                                            {/* Optionally, you can add a title attribute for accessibility */}
-                                        </div>
-                                    </Link>
-                                </td>
-                                )}
-                                {userType !== "customer_service" && (
-                                <td className="px-6 py-4">
-                                    <Link href={`/editCustomer/${customer.customer_id}`}>
-                                        <div className="flex items-center text-blue-600 dark:text-blue-500 hover:underline">
-                                            <svg className="feather feather-edit" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                            </svg>
-                                            {/* Optionally, you can add a title attribute for accessibility */}
-                                        </div>
-                                    </Link>
-                                </td>
-                                )}
-                                <td className="px-6 py-4">
-                                    <button
-                                        onClick={() => {
-                                            setShowModal(true);
-                                            setCustomerToDelete(customer.customer_id);
-                                        }}
-                                        className="block text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
-                                        type="button"
-                                    >
-                                        <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"/>
-                                        </svg>
-                                    </button>
-                                </td>
-                            </tr>
-                            {expandedRows[customer.customer_id] && (
-                                <tr>
-                                    <td colSpan={15} className="px-6 py-4">
-                                    <div className="mt-4">
-                                        {editHistories[customer.customer_id] && editHistories[customer.customer_id].length > 0 ? (
-                                        editHistories[customer.customer_id].map((history) => (
-                                            <div key={history.id} className="p-2 border-b border-white text-black">
-                                            <div>
-                                                <strong>{history.displayString}</strong>
-                                            </div>
-                                            <div>
-                                                <strong>Changes:</strong> {history.changeDescription}
-                                            </div>
-                                            </div>
-                                        ))
-                                        ) : (
-                                        <div>No edit history available.</div>
-                                        )}
-                                    </div>
-                                    </td>
-                                </tr>
-                                )}
-                        </React.Fragment>
-                    ))}
-                </tbody>
-            </table>
-
-            <div className="flex justify-between items-center p-4 bg-white dark:bg-gray-900">
-                <span className="text-sm text-gray-700 dark:text-gray-400">
-                    Showing {startIndex + 1} to {Math.min(startIndex + packagesPerPage, filteredCustomers.length)} of {filteredCustomers.length} Customers
-                </span>
-                <div className="flex space-x-2">
-                    {/* Previous Button */}
-                    <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 border bg-white text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        Previous
-                    </button>
-                    
-                    {/* Dynamic Pagination Numbers */}
-                    {(() => {
-                        const pages = [];
-                        const maxVisiblePages = 5; // Number of page buttons to show
-                        
-                        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-                        
-                        // Adjust start if we're near the end
-                        if (endPage - startPage + 1 < maxVisiblePages) {
-                            startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                        }
-                        
-                        // Always show first page
-                        if (startPage > 1) {
-                            pages.push(
-                                <button
-                                    key={1}
-                                    onClick={() => handlePageChange(1)}
-                                    className="px-3 py-1 border bg-white text-gray-700 hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                                >
-                                    1
-                                </button>
-                            );
-                            if (startPage > 2) {
-                                pages.push(<span key="ellipsis1" className="px-3 py-1">...</span>);
-                            }
-                        }
-                        
-                        // Add visible page numbers
-                        for (let i = startPage; i <= endPage; i++) {
-                            pages.push(
-                                <button
-                                    key={i}
-                                    onClick={() => handlePageChange(i)}
-                                    className={`px-3 py-1 border ${currentPage === i ? 'bg-red-500 text-white' : 'bg-white text-gray-700'} hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700`}
-                                >
-                                    {i}
-                                </button>
-                            );
-                        }
-                        
-                        // Always show last page
-                        if (endPage < totalPages) {
-                            if (endPage < totalPages - 1) {
-                                pages.push(<span key="ellipsis2" className="px-3 py-1">...</span>);
-                            }
-                            pages.push(
-                                <button
-                                    key={totalPages}
-                                    onClick={() => handlePageChange(totalPages)}
-                                    className="px-3 py-1 border bg-white text-gray-700 hover:bg-red-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                                >
-                                    {totalPages}
-                                </button>
-                            );
-                        }
-                        
-                        return pages;
-                    })()}
-                    
-                    {/* Next Button */}
-                    <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 border bg-white text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        Next
-                    </button>
-                </div>
-            </div>
-
-            {showModal && (
-                <div className="fixed top-0 left-0 z-50 w-full h-full flex items-center justify-center bg-black bg-opacity-50">
-                <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">
-                    <h2 className="text-lg font-semibold text-gray-800">Are you sure you want to delete this customer?</h2>
-                    <div className="flex justify-end mt-4">
-                    <button
-                        onClick={handleDeleteCustomer} // Call the delete function when 'Yes' button is clicked
-                        className="text-white bg-red-600 hover:bg-red-800 px-4 py-2 rounded-md mr-2"
-                    >
-                        Yes, I'm sure
-                    </button>
-                    <button
-                        onClick={() => setShowModal(false)} // Close the modal when 'No' button is clicked
-                        className="text-gray-700 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md"
-                    >
-                        No, Cancel
-                    </button>
-                    </div>
-                </div>
-                </div>
-            )}
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
     );
-}
- 
+  }
+
+  return (
+    <div className="container mx-auto p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+      {/* Header */}
+      <Card className="mb-6">
+        <CardHeader className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 bg-white dark:bg-gray-800 shadow-sm rounded-t-lg">
+          <div className="flex items-center gap-4">
+            <img src="/img/matinternet.png" alt="MAT Logo" className="h-12 w-auto" />
+            <CardTitle className="text-2xl font-bold text-gray-800 dark:text-white">Customer Dashboard</CardTitle>
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <div className="flex gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => router.back()}
+                      aria-label="Go back"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                      Back
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Return to previous page</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => router.push('/')}
+                      aria-label="Go to home"
+                    >
+                      <Home className="w-5 h-5" />
+                      Home
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Go to homepage</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={downloadExcel}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                    aria-label="Download customer data as Excel"
+                  >
+                    <Download className="w-5 h-5" />
+                    Export to Excel
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Export customer data to Excel</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <LocationChangeFilter onLocationChange={setSelectedLocation} />
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="flex flex-col md:flex-row gap-4 pt-6">
+          <StatusChangeFilter onFilter={setStatusChangeFilter} />
+          <Select
+            value={searchField}
+            onValueChange={setSearchField}
+            aria-label="Select search field"
+          >
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder="All Fields" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Fields</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="phone_number">Phone Number</SelectItem>
+              <SelectItem value="cid">CID</SelectItem>
+              <SelectItem value="contract_id">Contract ID</SelectItem>
+              <SelectItem value="internet_package">Internet Package</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-500" />
+            <Input
+              type="text"
+              placeholder="Search customers..."
+              value={searchValue}
+              onChange={e => debouncedSearch(e.target.value)}
+              className="pl-10"
+              aria-label="Search customers"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Customer Table */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">No.</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>History</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>CID</TableHead>
+                  <TableHead>Contract ID</TableHead>
+                  <TableHead>Package</TableHead>
+                  <TableHead>IP Address</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayedCustomers.map(customer => (
+                  <React.Fragment key={customer.customer_id}>
+                    <TableRow className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <TableCell>{customer.rowNumber}</TableCell>
+                      <TableCell>{customer.customer_name}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="default"
+                          className={`${
+                            customer.status_type === 'ACTIVE' ? 'bg-green-500' :
+                            customer.status_type === 'REACTIVE' ? 'bg-blue-500' :
+                            customer.status_type === 'INACTIVE' ? 'bg-yellow-500' :
+                            customer.status_type === 'TERMINATE' ? 'bg-red-500' :
+                            'bg-gray-500'
+                          } text-white`}
+                        >
+                          {customer.status_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFetchHistory(customer.customer_id)}
+                          aria-label={expandedRows[customer.customer_id] ? 'Hide history' : 'Show history'}
+                        >
+                          {expandedRows[customer.customer_id] ? 'Hide' : 'Show'}
+                        </Button>
+                      </TableCell>
+                      <TableCell>{customer.phone_number}</TableCell>
+                      <TableCell>{customer.cid}</TableCell>
+                      <TableCell>{customer.contract_id}</TableCell>
+                      <TableCell>{customer.package_name}</TableCell>
+                      <TableCell>{customer.ip_address || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link href={`/viewCustomer/${customer.customer_id}`}>
+                                  <Button variant="ghost" size="icon" aria-label="View customer">
+                                    <Eye className="h-5 w-5" />
+                                  </Button>
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>View customer details</TooltipContent>
+                            </Tooltip>
+                            {userType !== 'technical' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Link href={`/editCustomerService/${customer.customer_id}`}>
+                                    <Button variant="ghost" size="icon" aria-label="Edit customer service">
+                                      <Edit className="h-5 w-5" />
+                                    </Button>
+                                  </Link>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit customer service</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {userType !== 'customer_service' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Link href={`/editCustomer/${customer.customer_id}`}>
+                                    <Button variant="ghost" size="icon" aria-label="Edit customer">
+                                      <Edit className="h-5 w-5" />
+                                    </Button>
+                                  </Link>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit customer details</TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-red-500 hover:text-red-600"
+                                  onClick={() => {
+                                    setShowModal(true);
+                                    setCustomerToDelete(customer.customer_id);
+                                  }}
+                                  aria-label="Delete customer"
+                                >
+                                  <Trash className="h-5 w-5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete customer</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {expandedRows[customer.customer_id] && (
+                      <TableRow className="bg-gray-100 dark:bg-gray-800">
+                        <TableCell colSpan={10} className="py-4">
+                          {editHistories[customer.customer_id]?.length > 0 ? (
+                            <div className="space-y-2">
+                              {editHistories[customer.customer_id].map(history => (
+                                <div key={history.id} className="p-2 border-b border-gray-200 dark:border-gray-700">
+                                  <p className="font-medium">{history.displayString}</p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">{history.changeDescription}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400">No edit history available.</p>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      <div className="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Showing {startIndex + 1} to {Math.min(startIndex + packagesPerPage, filteredCustomers.length)} of {filteredCustomers.length} Customers
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => prev - 1)}
+            disabled={currentPage === 1}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            const page = i + Math.max(1, currentPage - 2);
+            if (page > totalPages) return null;
+            return (
+              <Button
+                key={page}
+                variant={currentPage === page ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCurrentPage(page)}
+                aria-label={`Page ${page}`}
+              >
+                {page}
+              </Button>
+            );
+          })}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => prev + 1)}
+            disabled={currentPage === totalPages}
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete this customer? This action cannot be undone.</p>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCustomer}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default Dashboard;
