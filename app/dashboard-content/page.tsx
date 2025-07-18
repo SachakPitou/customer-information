@@ -209,69 +209,68 @@ const Dashboard = () => {
   }, [fetchCounts, fetchAllData, fetchUserType]);
 
   // Filter customers
-  // Filter customers
-const filteredCustomers = useMemo(() => {
-  return customers.filter(customer => {
-    if (customer.status !== 'Completed') return false;
-    if (selectedLocation !== null && customer.location_id !== selectedLocation) return false;
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(customer => {
+      if (customer.status !== 'Completed') return false;
+      if (selectedLocation !== null && customer.location_id !== selectedLocation) return false;
 
-    const searchTerm = searchValue.toLowerCase();
-    let statusChangeFilterPass = true;
+      const searchTerm = searchValue.toLowerCase();
+      let statusChangeFilterPass = true;
 
-    if (statusChangeFilter.startDate && statusChangeFilter.endDate) {
-      const filterStartDate = new Date(statusChangeFilter.startDate);
-      const filterEndDate = new Date(statusChangeFilter.endDate);
-      filterStartDate.setHours(0, 0, 0, 0);
-      filterEndDate.setHours(23, 59, 59, 999);
+      if (statusChangeFilter.startDate && statusChangeFilter.endDate) {
+        const filterStartDate = new Date(statusChangeFilter.startDate);
+        const filterEndDate = new Date(statusChangeFilter.endDate);
+        filterStartDate.setHours(0, 0, 0, 0);
+        filterEndDate.setHours(23, 59, 59, 999);
 
-      if (Array.isArray(customer.statusHistory) && customer.statusHistory.length > 0) {
-        const relevantStatus = customer.statusHistory.find(status => {
-          const statusStartDate = new Date(status.start_date);
-          const statusEndDate = status.end_date ? new Date(status.end_date) : new Date();
-          return statusStartDate <= filterEndDate && statusEndDate >= filterStartDate;
-        });
+        if (Array.isArray(customer.statusHistory) && customer.statusHistory.length > 0) {
+          const relevantStatus = customer.statusHistory.find(status => {
+            const statusStartDate = new Date(status.start_date);
+            const statusEndDate = status.end_date ? new Date(status.end_date) : new Date();
+            return statusStartDate <= filterEndDate && statusEndDate >= filterStartDate;
+          });
 
-        if (relevantStatus) {
-          statusChangeFilterPass = statusChangeFilter.statusType === 'ALL' || relevantStatus.status_type === statusChangeFilter.statusType;
+          if (relevantStatus) {
+            statusChangeFilterPass = statusChangeFilter.statusType === 'ALL' || relevantStatus.status_type === statusChangeFilter.statusType;
+          } else {
+            statusChangeFilterPass = false;
+          }
         } else {
           statusChangeFilterPass = false;
         }
-      } else {
-        statusChangeFilterPass = false;
+      } else if (statusChangeFilter.statusType !== 'ALL') {
+        const latestStatus = customer.statusHistory.length > 0
+          ? customer.statusHistory[customer.statusHistory.length - 1].status_type
+          : customer.status_type;
+        statusChangeFilterPass = latestStatus === statusChangeFilter.statusType;
       }
-    } else if (statusChangeFilter.statusType !== 'ALL') {
-      const latestStatus = customer.statusHistory.length > 0
-        ? customer.statusHistory[customer.statusHistory.length - 1].status_type
-        : customer.status_type;
-      statusChangeFilterPass = latestStatus === statusChangeFilter.statusType;
-    }
 
-    if (searchValue === '') return statusChangeFilterPass;
+      if (searchValue === '') return statusChangeFilterPass;
 
-    let isMatchingSearch = false;
-    if (searchField === 'all') {
-      isMatchingSearch = (
-        customer.customer_name?.toLowerCase().includes(searchTerm) ||
-        customer.phone_number?.toLowerCase().includes(searchTerm) ||
-        customer.cid?.toLowerCase().includes(searchTerm) ||
-        customer.contract_id?.toLowerCase().includes(searchTerm) ||
-        customer.package_name?.toLowerCase().includes(searchTerm)
-      );
-    } else if (searchField === 'name') {
-      isMatchingSearch = customer.customer_name?.toLowerCase().includes(searchTerm);
-    } else if (searchField === 'phone_number') {
-      isMatchingSearch = customer.phone_number?.toString().includes(searchTerm);
-    } else if (searchField === 'cid') {
-      isMatchingSearch = customer.cid?.toString().toLowerCase().startsWith(searchTerm);
-    } else if (searchField === 'contract_id') {
-      isMatchingSearch = customer.contract_id?.toString().toLowerCase().startsWith(searchTerm);
-    } else if (searchField === 'internet_package') {
-      isMatchingSearch = customer.package_name?.toString().toLowerCase().startsWith(searchTerm);
-    }
+      let isMatchingSearch = false;
+      if (searchField === 'all') {
+        isMatchingSearch = (
+          customer.customer_name?.toLowerCase().includes(searchTerm) ||
+          customer.phone_number?.toLowerCase().includes(searchTerm) ||
+          customer.cid?.toLowerCase().includes(searchTerm) ||
+          customer.contract_id?.toLowerCase().includes(searchTerm) ||
+          customer.package_name?.toLowerCase().includes(searchTerm)
+        );
+      } else if (searchField === 'name') {
+        isMatchingSearch = customer.customer_name?.toLowerCase().includes(searchTerm);
+      } else if (searchField === 'phone_number') {
+        isMatchingSearch = customer.phone_number?.toString().includes(searchTerm);
+      } else if (searchField === 'cid') {
+        isMatchingSearch = customer.cid?.toString().toLowerCase().startsWith(searchTerm);
+      } else if (searchField === 'contract_id') {
+        isMatchingSearch = customer.contract_id?.toString().toLowerCase().startsWith(searchTerm);
+      } else if (searchField === 'internet_package') {
+        isMatchingSearch = customer.package_name?.toString().toLowerCase().startsWith(searchTerm);
+      }
 
-    return isMatchingSearch && statusChangeFilterPass;
-  });
-}, [customers, searchValue, searchField, selectedLocation, statusChangeFilter]);
+      return isMatchingSearch && statusChangeFilterPass;
+    });
+  }, [customers, searchValue, searchField, selectedLocation, statusChangeFilter]);
 
   // Download Excel
   const downloadExcel = useCallback(() => {
@@ -636,7 +635,7 @@ const filteredCustomers = useMemo(() => {
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Showing {startIndex + 1} to {Math.min(startIndex + packagesPerPage, filteredCustomers.length)} of {filteredCustomers.length} Customers
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button
             variant="outline"
             size="sm"
@@ -646,21 +645,54 @@ const filteredCustomers = useMemo(() => {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            const page = i + Math.max(1, currentPage - 2);
-            if (page > totalPages) return null;
-            return (
-              <Button
-                key={page}
-                variant={currentPage === page ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCurrentPage(page)}
-                aria-label={`Page ${page}`}
-              >
-                {page}
-              </Button>
-            );
+
+          {/* First page */}
+          <Button
+            variant={currentPage === 1 ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setCurrentPage(1)}
+            aria-label="Page 1"
+          >
+            1
+          </Button>
+
+          {/* Ellipsis before current page if needed */}
+          {currentPage > 4 && <span className="text-gray-600 dark:text-gray-400">...</span>}
+
+          {/* Middle pages */}
+          {Array.from({ length: Math.min(3, totalPages - 2) }, (_, i) => {
+            const page = currentPage - 1 + i;
+            if (page > 1 && page < totalPages) {
+              return (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  aria-label={`Page ${page}`}
+                >
+                  {page}
+                </Button>
+              );
+            }
+            return null;
           })}
+
+          {/* Ellipsis before last page if needed */}
+          {currentPage < totalPages - 3 && <span className="text-gray-600 dark:text-gray-400">...</span>}
+
+          {/* Last page (if more than 1 page) */}
+          {totalPages > 1 && (
+            <Button
+              variant={currentPage === totalPages ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCurrentPage(totalPages)}
+              aria-label={`Page ${totalPages}`}
+            >
+              {totalPages}
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
