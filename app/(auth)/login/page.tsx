@@ -1,8 +1,8 @@
-import Header from '@/components/Header/Header';
+import Header from '@/components/header/Header';
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import PasswordInput from '../component/PasswordInput'; // Adjust the import path as needed
+import PasswordInput from '@/components/form/PasswordInput';
 
 export default async function Login({
   searchParams,

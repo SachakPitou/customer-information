@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { CrudButton } from './CRUDbutton';
+import { CrudButton } from '../CRUDbutton';
 import PendingRequests from '@/app/pendingRequest/page';
 import LoadingSpinner from '@/app/component/LoadingSpinner';
 

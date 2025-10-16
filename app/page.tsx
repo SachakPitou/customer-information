@@ -1,5 +1,5 @@
-import Header from '@/components/Header/Header';
-import { Hero } from '@/components/Hero';
+import Header from '@/components/header/Header';
+import { Hero } from '@/components/hero/Hero';
 export default async function Index() {
   return (
     <div>

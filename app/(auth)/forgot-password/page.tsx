@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import Header from '@/components/Header/Header';
+import Header from '@/components/header/Header';
 
 export default async function ForgotPassword({
   searchParams,
