@@ -12,6 +12,7 @@ import LocationChangeFilter from '../component/LocationChangeFilter';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from 'react-hot-toast';
 import { debounce } from 'lodash';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -70,6 +71,7 @@ interface StatusChangeFilterParams {
 }
 
 const Dashboard = () => {
+  // ✅ ORIGINAL STATES
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
@@ -88,6 +90,11 @@ const Dashboard = () => {
     endDate: '',
     statusType: 'ALL',
   });
+
+  // ✅ FIXED: Array instead of Set
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('ACTIVE');
 
   const router = useRouter();
   const packagesPerPage = 20;
@@ -335,6 +342,56 @@ const Dashboard = () => {
     }
   }, [customerToDelete]);
 
+  // ✅ FIXED: Bulk Status Change Handler (Array instead of Set)
+  const handleBulkStatusChange = useCallback(async () => {
+    if (selectedCustomers.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      const customerIds = selectedCustomers;
+      
+      // Update Customer table
+      const { error: customerError } = await supabase
+        .from('Customer')
+        .update({ status_type: bulkStatus })
+        .in('customer_id', customerIds);
+      
+      if (customerError) throw customerError;
+      
+      // Add to statushistory
+      const statusHistoryUpdates = customerIds.map(customerId => ({
+        customer_id: customerId,
+        status_type: bulkStatus,
+        start_date: new Date().toISOString(),
+        end_date: null
+      }));
+      
+      const { error: historyError } = await supabase
+        .from('statushistory')
+        .insert(statusHistoryUpdates);
+      
+      if (historyError) throw historyError;
+      
+      // Update local state
+      setCustomers(prev => 
+        prev.map(customer => 
+          selectedCustomers.includes(customer.customer_id)
+            ? { ...customer, status_type: bulkStatus }
+            : customer
+        )
+      );
+      
+      setSelectedCustomers([]);
+      setShowBulkStatusModal(false);
+      toast.success(`Successfully updated ${customerIds.length} customers to ${bulkStatus}`);
+    } catch (error) {
+      console.error('Bulk status update error:', error);
+      toast.error('Failed to update customer statuses');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedCustomers, bulkStatus]);
+
   // Handle fetch history
   const handleFetchHistory = useCallback(async (customerId: string) => {
     if (editHistories[customerId]) {
@@ -492,6 +549,40 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
+      {/* ✅ FIXED: Bulk Actions Toolbar */}
+      <Card className="mb-6">
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary" className="text-sm">
+              {selectedCustomers.length} selected
+            </Badge>
+            {selectedCustomers.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedCustomers([])}
+                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+              >
+                Clear Selection
+              </Button>
+            )}
+          </div>
+          
+          {selectedCustomers.length > 0 && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBulkStatusModal(true)}
+                className="bg-yellow-50 border-yellow-200 hover:bg-yellow-100 text-yellow-800"
+              >
+                Change Status ({selectedCustomers.length})
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Customer Table */}
       <Card>
         <CardContent className="p-0">
@@ -499,6 +590,27 @@ const Dashboard = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {/* ✅ FIXED: Header Checkbox (no indeterminate) */}
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        selectedCustomers.length > 0 && 
+                        selectedCustomers.length === displayedCustomers.length
+                      }
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          const newSelected = [...selectedCustomers, ...displayedCustomers.map(c => c.customer_id)];
+                          setSelectedCustomers(newSelected);
+                        } else {
+                          setSelectedCustomers(
+                            selectedCustomers.filter(id => 
+                              !displayedCustomers.some(c => c.customer_id === id)
+                            )
+                          );
+                        }
+                      }}
+                    />
+                  </TableHead>
                   <TableHead className="w-16">No.</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
@@ -515,6 +627,26 @@ const Dashboard = () => {
                 {displayedCustomers.map(customer => (
                   <React.Fragment key={customer.customer_id}>
                     <TableRow className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      {/* ✅ FIXED: Row Checkbox (Array.includes) */}
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedCustomers.includes(customer.customer_id)}
+                          onCheckedChange={(checked) => {
+                            const newSelected = [...selectedCustomers];
+                            if (checked) {
+                              if (!newSelected.includes(customer.customer_id)) {
+                                newSelected.push(customer.customer_id);
+                              }
+                            } else {
+                              const index = newSelected.indexOf(customer.customer_id);
+                              if (index > -1) {
+                                newSelected.splice(index, 1);
+                              }
+                            }
+                            setSelectedCustomers(newSelected);
+                          }}
+                        />
+                      </TableCell>
                       <TableCell>{customer.rowNumber}</TableCell>
                       <TableCell>{customer.customer_name}</TableCell>
                       <TableCell>
@@ -525,6 +657,7 @@ const Dashboard = () => {
                             customer.status_type === 'REACTIVE' ? 'bg-blue-500' :
                             customer.status_type === 'INACTIVE' ? 'bg-yellow-500' :
                             customer.status_type === 'TERMINATE' ? 'bg-red-500' :
+                            customer.status_type === 'SUSPENDED' ? 'bg-gray-500' :
                             'bg-gray-500'
                           } text-white`}
                         >
@@ -606,7 +739,7 @@ const Dashboard = () => {
                     </TableRow>
                     {expandedRows[customer.customer_id] && (
                       <TableRow className="bg-gray-100 dark:bg-gray-800">
-                        <TableCell colSpan={10} className="py-4">
+                        <TableCell colSpan={11}>
                           {editHistories[customer.customer_id]?.length > 0 ? (
                             <div className="space-y-2">
                               {editHistories[customer.customer_id].map(history => (
@@ -718,6 +851,37 @@ const Dashboard = () => {
             </Button>
             <Button variant="destructive" onClick={handleDeleteCustomer}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ FIXED: Bulk Status Change Modal */}
+      <Dialog open={showBulkStatusModal} onOpenChange={setShowBulkStatusModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Status for {selectedCustomers.length} Customers</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Select value={bulkStatus} onValueChange={setBulkStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+                <SelectItem value="REACTIVE">REACTIVE</SelectItem>
+                <SelectItem value="INACTIVE">INACTIVE</SelectItem>
+                <SelectItem value="TERMINATE">TERMINATE</SelectItem>
+                <SelectItem value="SUSPENDED">SUSPENDED</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkStatusModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkStatusChange} disabled={isLoading}>
+              {isLoading ? 'Updating...' : `Update ${selectedCustomers.length} Customers`}
             </Button>
           </DialogFooter>
         </DialogContent>

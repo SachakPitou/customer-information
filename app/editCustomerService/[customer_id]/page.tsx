@@ -341,6 +341,7 @@ export default function Page() {
                                 <option value="INACTIVE">Inactive</option>
                                 <option value="REACTIVE">Reactive</option>
                                 <option value="TERMINATE">Terminate</option>
+                                <option value="SUSPENDED">Suspended</option>
                             </select>
                         </div>
 
